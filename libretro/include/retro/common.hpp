@@ -478,6 +478,21 @@ namespace retro {
 	inline constexpr std::string_view enum_name(T value) {
 		return enum_reflect(value).name;
 	}
+
+	// Small array type for TOML generated lists.
+	//
+	template<typename T>
+	struct small_array {
+		T	data[12] = {};
+		u8 length	= 0;
+		constexpr small_array(std::initializer_list<T> init) : length((u8)init.size()) {
+			range::copy(init, data);
+		}
+		constexpr const T* begin() const { return &data[0]; }
+		constexpr const T* end() const { return &data[length]; }
+		constexpr size_t size() const { return length; }
+		constexpr const T& operator[](size_t n) const { return data[n]; }
+	};
 };
 
 // String conversion.

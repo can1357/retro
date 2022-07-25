@@ -23,15 +23,12 @@ kind   = "@op-kind.unary-signed"
 [op.bit_lsb]
 symbol = "lsb"
 kind   = "@op-kind.unary-bitwise"
-ret_bitcnt = true
 [op.bit_msb]
 symbol = "msb"
 kind   = "@op-kind.unary-bitwise"
-ret_bitcnt = true
 [op.bit_popcnt]
 symbol = "popcnt"
 kind   = "@op-kind.unary-bitwise"
-ret_bitcnt = true
 [op.bit_not]
 symbol = "~"
 kind   = "@op-kind.unary-bitwise"

@@ -1,7 +1,7 @@
 #!/usr/bin/env python
 # coding: utf-8
 
-# In[12]:
+# In[16]:
 
 
 #!conda install --yes toml
@@ -28,6 +28,7 @@ CXX_DESC_SUFFIX =   "_desc"
 CXX_NS_SUFFIX_PER_ENUM = """namespace retro {{ template<> struct descriptor<{0}::{1}> {{ using type = {0}::{1}_desc; }}; }};
 """
 CXX_NULL_ENUM = "none"
+CXX_USE_BOOL = False
 
 # Bit helpers
 #
@@ -106,7 +107,7 @@ class CxxInteger(CxxType):
         
         if bits == 1:
             assert not signed
-            self.default = "false"
+            self.default = "false" if CXX_USE_BOOL else "0"
             self.ptype =   bool
         else:
             self.default = "0"
@@ -129,7 +130,10 @@ class CxxInteger(CxxType):
         if value == None:
             return self.default
         if self.bits == 1:
-            return "true" if value else "false"
+            if CXX_USE_BOOL:
+                return "true" if value else "false"
+            else:
+                return "1" if value else "0"
         elif self.bits >= 32:
             return hex(value)
         else:
@@ -144,7 +148,7 @@ class CxxArray(CxxType):
             self.name =       "std::array<{0}, {1}>".format(to_cname(underlying.name), length)
             self.size =       underlying.size * length
         else:
-            self.name =       "std::initializer_list<{0}>".format(to_cname(underlying.name))
+            self.name =       "small_array<{0}>".format(to_cname(underlying.name))
             self.size =       16
     def write(self, value):
         if value and len(value) != 0:
@@ -178,7 +182,7 @@ class CxxEnum(CxxType):
              field += " : " + str(self.bits)
         return [to_cname(self.name), field, " = " + self.default + ";"]
     def write(self, value):
-        if value == None:
+        if value == None or len(value) == 0:
             value = CXX_NULL_ENUM
         assert isinstance(value, str)
         if value[0] == "@":
@@ -240,7 +244,7 @@ def to_cxx_common_type(t1, t2, packed = CXX_PACK_INTEGERS):
     # Handle enum types.
     #
     if isinstance(t1, CxxEnum) and isinstance(t2, CxxEnum):
-        if t1.underlying == t2.underlying:
+        if t1.underlying.name == t2.underlying.name:
             return t1
     
     # Handle integer promotion:
@@ -280,7 +284,7 @@ def to_cxx_type(value, packed = True, scope = None):
     if isinstance(value, str):
         # Enum-escape.
         if scope:
-            if value[0] == "@":
+            if len(value) != 0 and value[0] == "@":
                 i = value.index(".")
                 if i != -1:
                     # @arch.x86_64 x86_64 arch
@@ -385,7 +389,7 @@ class EnumFwd:
     def __init__(self, name):
         self.name = name
         pass
-    def get_width():
+    def get_width(self):
         return 32
 class Enum(Decl):
     # Constructed by the parent, name and the raw TOML body.
@@ -524,7 +528,7 @@ class Enum(Decl):
             ty = None
             for value in values:
                 tx = to_cxx_type(value, True, self)
-                ty = to_cxx_common_type(ty, tx) if ty else tx
+                ty = to_cxx_common_type(ty, tx)
             assert ty != None
             fields[name] =         ty
             self.desc_init[name] = [ty.write(x) for x in values]
