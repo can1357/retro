@@ -1,0 +1,8 @@
+build/
+*.vcxproj.filters
+*.vcxproj.user
+*.bat
+*.exe
+.vs/
+*.ipynb
+*.table.hpp

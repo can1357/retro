@@ -1,0 +1,1006 @@
+reg_kind = [
+	"general", 
+	"stack", 
+	"instruction", 
+	"flag", 
+	"vector",
+	"matrix",
+	"mask",
+	"control",
+	"segment",
+	"system",
+	"error"
+]
+
+# general purpose registers 8-bit
+[reg.al]
+kind  =  "@reg_kind.general"
+width =  8
+alias =  "@reg.rax"
+[reg.cl]
+kind  =  "@reg_kind.general"
+width =  8
+alias =  "@reg.rcx"
+[reg.dl]
+kind  =  "@reg_kind.general"
+width =  8
+alias =  "@reg.rdx"
+[reg.bl]
+kind  =  "@reg_kind.general"
+width =  8
+alias =  "@reg.rbx"
+[reg.ah]
+kind  =  "@reg_kind.general"
+width =  8
+alias =  "@reg.rax"
+offset = 8
+[reg.ch]
+kind  =  "@reg_kind.general"
+width =  8
+alias =  "@reg.rcx"
+offset = 8
+[reg.dh]
+kind  =  "@reg_kind.general"
+width =  8
+alias =  "@reg.rdx"
+offset = 8
+[reg.bh]
+kind  =  "@reg_kind.general"
+width =  8
+alias =  "@reg.rbx"
+offset = 8
+[reg.spl]
+kind  =  "@reg_kind.general"
+width =  8
+alias =  "@reg.rsp"
+[reg.bpl]
+kind  =  "@reg_kind.general"
+width =  8
+alias =  "@reg.rbp"
+[reg.sil]
+kind  =  "@reg_kind.general"
+width =  8
+alias =  "@reg.rsi"
+[reg.dil]
+kind  =  "@reg_kind.general"
+width =  8
+alias =  "@reg.rdi"
+[reg.r8b]
+kind  =  "@reg_kind.general"
+width =  8
+alias =  "@reg.r8"
+[reg.r9b]
+kind  =  "@reg_kind.general"
+width =  8
+alias =  "@reg.r9"
+[reg.r10b]
+kind  =  "@reg_kind.general"
+width =  8
+alias =  "@reg.r10"
+[reg.r11b]
+kind  =  "@reg_kind.general"
+width =  8
+alias =  "@reg.r11"
+[reg.r12b]
+kind  =  "@reg_kind.general"
+width =  8
+alias =  "@reg.r12"
+[reg.r13b]
+kind  =  "@reg_kind.general"
+width =  8
+alias =  "@reg.r13"
+[reg.r14b]
+kind  =  "@reg_kind.general"
+width =  8
+alias =  "@reg.r14"
+[reg.r15b]
+kind  =  "@reg_kind.general"
+width =  8
+alias =  "@reg.r15"
+
+# general purpose registers 16-bit
+[reg.ax]
+kind  =  "@reg_kind.general"
+width =  16
+alias =  "@reg.rax"
+[reg.cx]
+kind  =  "@reg_kind.general"
+width =  16
+alias =  "@reg.rcx"
+[reg.dx]
+kind  =  "@reg_kind.general"
+width =  16
+alias =  "@reg.rdx"
+[reg.bx]
+kind  =  "@reg_kind.general"
+width =  16
+alias =  "@reg.rbx"
+[reg.sp]
+kind  =  "@reg_kind.general"
+width =  16
+alias =  "@reg.rsp"
+[reg.bp]
+kind  =  "@reg_kind.general"
+width =  16
+alias =  "@reg.rbp"
+[reg.si]
+kind  =  "@reg_kind.general"
+width =  16
+alias =  "@reg.rsi"
+[reg.di]
+kind  =  "@reg_kind.general"
+width =  16
+alias =  "@reg.rdi"
+[reg.r8w]
+kind  =  "@reg_kind.general"
+width =  16
+alias =  "@reg.r8"
+[reg.r9w]
+kind  =  "@reg_kind.general"
+width =  16
+alias =  "@reg.r9"
+[reg.r10w]
+kind  =  "@reg_kind.general"
+width =  16
+alias =  "@reg.r10"
+[reg.r11w]
+kind  =  "@reg_kind.general"
+width =  16
+alias =  "@reg.r11"
+[reg.r12w]
+kind  =  "@reg_kind.general"
+width =  16
+alias =  "@reg.r12"
+[reg.r13w]
+kind  =  "@reg_kind.general"
+width =  16
+alias =  "@reg.r13"
+[reg.r14w]
+kind  =  "@reg_kind.general"
+width =  16
+alias =  "@reg.r14"
+[reg.r15w]
+kind  =  "@reg_kind.general"
+width =  16
+alias =  "@reg.r15"
+
+# general purpose registers 32-bit
+[reg.eax]
+kind  =  "@reg_kind.general"
+width =  32
+alias =  "@reg.rax"
+[reg.ecx]
+kind  =  "@reg_kind.general"
+width =  32
+alias =  "@reg.rcx"
+[reg.edx]
+kind  =  "@reg_kind.general"
+width =  32
+alias =  "@reg.rdx"
+[reg.ebx]
+kind  =  "@reg_kind.general"
+width =  32
+alias =  "@reg.rbx"
+[reg.esp]
+kind  =  "@reg_kind.general"
+width =  32
+alias =  "@reg.rsp"
+[reg.ebp]
+kind  =  "@reg_kind.general"
+width =  32
+alias =  "@reg.rbp"
+[reg.esi]
+kind  =  "@reg_kind.general"
+width =  32
+alias =  "@reg.rsi"
+[reg.edi]
+kind  =  "@reg_kind.general"
+width =  32
+alias =  "@reg.rdi"
+[reg.r8d]
+kind  =  "@reg_kind.general"
+width =  32
+alias =  "@reg.r8"
+[reg.r9d]
+kind  =  "@reg_kind.general"
+width =  32
+alias =  "@reg.r9"
+[reg.r10d]
+kind  =  "@reg_kind.general"
+width =  32
+alias =  "@reg.r10"
+[reg.r11d]
+kind  =  "@reg_kind.general"
+width =  32
+alias =  "@reg.r11"
+[reg.r12d]
+kind  =  "@reg_kind.general"
+width =  32
+alias =  "@reg.r12"
+[reg.r13d]
+kind  =  "@reg_kind.general"
+width =  32
+alias =  "@reg.r13"
+[reg.r14d]
+kind  =  "@reg_kind.general"
+width =  32
+alias =  "@reg.r14"
+[reg.r15d]
+kind  =  "@reg_kind.general"
+width =  32
+alias =  "@reg.r15"
+
+# general purpose registers 64-bit
+[reg.rax]
+kind  =  "@reg_kind.general"
+width =  64
+[reg.rcx]
+kind  =  "@reg_kind.general"
+width =  64
+[reg.rdx]
+kind  =  "@reg_kind.general"
+width =  64
+[reg.rbx]
+kind  =  "@reg_kind.general"
+width =  64
+[reg.rsp]
+kind  =  "@reg_kind.general"
+width =  64
+[reg.rbp]
+kind  =  "@reg_kind.general"
+width =  64
+[reg.rsi]
+kind  =  "@reg_kind.general"
+width =  64
+[reg.rdi]
+kind  =  "@reg_kind.general"
+width =  64
+[reg.r8]
+kind  =  "@reg_kind.general"
+width =  64
+[reg.r9]
+kind  =  "@reg_kind.general"
+width =  64
+[reg.r10]
+kind  =  "@reg_kind.general"
+width =  64
+[reg.r11]
+kind  =  "@reg_kind.general"
+width =  64
+[reg.r12]
+kind  =  "@reg_kind.general"
+width =  64
+[reg.r13]
+kind  =  "@reg_kind.general"
+width =  64
+[reg.r14]
+kind  =  "@reg_kind.general"
+width =  64
+[reg.r15]
+kind  =  "@reg_kind.general"
+width =  64
+
+# floating point legacy registers
+[reg.st0]
+[reg.st1]
+[reg.st2]
+[reg.st3]
+[reg.st4]
+[reg.st5]
+[reg.st6]
+[reg.st7]
+[reg.x87control]
+[reg.x87status]
+[reg.x87tag]
+[reg.mm0]
+[reg.mm1]
+[reg.mm2]
+[reg.mm3]
+[reg.mm4]
+[reg.mm5]
+[reg.mm6]
+[reg.mm7]
+
+# floating point vector registers 128-bit
+[reg.xmm0]
+kind  =  "@reg_kind.vector"
+width =  128
+alias =  "@reg.ymm0"
+[reg.xmm1]
+kind  =  "@reg_kind.vector"
+width =  128
+alias =  "@reg.ymm1"
+[reg.xmm2]
+kind  =  "@reg_kind.vector"
+width =  128
+alias =  "@reg.ymm2"
+[reg.xmm3]
+kind  =  "@reg_kind.vector"
+width =  128
+alias =  "@reg.ymm3"
+[reg.xmm4]
+kind  =  "@reg_kind.vector"
+width =  128
+alias =  "@reg.ymm4"
+[reg.xmm5]
+kind  =  "@reg_kind.vector"
+width =  128
+alias =  "@reg.ymm5"
+[reg.xmm6]
+kind  =  "@reg_kind.vector"
+width =  128
+alias =  "@reg.ymm6"
+[reg.xmm7]
+kind  =  "@reg_kind.vector"
+width =  128
+alias =  "@reg.ymm7"
+[reg.xmm8]
+kind  =  "@reg_kind.vector"
+width =  128
+alias =  "@reg.ymm8"
+[reg.xmm9]
+kind  =  "@reg_kind.vector"
+width =  128
+alias =  "@reg.ymm9"
+[reg.xmm10]
+kind  =  "@reg_kind.vector"
+width =  128
+alias =  "@reg.ymm10"
+[reg.xmm11]
+kind  =  "@reg_kind.vector"
+width =  128
+alias =  "@reg.ymm11"
+[reg.xmm12]
+kind  =  "@reg_kind.vector"
+width =  128
+alias =  "@reg.ymm12"
+[reg.xmm13]
+kind  =  "@reg_kind.vector"
+width =  128
+alias =  "@reg.ymm13"
+[reg.xmm14]
+kind  =  "@reg_kind.vector"
+width =  128
+alias =  "@reg.ymm14"
+[reg.xmm15]
+kind  =  "@reg_kind.vector"
+width =  128
+alias =  "@reg.ymm15"
+[reg.xmm16]
+kind  =  "@reg_kind.vector"
+width =  128
+alias =  "@reg.ymm16"
+[reg.xmm17]
+kind  =  "@reg_kind.vector"
+width =  128
+alias =  "@reg.ymm17"
+[reg.xmm18]
+kind  =  "@reg_kind.vector"
+width =  128
+alias =  "@reg.ymm18"
+[reg.xmm19]
+kind  =  "@reg_kind.vector"
+width =  128
+alias =  "@reg.ymm19"
+[reg.xmm20]
+kind  =  "@reg_kind.vector"
+width =  128
+alias =  "@reg.ymm20"
+[reg.xmm21]
+kind  =  "@reg_kind.vector"
+width =  128
+alias =  "@reg.ymm21"
+[reg.xmm22]
+kind  =  "@reg_kind.vector"
+width =  128
+alias =  "@reg.ymm22"
+[reg.xmm23]
+kind  =  "@reg_kind.vector"
+width =  128
+alias =  "@reg.ymm23"
+[reg.xmm24]
+kind  =  "@reg_kind.vector"
+width =  128
+alias =  "@reg.ymm24"
+[reg.xmm25]
+kind  =  "@reg_kind.vector"
+width =  128
+alias =  "@reg.ymm25"
+[reg.xmm26]
+kind  =  "@reg_kind.vector"
+width =  128
+alias =  "@reg.ymm26"
+[reg.xmm27]
+kind  =  "@reg_kind.vector"
+width =  128
+alias =  "@reg.ymm27"
+[reg.xmm28]
+kind  =  "@reg_kind.vector"
+width =  128
+alias =  "@reg.ymm28"
+[reg.xmm29]
+kind  =  "@reg_kind.vector"
+width =  128
+alias =  "@reg.ymm29"
+[reg.xmm30]
+kind  =  "@reg_kind.vector"
+width =  128
+alias =  "@reg.ymm30"
+[reg.xmm31]
+kind  =  "@reg_kind.vector"
+width =  128
+alias =  "@reg.ymm31"
+
+# floating point vector registers 256-bit
+[reg.ymm0]
+kind  =  "@reg_kind.vector"
+width =  256
+alias =  "@reg.zmm0"
+[reg.ymm1]
+kind  =  "@reg_kind.vector"
+width =  256
+alias =  "@reg.zmm1"
+[reg.ymm2]
+kind  =  "@reg_kind.vector"
+width =  256
+alias =  "@reg.zmm2"
+[reg.ymm3]
+kind  =  "@reg_kind.vector"
+width =  256
+alias =  "@reg.zmm3"
+[reg.ymm4]
+kind  =  "@reg_kind.vector"
+width =  256
+alias =  "@reg.zmm4"
+[reg.ymm5]
+kind  =  "@reg_kind.vector"
+width =  256
+alias =  "@reg.zmm5"
+[reg.ymm6]
+kind  =  "@reg_kind.vector"
+width =  256
+alias =  "@reg.zmm6"
+[reg.ymm7]
+kind  =  "@reg_kind.vector"
+width =  256
+alias =  "@reg.zmm7"
+[reg.ymm8]
+kind  =  "@reg_kind.vector"
+width =  256
+alias =  "@reg.zmm8"
+[reg.ymm9]
+kind  =  "@reg_kind.vector"
+width =  256
+alias =  "@reg.zmm9"
+[reg.ymm10]
+kind  =  "@reg_kind.vector"
+width =  256
+alias =  "@reg.zmm10"
+[reg.ymm11]
+kind  =  "@reg_kind.vector"
+width =  256
+alias =  "@reg.zmm11"
+[reg.ymm12]
+kind  =  "@reg_kind.vector"
+width =  256
+alias =  "@reg.zmm12"
+[reg.ymm13]
+kind  =  "@reg_kind.vector"
+width =  256
+alias =  "@reg.zmm13"
+[reg.ymm14]
+kind  =  "@reg_kind.vector"
+width =  256
+alias =  "@reg.zmm14"
+[reg.ymm15]
+kind  =  "@reg_kind.vector"
+width =  256
+alias =  "@reg.zmm15"
+[reg.ymm16]
+kind  =  "@reg_kind.vector"
+width =  256
+alias =  "@reg.zmm16"
+[reg.ymm17]
+kind  =  "@reg_kind.vector"
+width =  256
+alias =  "@reg.zmm17"
+[reg.ymm18]
+kind  =  "@reg_kind.vector"
+width =  256
+alias =  "@reg.zmm18"
+[reg.ymm19]
+kind  =  "@reg_kind.vector"
+width =  256
+alias =  "@reg.zmm19"
+[reg.ymm20]
+kind  =  "@reg_kind.vector"
+width =  256
+alias =  "@reg.zmm20"
+[reg.ymm21]
+kind  =  "@reg_kind.vector"
+width =  256
+alias =  "@reg.zmm21"
+[reg.ymm22]
+kind  =  "@reg_kind.vector"
+width =  256
+alias =  "@reg.zmm22"
+[reg.ymm23]
+kind  =  "@reg_kind.vector"
+width =  256
+alias =  "@reg.zmm23"
+[reg.ymm24]
+kind  =  "@reg_kind.vector"
+width =  256
+alias =  "@reg.zmm24"
+[reg.ymm25]
+kind  =  "@reg_kind.vector"
+width =  256
+alias =  "@reg.zmm25"
+[reg.ymm26]
+kind  =  "@reg_kind.vector"
+width =  256
+alias =  "@reg.zmm26"
+[reg.ymm27]
+kind  =  "@reg_kind.vector"
+width =  256
+alias =  "@reg.zmm27"
+[reg.ymm28]
+kind  =  "@reg_kind.vector"
+width =  256
+alias =  "@reg.zmm28"
+[reg.ymm29]
+kind  =  "@reg_kind.vector"
+width =  256
+alias =  "@reg.zmm29"
+[reg.ymm30]
+kind  =  "@reg_kind.vector"
+width =  256
+alias =  "@reg.zmm30"
+[reg.ymm31]
+kind  =  "@reg_kind.vector"
+width =  256
+alias =  "@reg.zmm31"
+
+# floating point vector registers 512-bit
+[reg.zmm0]
+kind  =  "@reg_kind.vector"
+width =  512
+[reg.zmm1]
+kind  =  "@reg_kind.vector"
+width =  512
+[reg.zmm2]
+kind  =  "@reg_kind.vector"
+width =  512
+[reg.zmm3]
+kind  =  "@reg_kind.vector"
+width =  512
+[reg.zmm4]
+kind  =  "@reg_kind.vector"
+width =  512
+[reg.zmm5]
+kind  =  "@reg_kind.vector"
+width =  512
+[reg.zmm6]
+kind  =  "@reg_kind.vector"
+width =  512
+[reg.zmm7]
+kind  =  "@reg_kind.vector"
+width =  512
+[reg.zmm8]
+kind  =  "@reg_kind.vector"
+width =  512
+[reg.zmm9]
+kind  =  "@reg_kind.vector"
+width =  512
+[reg.zmm10]
+kind  =  "@reg_kind.vector"
+width =  512
+[reg.zmm11]
+kind  =  "@reg_kind.vector"
+width =  512
+[reg.zmm12]
+kind  =  "@reg_kind.vector"
+width =  512
+[reg.zmm13]
+kind  =  "@reg_kind.vector"
+width =  512
+[reg.zmm14]
+kind  =  "@reg_kind.vector"
+width =  512
+[reg.zmm15]
+kind  =  "@reg_kind.vector"
+width =  512
+[reg.zmm16]
+kind  =  "@reg_kind.vector"
+width =  512
+[reg.zmm17]
+kind  =  "@reg_kind.vector"
+width =  512
+[reg.zmm18]
+kind  =  "@reg_kind.vector"
+width =  512
+[reg.zmm19]
+kind  =  "@reg_kind.vector"
+width =  512
+[reg.zmm20]
+kind  =  "@reg_kind.vector"
+width =  512
+[reg.zmm21]
+kind  =  "@reg_kind.vector"
+width =  512
+[reg.zmm22]
+kind  =  "@reg_kind.vector"
+width =  512
+[reg.zmm23]
+kind  =  "@reg_kind.vector"
+width =  512
+[reg.zmm24]
+kind  =  "@reg_kind.vector"
+width =  512
+[reg.zmm25]
+kind  =  "@reg_kind.vector"
+width =  512
+[reg.zmm26]
+kind  =  "@reg_kind.vector"
+width =  512
+[reg.zmm27]
+kind  =  "@reg_kind.vector"
+width =  512
+[reg.zmm28]
+kind  =  "@reg_kind.vector"
+width =  512
+[reg.zmm29]
+kind  =  "@reg_kind.vector"
+width =  512
+[reg.zmm30]
+kind  =  "@reg_kind.vector"
+width =  512
+[reg.zmm31]
+kind  =  "@reg_kind.vector"
+width =  512
+
+# matrix registers
+[reg.tmm0]
+kind  =  "@reg_kind.matrix"
+[reg.tmm1]
+kind  =  "@reg_kind.matrix"
+[reg.tmm2]
+kind  =  "@reg_kind.matrix"
+[reg.tmm3]
+kind  =  "@reg_kind.matrix"
+[reg.tmm4]
+kind  =  "@reg_kind.matrix"
+[reg.tmm5]
+kind  =  "@reg_kind.matrix"
+[reg.tmm6]
+kind  =  "@reg_kind.matrix"
+[reg.tmm7]
+kind  =  "@reg_kind.matrix"
+
+# flags registers
+[reg.flags]
+kind  =  "@reg_kind.flag"
+width =  16
+alias =  "@reg.rflags"
+[reg.eflags]
+kind  =  "@reg_kind.flag"
+width =  32
+alias =  "@reg.rflags"
+[reg.rflags]
+kind  =  "@reg_kind.flag"
+width =  64
+mask-1 = 0x2
+mask-0 = 0xFFFFFFFFFFC08028
+
+# instruction-pointer registers
+[reg.ip]
+kind  =  "@reg_kind.instruction"
+width =  16
+alias =  "@reg.rip"
+[reg.eip]
+kind  =  "@reg_kind.instruction"
+width =  32
+alias =  "@reg.rip"
+[reg.rip]
+kind  =  "@reg_kind.instruction"
+width =  64
+
+# segment registers
+[reg.es]
+kind  =  "@reg_kind.segment"
+width =  16
+[reg.cs]
+kind  =  "@reg_kind.segment"
+width =  16
+[reg.ss]
+kind  =  "@reg_kind.segment"
+width =  16
+[reg.ds]
+kind  =  "@reg_kind.segment"
+width =  16
+[reg.fs]
+kind  =  "@reg_kind.segment"
+width =  16
+[reg.gs]
+kind  =  "@reg_kind.segment"
+width =  16
+
+# table registers
+[reg.gdtr]
+[reg.ldtr]
+[reg.idtr]
+[reg.tr]
+
+# test registers
+[reg.tr0]
+[reg.tr1]
+[reg.tr2]
+[reg.tr3]
+[reg.tr4]
+[reg.tr5]
+[reg.tr6]
+[reg.tr7]
+
+# control registers
+[reg.cr0]
+kind  =  "@reg_kind.system"
+width =  64
+[reg.cr1]
+kind  =  "@reg_kind.system"
+width =  64
+[reg.cr2]
+kind  =  "@reg_kind.system"
+width =  64
+[reg.cr3]
+kind  =  "@reg_kind.system"
+width =  64
+[reg.cr4]
+kind  =  "@reg_kind.system"
+width =  64
+[reg.cr5]
+kind  =  "@reg_kind.error"
+[reg.cr6]
+kind  =  "@reg_kind.error"
+[reg.cr7]
+kind  =  "@reg_kind.error"
+[reg.cr8]
+kind  =  "@reg_kind.system"
+width =  64
+[reg.cr9]
+kind  =  "@reg_kind.error"
+[reg.cr10]
+kind  =  "@reg_kind.error"
+[reg.cr11]
+kind  =  "@reg_kind.error"
+[reg.cr12]
+kind  =  "@reg_kind.error"
+[reg.cr13]
+kind  =  "@reg_kind.error"
+[reg.cr14]
+kind  =  "@reg_kind.error"
+[reg.cr15]
+kind  =  "@reg_kind.error"
+
+# debug registers
+[reg.dr0]
+kind  =  "@reg_kind.system"
+width =  64
+[reg.dr1]
+kind  =  "@reg_kind.system"
+width =  64
+[reg.dr2]
+kind  =  "@reg_kind.system"
+width =  64
+[reg.dr3]
+kind  =  "@reg_kind.system"
+width =  64
+[reg.dr4]
+kind  =  "@reg_kind.system"
+width =  64
+alias =  "@reg.dr6"
+[reg.dr5]
+kind  =  "@reg_kind.system"
+width =  64
+alias =  "@reg.dr7"
+[reg.dr6]
+kind  =  "@reg_kind.system"
+width =  64
+[reg.dr7]
+kind  =  "@reg_kind.system"
+width =  64
+[reg.dr8]
+kind  =  "@reg_kind.error"
+[reg.dr9]
+kind  =  "@reg_kind.error"
+[reg.dr10]
+kind  =  "@reg_kind.error"
+[reg.dr11]
+kind  =  "@reg_kind.error"
+[reg.dr12]
+kind  =  "@reg_kind.error"
+[reg.dr13]
+kind  =  "@reg_kind.error"
+[reg.dr14]
+kind  =  "@reg_kind.error"
+[reg.dr15]
+kind  =  "@reg_kind.error"
+
+# mask registers
+[reg.k0]
+kind  =  "@reg_kind.mask"
+width =  64
+[reg.k1]
+kind  =  "@reg_kind.mask"
+width =  64
+[reg.k2]
+kind  =  "@reg_kind.mask"
+width =  64
+[reg.k3]
+kind  =  "@reg_kind.mask"
+width =  64
+[reg.k4]
+kind  =  "@reg_kind.mask"
+width =  64
+[reg.k5]
+kind  =  "@reg_kind.mask"
+width =  64
+[reg.k6]
+kind  =  "@reg_kind.mask"
+width =  64
+[reg.k7]
+kind  =  "@reg_kind.mask"
+width =  64
+
+# bound registers
+[reg.bnd0]
+[reg.bnd1]
+[reg.bnd2]
+[reg.bnd3]
+[reg.bndcfg]
+[reg.bndstatus]
+
+# uncategorized
+[reg.mxcsr]
+[reg.pkru]
+[reg.xcr0]
+[reg.uif]
+
+# + flags
+[reg.flag_cf]
+alias =  "@reg.rflags"
+kind  =  "@reg_kind.flag"
+width =  1
+offset = 0
+[reg.flag_pf]
+alias =  "@reg.rflags"
+kind  =  "@reg_kind.flag"
+width =  1
+offset = 2
+[reg.flag_af]
+alias =  "@reg.rflags"
+kind  =  "@reg_kind.flag"
+width =  1
+offset = 4
+[reg.flag_zf]
+alias =  "@reg.rflags"
+kind  =  "@reg_kind.flag"
+width =  1
+offset = 6
+[reg.flag_sf]
+alias =  "@reg.rflags"
+kind  =  "@reg_kind.flag"
+width =  1
+offset = 7
+[reg.flag_tf]
+alias =  "@reg.rflags"
+kind  =  "@reg_kind.flag"
+width =  1
+offset = 8
+[reg.flag_if]
+alias =  "@reg.rflags"
+kind  =  "@reg_kind.flag"
+width =  1
+offset = 9
+[reg.flag_df]
+alias =  "@reg.rflags"
+kind  =  "@reg_kind.flag"
+width =  1
+offset = 10
+[reg.flag_of]
+alias =  "@reg.rflags"
+kind  =  "@reg_kind.flag"
+width =  1
+offset = 11
+[reg.flag_iopl]
+alias =  "@reg.rflags"
+kind  =  "@reg_kind.flag"
+width =  2
+offset = 12
+[reg.flag_nt]
+alias =  "@reg.rflags"
+kind  =  "@reg_kind.flag"
+width =  1
+offset = 14
+[reg.flag_rf]
+alias =  "@reg.rflags"
+kind  =  "@reg_kind.flag"
+width =  1
+offset = 16
+[reg.flag_vm]
+alias =  "@reg.rflags"
+kind  =  "@reg_kind.flag"
+width =  1
+offset = 17
+[reg.flag_ac]
+alias =  "@reg.rflags"
+kind  =  "@reg_kind.flag"
+width =  1
+offset = 18
+[reg.flag_vif]
+alias =  "@reg.rflags"
+kind  =  "@reg_kind.flag"
+width =  1
+offset = 19
+[reg.flag_vip]
+alias =  "@reg.rflags"
+kind  =  "@reg_kind.flag"
+width =  1
+offset = 20
+[reg.flag_id]
+alias =  "@reg.rflags"
+kind  =  "@reg_kind.flag"
+width =  1
+offset = 21
+
+[abi.win64]
+architecture =     "@arch.x86_64"
+retval-gpr =       ["@reg.rax", "@reg.rdx"]
+retval-fp =        ["@reg.xmm0"]
+argument-gpr =     ["@reg.rcx", "@reg.rdx", "@reg.r8", "@reg.r9"]
+argument-fp =      ["@reg.xmm0", "@reg.xmm1", "@reg.xmm2", "@reg.xmm3"]
+nonvolatile-gpr =  ["@reg.rbp", "@reg.rbx", "@reg.rsi", "@reg.rdi", "@reg.r12", "@reg.r13", "@reg.r14", "@reg.r15"]
+nonvolatile-fp =   ["@reg.xmm6", "@reg.xmm7", "@reg.xmm8", "@reg.xmm9", "@reg.xmm10", "@reg.xmm11", "@reg.xmm12", "@reg.xmm13", "@reg.xmm14", "@reg.xmm15"]
+home-size =        32
+combined-arg-idx = true
+
+[abi.sysv-x86_64]
+architecture =     "@arch.x86_64"
+retval-gpr =       ["@reg.rax", "@reg.rdx"]
+retval-fp =        ["@reg.xmm0"]
+argument-gpr =     ["@reg.rdi", "@reg.rsi", "@reg.rdx", "@reg.rcx", "@reg.r8", "@reg.r9"]
+argument-fp =      ["@reg.xmm0", "@reg.xmm1", "@reg.xmm2", "@reg.xmm3", "@reg.xmm4", "@reg.xmm5", "@reg.xmm6", "@reg.xmm7"]
+nonvolatile-gpr =  ["@reg.rbp", "@reg.rbx", "@reg.r12", "@reg.r13", "@reg.r14", "@reg.r15"]
+nonvolatile-fp =   []
+home-size =        32
+combined-arg-idx = false
+
+# IA32
+[arch.x86]
+big-endian =  false
+word-size =   4
+[arch.x86_64]
+big-endian =  false
+word-size =   8
+default-abi = "@abi.win64"
+
+# Aarch
+[arch.aarch]
+big-endian =  false
+word-size =   4
+[arch.aarch64]
+big-endian =  false
+word-size =   8
+[arch.aarch_be]
+big-endian =  true
+word-size =   4
+[arch.aarch64_be]
+big-endian =  true
+word-size =   8
+
+# WASM
+[arch.wasm]
+big-endian =  false
+word-size =   4
+[arch.wasm64]
+big-endian =  false
+word-size =   8
