@@ -9,7 +9,7 @@
 
 // Arch-dependant functions.
 //
-namespace retro::arch {
+namespace retro::intrin {
 	// IA32 details.
 	//
 #if RC_IA32

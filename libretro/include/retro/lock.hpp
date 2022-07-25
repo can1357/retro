@@ -41,7 +41,7 @@ namespace retro {
 			if (counter++ >= slow_yield_threshold) [[unlikely]] {
 				ss.wait();
 			}
-			arch::yield();
+			intrin::yield();
 		}
 	};
 

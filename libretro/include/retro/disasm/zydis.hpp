@@ -19,6 +19,8 @@ namespace retro::zydis {
 		ZydisDecodedInstruction ins;
 		ZydisDecodedOperand     ops[ZYDIS_MAX_OPERAND_COUNT_VISIBLE];
 
+		std::span<const ZydisDecodedOperand> operands() const { return {ops, ins.operand_count}; }
+
 		// Formatting.
 		//
 		std::string to_string(u64 ip = 0) const {

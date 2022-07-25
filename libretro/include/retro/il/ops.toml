@@ -1,0 +1,191 @@
+op-kind = [
+	"unary-signed",
+	"unary-unsigned",
+	"unary-bitwise",
+	"unary-float",
+	"binary-signed",
+	"binary-unsigned",
+	"binary-bitwise",
+	"binary-float",
+	"op-signed",
+	"op-unsigned",
+]
+
+# Unary operations
+#
+[op.neg]
+symbol = "-"
+kind   = "@op-kind.unary-signed"
+inverse = "@op.neg"
+[op.abs]
+symbol = "abs"
+kind   = "@op-kind.unary-signed"
+[op.bit_lsb]
+symbol = "lsb"
+kind   = "@op-kind.unary-bitwise"
+ret_bitcnt = true
+[op.bit_msb]
+symbol = "msb"
+kind   = "@op-kind.unary-bitwise"
+ret_bitcnt = true
+[op.bit_popcnt]
+symbol = "popcnt"
+kind   = "@op-kind.unary-bitwise"
+ret_bitcnt = true
+[op.bit_not]
+symbol = "~"
+kind   = "@op-kind.unary-bitwise"
+inverse = "@op.bit_not"
+[op.ceil]
+symbol = "ceil"
+kind   = "@op-kind.unary-float"
+[op.floor]
+symbol = "floor"
+kind   = "@op-kind.unary-float"
+[op.trunc]
+symbol = "trunc"
+kind   = "@op-kind.unary-float"
+[op.round]
+symbol = "round"
+kind   = "@op-kind.unary-float"
+
+# Binary operations
+#
+[op.add]
+symbol = "+"
+kind   = "@op-kind.binary-signed"
+commutative = true
+[op.sub]
+symbol = "-"
+kind   = "@op-kind.binary-signed"
+[op.mul]
+symbol = "*"
+kind   = "@op-kind.binary-signed"
+swap_sign = "@op.umul"
+commutative = true
+[op.umul]
+symbol = "*"
+kind   = "@op-kind.binary-unsigned"
+swap_sign = "@op.mul"
+commutative = true
+[op.div]
+symbol = "/"
+kind   = "@op-kind.binary-signed"
+swap_sign = "@op.udiv"
+[op.udiv]
+symbol = "/"
+kind   = "@op-kind.binary-unsigned"
+swap_sign = "@op.div"
+[op.rem]
+symbol = "%"
+kind   = "@op-kind.binary-signed"
+swap_sign = "@op.urem"
+[op.urem]
+symbol = "%"
+kind   = "@op-kind.binary-unsigned"
+swap_sign = "@op.rem"
+[op.bit_or]
+symbol = "|"
+kind   = "@op-kind.binary-bitwise"
+commutative = true
+[op.bit_and]
+symbol = "&"
+kind   = "@op-kind.binary-bitwise"
+commutative = true
+[op.bit_xor]
+symbol = "^"
+kind   = "@op-kind.binary-bitwise"
+inverse = "@op.bit_xor"
+commutative = true
+[op.bit_shl]
+symbol = "<<"
+kind   = "@op-kind.binary-bitwise"
+[op.bit_shr]
+symbol = ">>"
+kind   = "@op-kind.binary-bitwise"
+swap_sign = "@op.bit_sar"
+[op.bit_sar]
+symbol = ">>"
+kind   = "@op-kind.binary-bitwise"
+swap_sign = "@op.bit_shr"
+[op.bit_rol]
+symbol = "rotl"
+kind   = "@op-kind.binary-bitwise"
+inverse = "@op.bit_ror"
+[op.bit_ror]
+symbol = "rotr"
+kind   = "@op-kind.binary-bitwise"
+inverse = "@op.bit_rol"
+[op.max]
+symbol = "max"
+kind   = "@op-kind.binary-signed"
+swap_sign = "@op.umax"
+commutative = true
+[op.umax]
+symbol = "umax"
+kind   = "@op-kind.binary-unsigned"
+swap_sign = "@op.max"
+commutative = true
+[op.min]
+symbol = "min"
+kind   = "@op-kind.binary-signed"
+swap_sign = "@op.umin"
+commutative = true
+[op.umin]
+symbol = "umin"
+kind   = "@op-kind.binary-unsigned"
+swap_sign = "@op.min"
+commutative = true
+
+# Comperators
+#
+[op.gt]
+symbol = ">"
+kind   = "@op-kind.op-signed"
+inverse = "@op.le"
+swap_sign  = "@op.ugt"
+[op.ugt]
+symbol = ">"
+kind   = "@op-kind.op-unsigned"
+inverse = "@op.ule"
+swap_sign  = "@op.gt"
+[op.le]
+symbol = "<="
+kind   = "@op-kind.op-signed"
+inverse = "@op.gt"
+swap_sign = "@op.ule"
+[op.ule]
+symbol = "<="
+kind   = "@op-kind.op-unsigned"
+inverse = "@op.ugt"
+swap_sign = "@op.le"
+[op.ge]
+symbol = ">="
+kind   = "@op-kind.op-signed"
+inverse = "@op.lt"
+swap_sign  = "@op.uge"
+[op.uge]
+symbol = ">="
+kind   = "@op-kind.op-unsigned"
+inverse = "@op.ult"
+swap_sign  = "@op.ge"
+[op.lt]
+symbol = "<"
+kind   = "@op-kind.op-signed"
+inverse = "@op.ge"
+swap_sign = "@op.ult"
+[op.ult]
+symbol = "<"
+kind   = "@op-kind.op-unsigned"
+inverse = "@op.uge"
+swap_sign = "@op.lt"
+[op.eq]
+symbol = "=="
+kind   = "@op-kind.op-signed"
+inverse = "@op.ne"
+commutative = true
+[op.ne]
+symbol = "!="
+kind   = "@op-kind.op-signed"
+inverse = "@op.eq"
+commutative = true

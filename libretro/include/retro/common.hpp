@@ -386,4 +386,37 @@ namespace retro {
 			return o <= ((u64) std::numeric_limits<Dst>::max());
 		}
 	}
+
+	// Tagging for structured types described via the TOML.
+	//
+	template<typename T>
+	struct descriptor {
+		using type = void;
+	};
+	template<typename T>
+	using reflect = typename descriptor<T>::type;
+	template<typename T>
+	concept StructuredType = (!std::is_void_v<reflect<T>>);
+	template<typename T>
+	concept StructuredEnum = StructuredType<T> && std::is_enum_v<T>;
+
+	// Reflection.
+	//
+	template<StructuredEnum T>
+	inline constexpr const reflect<T>& enum_reflect(T value) {
+		return reflect<T>::list()[uptr(value)];
+	}
+	template<StructuredEnum T>
+	inline constexpr std::string_view enum_name(T value) {
+		return enum_reflect(value).name;
+	}
+};
+
+// String conversion.
+//
+namespace std {
+	template<retro::StructuredEnum T>
+	inline std::string to_string(T value) {
+		return std::string{retro::enum_name<T>(value)};
+	}
 };

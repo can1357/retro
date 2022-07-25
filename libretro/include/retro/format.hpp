@@ -131,6 +131,8 @@ namespace retro::fmt {
 			return arg->to_string();
 		} else if constexpr (std::is_same_v<Td, std::filesystem::path>) {
 			return arg.string();
+		} else if constexpr (StructuredEnum<Td>) {
+			return retro::enum_name<Td>(arg);
 		} else if constexpr (detail::StlFormattable<Td>) {
 			if constexpr (std::is_same_v<Td, char>) {
 				if (isprint((int) arg)) {

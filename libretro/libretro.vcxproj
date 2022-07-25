@@ -19,7 +19,8 @@
     </ProjectConfiguration>
   </ItemGroup>
   <ItemGroup>
-    <ClInclude Include="include\retro\arch.hpp" />
+    <ClInclude Include="include\retro\il\ops.table.hpp" />
+    <ClInclude Include="include\retro\intrin.hpp" />
     <ClInclude Include="include\retro\bitset.hpp" />
     <ClInclude Include="include\retro\common.hpp" />
     <ClInclude Include="include\retro\coro.hpp" />
@@ -37,6 +38,7 @@
   </ItemGroup>
   <ItemGroup>
     <None Include="..\.clang-format" />
+    <None Include="include\retro\il\ops.toml" />
     <None Include="include\retro\targets.toml" />
   </ItemGroup>
   <ItemGroup>

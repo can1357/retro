@@ -3,7 +3,7 @@
 #include <thread>
 #include <random>
 #include <retro/common.hpp>
-#include <retro/arch.hpp>
+#include <retro/intrin.hpp>
 
 // Platform-dependant functions.
 //
@@ -13,14 +13,14 @@ namespace retro::platform {
 #if RC_IA32
 	RC_INLINE RC_CONST static size_t thread_id() {
 	#if RC_64 && (RC_WINDOWS || RC_OSX)
-		return arch::ia32_rdgsbase();
+		return intrin::ia32_rdgsbase();
 	#else
-		return arch::ia32_rdfsbase();
+		return intrin::ia32_rdfsbase();
 	#endif
 	}
 #elif RC_ARM
 	RC_INLINE RC_CONST static size_t thread_id() {
-		return arch::arm_mrs_tid();
+		return intrin::arm_mrs_tid();
 	}
 #else
 	inline thread_local char __id;
@@ -33,7 +33,7 @@ namespace retro::platform {
 	//
 	RC_INLINE static u64 srng() {
 #if RC_IA32
-		return arch::ia32_rdrand();
+		return intrin::ia32_rdrand();
 #else
 		std::random_device dev{};
 		u64                res = 0;

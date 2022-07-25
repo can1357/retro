@@ -1,7 +1,7 @@
 #!/usr/bin/env python
 # coding: utf-8
 
-# In[51]:
+# In[64]:
 
 
 #!conda install --yes toml
@@ -17,12 +17,16 @@ import ast
 TEXT_WIDTH =        120
 CXX_PACK_INTEGERS = True
 CXX_STD_INTEGERS =  [8, 16, 32, 64]
-CXX_HELP_FWD_FMT =  "\n\tstatic constexpr const {0}_desc& from({0} value);\n\tconstexpr const {0} id() const;\n"
-CXX_HELP_DCL_FMT =  """RC_INLINE constexpr const {0}_desc& {0}_desc::from({0} value) {{ return {0}_info[(uptr) value]; }}
-RC_INLINE constexpr const {0} {0}_desc::id() const {{ return {0}(this - {0}_info); }}
-RC_INLINE static constexpr std::string_view to_string({0} value) {{ return {0}_desc::from(value).name; }}"""
-CXX_ARR_DCL_FMT =   "\n\ninline constexpr {0} {1}_info[] = {{\n"
+CXX_HELP_FWD_FMT =  """
+	using value_type = {0};
+	static constexpr std::span<const {0}_desc> list();
+	RC_INLINE constexpr const {0} id() const {{ return {0}(this - list().data()); }}
+"""
+CXX_HELP_DCL_FMT =  """RC_INLINE constexpr std::span<const {0}_desc> {0}_desc::list() {{ return {0}s; }}"""
+CXX_ARR_DCL_FMT =   "\n\ninline constexpr {0} {1}s[] = {{\n"
 CXX_DESC_SUFFIX =   "_desc"
+CXX_NS_SUFFIX_PER_ENUM = """namespace retro {{ template<> struct descriptor<{0}::{1}> {{ using type = {0}::{1}_desc; }}; }};
+"""
 
 # Bit helpers
 #
@@ -438,6 +442,7 @@ class Enum(Decl):
         for k in choices:
             out +=     "\t{0} = {1},\n".format(k.ljust(name_width), nextval)
             nextval += 1
+        out +=     "\t{0} = {1},\n".format("last".ljust(name_width), nextval-1)
         out += "};"
         return out
     
@@ -563,9 +568,11 @@ class Namespace(Decl):
     # Writer.
     #
     def write(self):
+        ext_suffix = ""
         out = ""
         for k in self.decls:
             if isinstance(self.decls[k], Enum):
+                ext_suffix += CXX_NS_SUFFIX_PER_ENUM.format(self.name, to_cname(self.decls[k].name))
                 out += self.decls[k].write()
         out += "\n\n" + make_box("Descriptors")
         for k in self.decls:
@@ -574,7 +581,7 @@ class Namespace(Decl):
         out += "\n\n" + make_box("Tables")
         for k in self.decls:
             out += self.decls[k].post_write()
-        return "// clang-format off\nnamespace {0} {{{1}\n}};\n// clang-format on".format(self.name, shift_right(out))
+        return "// clang-format off\nnamespace {0} {{{1}\n}};\n{2}// clang-format on".format(self.name, shift_right(out), ext_suffix)
     
     # Creates a new declaration.
     #
@@ -691,8 +698,8 @@ except NameError:
         while True:
             try:
                 generate_all(path)
-            except:
-                print("Something went wrong")
+            except Exception as e:
+                print("Exception:", e)
             time.sleep(0.3)
     elif len(sys.argv) >= 2:
         path = sys.argv[1]

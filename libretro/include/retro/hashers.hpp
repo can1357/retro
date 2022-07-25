@@ -1,6 +1,6 @@
 #pragma once
 #include <retro/common.hpp>
-#include <retro/arch.hpp>
+#include <retro/intrin.hpp>
 #include <bit>
 
 namespace retro {
@@ -14,14 +14,14 @@ namespace retro {
 #if RC_CRC32C
 			u32 crc = len;
 			if (len >= 4) {
-				crc = arch::crc32c(crc, *(const u32*) (str));
-				crc = arch::crc32c(crc, *(const u32*) (str + len - 4));
-				crc = arch::crc32c(crc, *(const u32*) (str + (len >> 1) - 2));
-				crc = arch::crc32c(crc, *(const u32*) (str + (len >> 2) - 1));
+				crc = intrin::crc32c(crc, *(const u32*) (str));
+				crc = intrin::crc32c(crc, *(const u32*) (str + len - 4));
+				crc = intrin::crc32c(crc, *(const u32*) (str + (len >> 1) - 2));
+				crc = intrin::crc32c(crc, *(const u32*) (str + (len >> 2) - 1));
 			} else {
-				crc = arch::crc32c(crc, *(const u8*) str);
-				crc = arch::crc32c(crc, *(const u8*) (str + len - 1));
-				crc = arch::crc32c(crc, *(const u8*) (str + (len >> 1)));
+				crc = intrin::crc32c(crc, *(const u8*) str);
+				crc = intrin::crc32c(crc, *(const u8*) (str + len - 1));
+				crc = intrin::crc32c(crc, *(const u8*) (str + (len >> 1)));
 			}
 			return crc;
 #else
