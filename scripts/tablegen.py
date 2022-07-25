@@ -1,7 +1,7 @@
 #!/usr/bin/env python
 # coding: utf-8
 
-# In[64]:
+# In[69]:
 
 
 #!conda install --yes toml
@@ -681,8 +681,15 @@ def generate_all(root):
         print("-- Generating ", namespace)
         out = file.rsplit(".",1)[0] + ".hxx"
         with open(out, "w") as outf:
-            result =  "#pragma once\n#include <retro/common.hpp>\n\n"
-            result += Namespace(None, namespace, toml.loads(filedata)).write()
+            ns = Namespace(None, namespace, toml.loads(filedata))
+            includes = ns.properties.get("Includes", [])
+            includes.append("<retro/common.hpp>")
+            
+            result =  "#pragma once\n"
+            for inc in includes:
+                result += "#include " + inc + "\n"
+            
+            result += "\n" + ns.write()
             outf.write(result)
                     
 try:
