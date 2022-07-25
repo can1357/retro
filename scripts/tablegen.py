@@ -1,7 +1,7 @@
 #!/usr/bin/env python
 # coding: utf-8
 
-# In[1]:
+# In[51]:
 
 
 #!conda install --yes toml
@@ -10,6 +10,7 @@ import glob
 import os
 import sys
 import time
+import ast
 
 # Constants
 #
@@ -65,6 +66,19 @@ def shift_right(data):
     if data[0] != '\n':
         data = "\t" + data
     return data.replace("\n", "\n\t")
+def multiline_eval(expr, context, local_list):
+    tree = ast.parse(expr)
+    eval_exprs = []
+    exec_exprs = []
+    for module in tree.body:
+        if isinstance(module, ast.Expr):
+            eval_exprs.append(module.value)
+        else:
+            exec_exprs.append(module)
+    exec_expr = ast.Module(exec_exprs, type_ignores=[])
+    exec(compile(exec_expr, 'file', 'exec'), context, local_list)
+    for eval_expr in eval_exprs:
+        exec(compile(ast.Expression((eval_expr)), 'file', 'eval'), context, local_list)
 
 # C++ Types.
 #
@@ -331,6 +345,10 @@ class Decl:
                 # Properties.
                 if k[0].isupper():
                     self.properties[k] = v
+                    
+        if "Script" in self.properties:
+            script = self.properties["Script"]
+            multiline_eval(script, globals(), {"parent": parent, "name": name, "data": data})
                 
     # Writer functions.
     #
@@ -415,7 +433,7 @@ class Enum(Decl):
 
         # Write the enum.
         #
-        out =  "\nenum class {0} : {1} /*:{2}*/ {{\n".format(self.name, ctype.name, self.get_width())
+        out =  "\nenum class {0} : {1} /*:{2}*/ {{\n".format(to_cname(self.name), ctype.name, self.get_width())
         nextval = 0
         for k in choices:
             out +=     "\t{0} = {1},\n".format(k.ljust(name_width), nextval)
@@ -433,7 +451,7 @@ class Enum(Decl):
         
         # Start the declaration.
         #
-        out = CXX_ARR_DCL_FMT.format(self.desc.name, self.name)
+        out = CXX_ARR_DCL_FMT.format(self.desc.name, to_cname(self.name))
         if self.optional:
             out += "\t{\"none\"},\n"
         idx = 0
@@ -444,7 +462,7 @@ class Enum(Decl):
         
         # Add the forwarded helpers.
         #
-        out += CXX_HELP_DCL_FMT.format(self.name)
+        out += CXX_HELP_DCL_FMT.format(to_cname(self.name))
         return out
     
     # Expander.
@@ -486,11 +504,11 @@ class Enum(Decl):
             
         # Create a new descriptor struct.
         #
-        self.desc = self.create(Struct, self.name + CXX_DESC_SUFFIX, fields)
+        self.desc = self.create(Struct, to_cname(self.name) + CXX_DESC_SUFFIX, fields)
         
         # Add the suffix for lookup.
         #
-        self.desc.suffix = CXX_HELP_FWD_FMT.format(self.name)
+        self.desc.suffix = CXX_HELP_FWD_FMT.format(to_cname(self.name))
     
 Decl.Parser["Enum"] = Enum
 
@@ -642,7 +660,7 @@ def generate_all(root):
         idx = file.find("include")
         if idx == -1:
             continue
-        namespace = file[idx+len("include")+1:].replace(".toml", "").replace("/", "\\").replace("\\", "::")
+        namespace = os.path.dirname(file)[idx+len("include")+1:].replace("/", "\\").replace("\\", "::")
         
         # Read the file.
         #
@@ -650,7 +668,7 @@ def generate_all(root):
         with open(file, "r") as inf:
             filedata = inf.read()
         if file in cache and cache[file] == filedata:
-            return
+            continue
         cache[file] = filedata
         
         print("-- Generating ", namespace)

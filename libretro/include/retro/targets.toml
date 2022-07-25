@@ -12,6 +12,32 @@ reg_kind = [
 	"error"
 ]
 
+Script = """
+# Fp register duplication.
+#
+regs = list(data["reg"].items())
+i = 0
+while regs[i][0] != "xmm0":
+	i+=1
+for j in range(1,32):
+	c = regs[i][1].copy()
+	c["alias"] = "@reg.zmm" + str(j)
+	n = "xmm" + str(j)
+	regs.insert(i+j, (n, c))
+i += 32
+for j in range(1,32):
+	c = regs[i][1].copy()
+	c["alias"] = "@reg.zmm" + str(j)
+	n = "ymm" + str(j)
+	regs.insert(i+j, (n, c))
+i += 32
+for j in range(1,32):
+	c = regs[i][1].copy()
+	n = "zmm" + str(j)
+	regs.insert(i+j, (n, c))
+data["reg"] = dict(regs)
+"""
+
 # general purpose registers 8-bit
 [reg.al]
 kind  =  "@reg_kind.general"
@@ -305,359 +331,19 @@ width =  64
 [reg.xmm0]
 kind  =  "@reg_kind.vector"
 width =  128
-alias =  "@reg.ymm0"
-[reg.xmm1]
-kind  =  "@reg_kind.vector"
-width =  128
-alias =  "@reg.ymm1"
-[reg.xmm2]
-kind  =  "@reg_kind.vector"
-width =  128
-alias =  "@reg.ymm2"
-[reg.xmm3]
-kind  =  "@reg_kind.vector"
-width =  128
-alias =  "@reg.ymm3"
-[reg.xmm4]
-kind  =  "@reg_kind.vector"
-width =  128
-alias =  "@reg.ymm4"
-[reg.xmm5]
-kind  =  "@reg_kind.vector"
-width =  128
-alias =  "@reg.ymm5"
-[reg.xmm6]
-kind  =  "@reg_kind.vector"
-width =  128
-alias =  "@reg.ymm6"
-[reg.xmm7]
-kind  =  "@reg_kind.vector"
-width =  128
-alias =  "@reg.ymm7"
-[reg.xmm8]
-kind  =  "@reg_kind.vector"
-width =  128
-alias =  "@reg.ymm8"
-[reg.xmm9]
-kind  =  "@reg_kind.vector"
-width =  128
-alias =  "@reg.ymm9"
-[reg.xmm10]
-kind  =  "@reg_kind.vector"
-width =  128
-alias =  "@reg.ymm10"
-[reg.xmm11]
-kind  =  "@reg_kind.vector"
-width =  128
-alias =  "@reg.ymm11"
-[reg.xmm12]
-kind  =  "@reg_kind.vector"
-width =  128
-alias =  "@reg.ymm12"
-[reg.xmm13]
-kind  =  "@reg_kind.vector"
-width =  128
-alias =  "@reg.ymm13"
-[reg.xmm14]
-kind  =  "@reg_kind.vector"
-width =  128
-alias =  "@reg.ymm14"
-[reg.xmm15]
-kind  =  "@reg_kind.vector"
-width =  128
-alias =  "@reg.ymm15"
-[reg.xmm16]
-kind  =  "@reg_kind.vector"
-width =  128
-alias =  "@reg.ymm16"
-[reg.xmm17]
-kind  =  "@reg_kind.vector"
-width =  128
-alias =  "@reg.ymm17"
-[reg.xmm18]
-kind  =  "@reg_kind.vector"
-width =  128
-alias =  "@reg.ymm18"
-[reg.xmm19]
-kind  =  "@reg_kind.vector"
-width =  128
-alias =  "@reg.ymm19"
-[reg.xmm20]
-kind  =  "@reg_kind.vector"
-width =  128
-alias =  "@reg.ymm20"
-[reg.xmm21]
-kind  =  "@reg_kind.vector"
-width =  128
-alias =  "@reg.ymm21"
-[reg.xmm22]
-kind  =  "@reg_kind.vector"
-width =  128
-alias =  "@reg.ymm22"
-[reg.xmm23]
-kind  =  "@reg_kind.vector"
-width =  128
-alias =  "@reg.ymm23"
-[reg.xmm24]
-kind  =  "@reg_kind.vector"
-width =  128
-alias =  "@reg.ymm24"
-[reg.xmm25]
-kind  =  "@reg_kind.vector"
-width =  128
-alias =  "@reg.ymm25"
-[reg.xmm26]
-kind  =  "@reg_kind.vector"
-width =  128
-alias =  "@reg.ymm26"
-[reg.xmm27]
-kind  =  "@reg_kind.vector"
-width =  128
-alias =  "@reg.ymm27"
-[reg.xmm28]
-kind  =  "@reg_kind.vector"
-width =  128
-alias =  "@reg.ymm28"
-[reg.xmm29]
-kind  =  "@reg_kind.vector"
-width =  128
-alias =  "@reg.ymm29"
-[reg.xmm30]
-kind  =  "@reg_kind.vector"
-width =  128
-alias =  "@reg.ymm30"
-[reg.xmm31]
-kind  =  "@reg_kind.vector"
-width =  128
-alias =  "@reg.ymm31"
+alias =  "@reg.zmm0"
 
 # floating point vector registers 256-bit
 [reg.ymm0]
 kind  =  "@reg_kind.vector"
 width =  256
 alias =  "@reg.zmm0"
-[reg.ymm1]
-kind  =  "@reg_kind.vector"
-width =  256
-alias =  "@reg.zmm1"
-[reg.ymm2]
-kind  =  "@reg_kind.vector"
-width =  256
-alias =  "@reg.zmm2"
-[reg.ymm3]
-kind  =  "@reg_kind.vector"
-width =  256
-alias =  "@reg.zmm3"
-[reg.ymm4]
-kind  =  "@reg_kind.vector"
-width =  256
-alias =  "@reg.zmm4"
-[reg.ymm5]
-kind  =  "@reg_kind.vector"
-width =  256
-alias =  "@reg.zmm5"
-[reg.ymm6]
-kind  =  "@reg_kind.vector"
-width =  256
-alias =  "@reg.zmm6"
-[reg.ymm7]
-kind  =  "@reg_kind.vector"
-width =  256
-alias =  "@reg.zmm7"
-[reg.ymm8]
-kind  =  "@reg_kind.vector"
-width =  256
-alias =  "@reg.zmm8"
-[reg.ymm9]
-kind  =  "@reg_kind.vector"
-width =  256
-alias =  "@reg.zmm9"
-[reg.ymm10]
-kind  =  "@reg_kind.vector"
-width =  256
-alias =  "@reg.zmm10"
-[reg.ymm11]
-kind  =  "@reg_kind.vector"
-width =  256
-alias =  "@reg.zmm11"
-[reg.ymm12]
-kind  =  "@reg_kind.vector"
-width =  256
-alias =  "@reg.zmm12"
-[reg.ymm13]
-kind  =  "@reg_kind.vector"
-width =  256
-alias =  "@reg.zmm13"
-[reg.ymm14]
-kind  =  "@reg_kind.vector"
-width =  256
-alias =  "@reg.zmm14"
-[reg.ymm15]
-kind  =  "@reg_kind.vector"
-width =  256
-alias =  "@reg.zmm15"
-[reg.ymm16]
-kind  =  "@reg_kind.vector"
-width =  256
-alias =  "@reg.zmm16"
-[reg.ymm17]
-kind  =  "@reg_kind.vector"
-width =  256
-alias =  "@reg.zmm17"
-[reg.ymm18]
-kind  =  "@reg_kind.vector"
-width =  256
-alias =  "@reg.zmm18"
-[reg.ymm19]
-kind  =  "@reg_kind.vector"
-width =  256
-alias =  "@reg.zmm19"
-[reg.ymm20]
-kind  =  "@reg_kind.vector"
-width =  256
-alias =  "@reg.zmm20"
-[reg.ymm21]
-kind  =  "@reg_kind.vector"
-width =  256
-alias =  "@reg.zmm21"
-[reg.ymm22]
-kind  =  "@reg_kind.vector"
-width =  256
-alias =  "@reg.zmm22"
-[reg.ymm23]
-kind  =  "@reg_kind.vector"
-width =  256
-alias =  "@reg.zmm23"
-[reg.ymm24]
-kind  =  "@reg_kind.vector"
-width =  256
-alias =  "@reg.zmm24"
-[reg.ymm25]
-kind  =  "@reg_kind.vector"
-width =  256
-alias =  "@reg.zmm25"
-[reg.ymm26]
-kind  =  "@reg_kind.vector"
-width =  256
-alias =  "@reg.zmm26"
-[reg.ymm27]
-kind  =  "@reg_kind.vector"
-width =  256
-alias =  "@reg.zmm27"
-[reg.ymm28]
-kind  =  "@reg_kind.vector"
-width =  256
-alias =  "@reg.zmm28"
-[reg.ymm29]
-kind  =  "@reg_kind.vector"
-width =  256
-alias =  "@reg.zmm29"
-[reg.ymm30]
-kind  =  "@reg_kind.vector"
-width =  256
-alias =  "@reg.zmm30"
-[reg.ymm31]
-kind  =  "@reg_kind.vector"
-width =  256
-alias =  "@reg.zmm31"
 
 # floating point vector registers 512-bit
 [reg.zmm0]
 kind  =  "@reg_kind.vector"
 width =  512
-[reg.zmm1]
-kind  =  "@reg_kind.vector"
-width =  512
-[reg.zmm2]
-kind  =  "@reg_kind.vector"
-width =  512
-[reg.zmm3]
-kind  =  "@reg_kind.vector"
-width =  512
-[reg.zmm4]
-kind  =  "@reg_kind.vector"
-width =  512
-[reg.zmm5]
-kind  =  "@reg_kind.vector"
-width =  512
-[reg.zmm6]
-kind  =  "@reg_kind.vector"
-width =  512
-[reg.zmm7]
-kind  =  "@reg_kind.vector"
-width =  512
-[reg.zmm8]
-kind  =  "@reg_kind.vector"
-width =  512
-[reg.zmm9]
-kind  =  "@reg_kind.vector"
-width =  512
-[reg.zmm10]
-kind  =  "@reg_kind.vector"
-width =  512
-[reg.zmm11]
-kind  =  "@reg_kind.vector"
-width =  512
-[reg.zmm12]
-kind  =  "@reg_kind.vector"
-width =  512
-[reg.zmm13]
-kind  =  "@reg_kind.vector"
-width =  512
-[reg.zmm14]
-kind  =  "@reg_kind.vector"
-width =  512
-[reg.zmm15]
-kind  =  "@reg_kind.vector"
-width =  512
-[reg.zmm16]
-kind  =  "@reg_kind.vector"
-width =  512
-[reg.zmm17]
-kind  =  "@reg_kind.vector"
-width =  512
-[reg.zmm18]
-kind  =  "@reg_kind.vector"
-width =  512
-[reg.zmm19]
-kind  =  "@reg_kind.vector"
-width =  512
-[reg.zmm20]
-kind  =  "@reg_kind.vector"
-width =  512
-[reg.zmm21]
-kind  =  "@reg_kind.vector"
-width =  512
-[reg.zmm22]
-kind  =  "@reg_kind.vector"
-width =  512
-[reg.zmm23]
-kind  =  "@reg_kind.vector"
-width =  512
-[reg.zmm24]
-kind  =  "@reg_kind.vector"
-width =  512
-[reg.zmm25]
-kind  =  "@reg_kind.vector"
-width =  512
-[reg.zmm26]
-kind  =  "@reg_kind.vector"
-width =  512
-[reg.zmm27]
-kind  =  "@reg_kind.vector"
-width =  512
-[reg.zmm28]
-kind  =  "@reg_kind.vector"
-width =  512
-[reg.zmm29]
-kind  =  "@reg_kind.vector"
-width =  512
-[reg.zmm30]
-kind  =  "@reg_kind.vector"
-width =  512
-[reg.zmm31]
-kind  =  "@reg_kind.vector"
-width =  512
+
 
 # matrix registers
 [reg.tmm0]
