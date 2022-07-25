@@ -5,7 +5,6 @@ Includes = [
 ]
 
 type_kind = [
-	"pseudo",    # bit-size = 0, since not used at runtime.
 	"integral",
 	"pointer",
 	"floating-point",
@@ -48,23 +47,18 @@ for l in SIMD_WIDTHS:
 		data["type"][vty] = desc
 """
 
-# Pseudo.
+# Pseudo aka "none".
 #
 [type.pack]
-kind     =    "@type_kind.pseudo"
-VisitorArgs = ["void"]
+VisitorArgs = ["retro::ir::value_pack_t"]
 [type.reg]
-kind     =    "@type_kind.pseudo"
 VisitorArgs = ["retro::reg"]
 [type.op]
-kind     =    "@type_kind.pseudo"
 VisitorArgs = ["retro::ir::op"]
 [type.label]
-kind     =    "@type_kind.pseudo"
-VisitorArgs = ["uptr"]
+VisitorArgs = ["basic_block*"]
 [type.str]
-kind     =    "@type_kind.pseudo"
-VisitorArgs = ["std::string"]
+VisitorArgs = ["std::string_view"]
 
 # Integral types.
 #
@@ -109,12 +103,12 @@ VisitorArgs = ["f64"]
 [type.ptr16]
 kind     =    "@type_kind.pointer"
 bit_size =    16
-VisitorArgs = ["u16"]
+VisitorArgs = ["retro::ir::ptr16"]
 [type.ptr32]
 kind     =    "@type_kind.pointer"
 bit_size =    32
-VisitorArgs = ["u32"]
+VisitorArgs = ["retro::ir::ptr32"]
 [type.ptr64]
 kind     =    "@type_kind.pointer"
 bit_size =    64
-VisitorArgs = ["u64"]
+VisitorArgs = ["retro::ir::ptr64"]

@@ -208,10 +208,6 @@ namespace retro {
 
 	// Extended integers.
 	//
-#if RC_CLANG || RC_GNU
-	using i128 = __int128;
-	using u128 = unsigned __int128;
-#else
 	struct i128 {
 		i64 low;
 		i64 high;
@@ -220,7 +216,6 @@ namespace retro {
 		u64 low;
 		u64 high;
 	};
-#endif
 
 	// SIMD types.
 	//
@@ -259,6 +254,10 @@ namespace retro {
 	static constexpr bool is_specialization_v = false;
 	template<template<typename...> typename Tmp, typename... Tx>
 	static constexpr bool is_specialization_v<Tmp, Tmp<Tx...>> = true;
+	template<template<typename, size_t> typename Tmp, typename>
+	static constexpr bool is_tn_specialization_v = false;
+	template<template<typename, size_t> typename Tmp, typename T, size_t N>
+	static constexpr bool is_tn_specialization_v<Tmp, Tmp<T, N>> = true;
 
 	// String literal.
 	//

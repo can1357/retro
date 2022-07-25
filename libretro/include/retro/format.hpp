@@ -125,6 +125,14 @@ namespace retro::fmt {
 
 		if constexpr (std::is_same_v<Td, char*> || std::is_same_v<Td, const char*> || std::is_same_v<Td, std::string_view> || std::is_same_v<Td, std::string>) {
 			return std::string_view{arg};
+		} else if constexpr (is_tn_specialization_v<std::array, Td>) {
+			std::string result = "{";
+			for (auto& entry : arg) {
+				result += to_str(entry);
+				result += ",";
+			}
+			result.back() = '}';
+			return result;
 		} else if constexpr (detail::CustomFormattable<Td>) {
 			return arg.to_string();
 		} else if constexpr (detail::CustomFormattablePtr<Td>) {
@@ -154,6 +162,10 @@ namespace retro::fmt {
 			return std::apply([]<typename... Tx>(Tx&&... args) { return fmt::concat<Tx...>(std::forward<Tx>(args)...); }, arg);
 		} else if constexpr (std::is_pointer_v<T>) {
 			return str("%p", arg);
+		} else if constexpr (std::is_same_v<Td, i128>) {
+			return str("0x%llx%llxi128", arg.high, arg.low);
+		} else if constexpr (std::is_same_v<Td, u128>) {
+			return str("0x%llx%llxu128", arg.high, arg.low);
 		} else {
 			static_assert(sizeof(T) == -1, "Type is not formattable.");
 		}
