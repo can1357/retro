@@ -1,7 +1,7 @@
 #!/usr/bin/env python
 # coding: utf-8
 
-# In[90]:
+# In[12]:
 
 
 #!conda install --yes toml
@@ -27,6 +27,7 @@ CXX_ARR_DCL_FMT =   "\ninline constexpr {0} {1}s[] = {{\n"
 CXX_DESC_SUFFIX =   "_desc"
 CXX_NS_SUFFIX_PER_ENUM = """namespace retro {{ template<> struct descriptor<{0}::{1}> {{ using type = {0}::{1}_desc; }}; }};
 """
+CXX_NULL_ENUM = "none"
 
 # Bit helpers
 #
@@ -178,8 +179,7 @@ class CxxEnum(CxxType):
         return [to_cname(self.name), field, " = " + self.default + ";"]
     def write(self, value):
         if value == None:
-            assert self.underlying.optional
-            value = self.underlying.optional
+            value = CXX_NULL_ENUM
         assert isinstance(value, str)
         if value[0] == "@":
             i = value.index(".")
@@ -287,9 +287,9 @@ def to_cxx_type(value, packed = True, scope = None):
                     enum_value = value[i+1:]
                     enum_type  = value[1:i]
                     enum_type = scope.find(enum_type)
-                    assert isinstance(enum_type, Enum)
-                    if enum_type.index(enum_value) == -1:
-                        raise Exception("Enum type {0} does not contain {1}.", enum_type.name, enum_value)
+                    if isinstance(enum_type, Enum):
+                        if enum_type.index(enum_value) == -1:
+                            raise Exception("Enum type {0} does not contain {1}.", enum_type.name, enum_value)
                     return CxxEnum(enum_type)
         return C_STRING
     if isinstance(value, bool):
@@ -381,16 +381,18 @@ class Decl:
     
 # Enumeration types.
 #
+class EnumFwd:
+    def __init__(self, name):
+        self.name = name
+        pass
+    def get_width():
+        return 32
 class Enum(Decl):
     # Constructed by the parent, name and the raw TOML body.
     #
     def __init__(self, parent, name, data):
         super().__init__(parent, name, data)
         
-        # Will this enumerator contain "none"?
-        self.optional =   self.properties.get("Optional", "none")
-        if self.optional == False:
-            self.optional = None
         # List of value names.
         self.values =     []
         # List of associated data with each choice.
@@ -402,16 +404,14 @@ class Enum(Decl):
         for k, v in data.items():
             # Values.
             if not k[0].isupper():
-                assert k != self.optional
+                assert k != CXX_NULL_ENUM
                 self.values.append(k)
                 self.data.append(v)
     
     # Gets the bit-width of the enumerator.
     #
     def get_width(self):
-        x = len(self.values)
-        if self.optional:
-            x += 1
+        x = len(self.values) + 1
         return bitcount(x-1)
     
     # Gets the underlying C-type associated.
@@ -430,8 +430,7 @@ class Enum(Decl):
         # Create the choice list.
         #
         choices = [to_cname(k) for k in self.values]
-        if self.optional:
-            choices.insert(0, self.optional)
+        choices.insert(0, CXX_NULL_ENUM)
 
         # Get the width and maximum name length.
         #
@@ -480,8 +479,7 @@ class Enum(Decl):
         # Start the declaration.
         #
         out = CXX_ARR_DCL_FMT.format(self.desc.name, to_cname(self.name))
-        if self.optional:
-            out += "\t{\""+self.optional+"\"},\n"
+        out += "\t{\""+CXX_NULL_ENUM+"\"},\n"
         idx = 0
         for k in self.values:
             out += "\t{" + ",".join([self.desc_init[f.name][idx] for f in self.desc.fields]) + "},\n"
@@ -618,6 +616,8 @@ class Namespace(Decl):
     def find(self, name):
         if name in self.decls:
             return self.decls[name]
+        elif name in self.properties.get("Forwards", []):
+            return EnumFwd(name)
         else:
             raise Exception("Failed to find declaration '{0}'".format(name))
 Decl.Parser["Namespace"] = Namespace
