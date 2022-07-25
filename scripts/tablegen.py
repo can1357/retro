@@ -1,7 +1,7 @@
 #!/usr/bin/env python
 # coding: utf-8
 
-# In[69]:
+# In[90]:
 
 
 #!conda install --yes toml
@@ -23,7 +23,7 @@ CXX_HELP_FWD_FMT =  """
 	RC_INLINE constexpr const {0} id() const {{ return {0}(this - list().data()); }}
 """
 CXX_HELP_DCL_FMT =  """RC_INLINE constexpr std::span<const {0}_desc> {0}_desc::list() {{ return {0}s; }}"""
-CXX_ARR_DCL_FMT =   "\n\ninline constexpr {0} {1}s[] = {{\n"
+CXX_ARR_DCL_FMT =   "\ninline constexpr {0} {1}s[] = {{\n"
 CXX_DESC_SUFFIX =   "_desc"
 CXX_NS_SUFFIX_PER_ENUM = """namespace retro {{ template<> struct descriptor<{0}::{1}> {{ using type = {0}::{1}_desc; }}; }};
 """
@@ -179,7 +179,7 @@ class CxxEnum(CxxType):
     def write(self, value):
         if value == None:
             assert self.underlying.optional
-            value = "none"
+            value = self.underlying.optional
         assert isinstance(value, str)
         if value[0] == "@":
             i = value.index(".")
@@ -210,6 +210,8 @@ C_UINT64 = CxxInteger(64, False)
 
 def to_cxx_int(bits, signed = False, packed = False):
     if packed and not (bits in CXX_STD_INTEGERS):
+        if signed:
+            bits = max(bits, 2)
         return CxxInteger(bits, signed)
     if bits <= 8:
         return signed and C_INT8 or C_UINT8
@@ -251,7 +253,9 @@ def to_cxx_common_type(t1, t2, packed = CXX_PACK_INTEGERS):
             else:
                 return t2
         # Promote with signed mismatch
-        return to_cxx_int(min(max(t1.bits, t2.bits)*2, 64), signed = True, packed = packed)
+        t1b = t1.bits + (0 if t1.signed else 1)
+        t2b = t2.bits + (0 if t2.signed else 1)
+        return to_cxx_int(min(max(t1b, t2b), 64), signed = True, packed = packed)
     
     # Handle array demotion:
     #
@@ -384,7 +388,9 @@ class Enum(Decl):
         super().__init__(parent, name, data)
         
         # Will this enumerator contain "none"?
-        self.optional =   self.properties.get("Optional", True)
+        self.optional =   self.properties.get("Optional", "none")
+        if self.optional == False:
+            self.optional = None
         # List of value names.
         self.values =     []
         # List of associated data with each choice.
@@ -396,7 +402,7 @@ class Enum(Decl):
         for k, v in data.items():
             # Values.
             if not k[0].isupper():
-                assert k != "none"
+                assert k != self.optional
                 self.values.append(k)
                 self.data.append(v)
     
@@ -425,7 +431,7 @@ class Enum(Decl):
         #
         choices = [to_cname(k) for k in self.values]
         if self.optional:
-            choices.insert(0, "none")
+            choices.insert(0, self.optional)
 
         # Get the width and maximum name length.
         #
@@ -444,6 +450,23 @@ class Enum(Decl):
             nextval += 1
         out +=     "\t{0} = {1},\n".format("last".ljust(name_width), nextval-1)
         out += "};"
+        
+        # Write the visitor.
+        #
+        max_visitor_list_len = 1
+        for i in range(len(self.values)):
+            if "VisitorArgs" in self.data[i]:
+                max_visitor_list_len = max(max_visitor_list_len, 1+len(self.data[i]["VisitorArgs"]))
+        visitor_list = [[""]*max_visitor_list_len]*len(self.values)
+        
+        out += "\n#define RC_VISIT_{0}(_)".format(to_cname(self.name).upper())
+        for i in range(len(self.values)):
+            visitor_list[i][0] = to_cname(self.values[i])
+            if "VisitorArgs" in self.data[i]:
+                args = self.data[i]["VisitorArgs"]
+                for j in range(len(args)):
+                    visitor_list[i][j+1] = str(args[j])
+            out += " _(" + (",".join(visitor_list[i])) + ")" 
         return out
     
     # Post writer.
@@ -458,7 +481,7 @@ class Enum(Decl):
         #
         out = CXX_ARR_DCL_FMT.format(self.desc.name, to_cname(self.name))
         if self.optional:
-            out += "\t{\"none\"},\n"
+            out += "\t{\""+self.optional+"\"},\n"
         idx = 0
         for k in self.values:
             out += "\t{" + ",".join([self.desc_init[f.name][idx] for f in self.desc.fields]) + "},\n"
@@ -484,9 +507,10 @@ class Enum(Decl):
         idx =    0
         for entry in self.data:
             for k,v in entry.items():
-                if not (k in init_list):
-                    init_list[k] = [None] * len(self.data)
-                init_list[k][idx] = v
+                if not k[0].isupper():
+                    if not (k in init_list):
+                        init_list[k] = [None] * len(self.data)
+                    init_list[k][idx] = v
             idx += 1        
                 
         # Append the name field if it does not already exist.
@@ -683,7 +707,7 @@ def generate_all(root):
         with open(out, "w") as outf:
             ns = Namespace(None, namespace, toml.loads(filedata))
             includes = ns.properties.get("Includes", [])
-            includes.append("<retro/common.hpp>")
+            includes.insert(0, "<retro/common.hpp>")
             
             result =  "#pragma once\n"
             for inc in includes:

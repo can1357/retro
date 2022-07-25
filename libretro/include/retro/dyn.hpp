@@ -16,7 +16,7 @@ namespace retro {
 		//
 		template<typename Self, typename BaseInfo>
 		struct dyn_info : BaseInfo {
-			u64 entry = ctti::of<Self>;
+			ctti::id entry = ctti::of<Self>;
 			constexpr dyn_info() {
 				this->name			  = ctti::type_id<Self>::name();
 				this->highest_entry = ctti::of<Self>;
@@ -27,10 +27,10 @@ namespace retro {
 		template<>
 		struct dyn_info<void, void> {
 			std::string_view		name			  = {};
-			u64						highest_entry = 0;
+			ctti::id					highest_entry = 0;
 			u32						size			  = 0;
 			i32						class_index	  = -1;
-			std::span<const u64> get_bases() const { return {(const u64*) (this + 1), size_t(class_index + 1)}; }
+			std::span<const ctti::id> get_bases() const { return {(const ctti::id*) (this + 1), size_t(class_index + 1)}; }
 		};
 		template<typename Self>
 		struct dyn_info<Self, void> : dyn_info<void, void> {
@@ -63,7 +63,7 @@ namespace retro {
 			virtual ~dyn_base() = default;
 
 			RC_INLINE constexpr std::string_view type_name() const { return type_info().name; }
-			RC_INLINE constexpr u64					 identify() const { return type_info().highest_entry; }
+			RC_INLINE constexpr ctti::id			 identify() const { return type_info().highest_entry; }
 			RC_INLINE constexpr auto&				 type_info() const { return *info; }
 			RC_INLINE constexpr u64					 size_in_memory() const { return type_info().size; }
 

@@ -8,75 +8,6 @@
 // Circular linked list helpers.
 //
 namespace retro::list {
-	// Forward decl of head, utilities for manual management.
-	//
-	template<typename T>
-	struct head;
-	namespace util {
-		template<typename T, typename T2 = T>
-		static void link_before(T* at, T2* val) {
-			RC_ASSERT(val->prev == val);
-			auto* prev = std::exchange(at->prev, val);
-			prev->next = val;
-			val->prev  = prev;
-			val->next  = at;
-		}
-		template<typename T, typename T2 = T>
-		static void link_after(T* at, T2* val) {
-			RC_ASSERT(val->prev == val);
-			auto* next = std::exchange(at->next, val);
-			next->prev = val;
-			val->prev  = at;
-			val->next  = next;
-		}
-		template<typename T>
-		static void unlink(T* at) {
-			RC_ASSERT(at->prev != at);
-			auto* prev = std::exchange(at->prev, at);
-			auto* next = std::exchange(at->next, at);
-			prev->next = next;
-			next->prev = prev;
-		}
-	};
-
-	// Define a CRTT list entry.
-	//
-	template<typename T>
-	struct entry {
-		using BaseEntryType = T;
-
-		// Linked list.
-		//
-		T*			prev			= get();
-		T*			next			= get();
-		head<T>* owning_list = nullptr;
-
-		// List traits.
-		//
-		bool is_detached() const { return prev == this; }
-
-		// Erasing and insertion.
-		//
-		void insert_before(T* at) {
-			util::link_before(at, get());
-			owning_list = at->owning_list;
-		}
-		void insert_after(T* at) {
-			util::link_after(at, get());
-			owning_list = at->owning_list;
-		}
-		std::unique_ptr<T> erase() {
-			util::unlink(get());
-			owning_list = nullptr;
-			return std::unique_ptr<T>{get()};
-		}
-
-		// Offsetter getter.
-		//
-	  private:
-		RC_CONST inline T* get() const { return (T*) this; }
-	};
-
 	// Define a generic iterator.
 	//
 	template<typename T>
@@ -135,76 +66,49 @@ namespace retro::list {
 		constexpr bool operator!=(const iterator& o) const { return at != o.at; };
 	};
 
-	// Generic list head.
-	//
+	// Utilities for manual management.
+	// - Returns true if entry is detached.
 	template<typename T>
-	struct head : range::view_base {
-		using iterator = iterator<T>;
-
-		T*		last		  = dummy();  // .prev
-		T*		first		  = dummy();  // .next
-		void* __self_ref = this;	  // .owning_list
-
-		// Default construction.
-		//
-		head() = default;
-
-		// No copy or move.
-		//
-		head(const head&)				  = delete;
-		head(head&& o)					  = delete;
-		head& operator=(const head&) = delete;
-		head& operator=(head&& o)	  = delete;
-
-		// Observers.
-		//
-		iterator begin() const { return {first}; }
-		iterator end() const { return {dummy()}; }
-		auto		rbegin() const { return std::reverse_iterator(end()); }
-		auto		rend() const { return std::reverse_iterator(begin()); }
-		bool		empty() const { return first == dummy(); }
-		T*			front() const { return (!empty()) ? first : nullptr; }
-		T*			back() const { return (!empty()) ? last : nullptr; }
-
-		// Subrange.
-		//
-		auto after(T* i) const { return range::subrange(i ? iterator(i->next) : begin(), end()); }
-		auto before(T* i) const { return range::subrange(begin(), i ? iterator(i) : end()); }
-
-		// Insertion.
-		//
-		iterator push_back(T* ptr) {
-			ptr->insert_after(last);
-			return iterator(ptr);
-		}
-		iterator push_front(T* ptr) {
-			ptr->insert_before(first);
-			return iterator(ptr);
-		}
-		template<typename Ty = T, typename... Tx>
-		iterator emplace_back(Tx&&... args) {
-			T* res = new Ty(std::forward<Tx>(args)...);
-			return push_back(res);
-		}
-		template<typename Ty = T, typename... Tx>
-		iterator emplace_front(Tx&&... args) {
-			T* res = new Ty(std::forward<Tx>(args)...);
-			return push_front(res);
-		}
-
-		// Reset the list.
-		//
-		void clear() {
-			auto it = first;
-			while (it != dummy()) {
-				delete std::exchange(it, it->next);
-			}
-			first = dummy();
-			last = dummy();
-		}
-		~head() { clear(); }
-
-	  private:
-		T* dummy() const { return (T*) (uptr(this) + offsetof(head, last) - offsetof(T, prev)); }
-	};
+	static bool is_detached(T* at) {
+		return at->prev == at;
+	}
+	// - Links val before at.
+	template<typename T, typename T2 = T>
+	static void link_before(T* at, T2* val) {
+		RC_ASSERT(is_detached(val));
+		auto* prev = std::exchange(at->prev, val);
+		prev->next = val;
+		val->prev  = prev;
+		val->next  = at;
+	}
+	// - Links val after at.
+	template<typename T, typename T2 = T>
+	static void link_after(T* at, T2* val) {
+		RC_ASSERT(is_detached(val));
+		auto* next = std::exchange(at->next, val);
+		next->prev = val;
+		val->prev  = at;
+		val->next  = next;
+	}
+	// - Unlinks the value from the list.
+	template<typename T>
+	static void unlink(T* val) {
+		RC_ASSERT(!is_detached(val));
+		auto* prev = std::exchange(val->prev, val);
+		auto* next = std::exchange(val->next, val);
+		prev->next = next;
+		next->prev = prev;
+	}
+	// - Returns an enumerable subrange for each entry between begin and end.
+	//    If skipping list head, you may get an invalid entry.
+	template<typename T>
+	static auto subrange(T* begin, T* end) {
+		return range::subrange(iterator<T>(begin), iterator<T>(end));
+	}
+	// - Returns an enumerable range starting at entry following this one.
+	//    If not applied to list head, you may get an invalid entry.
+	template<typename T>
+	static auto range(T* at) {
+		return list::subrange<T>(at->next, at);
+	}
 };

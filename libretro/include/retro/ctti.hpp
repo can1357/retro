@@ -1,21 +1,11 @@
 #pragma once
 #include <retro/common.hpp>
+#include <retro/hashers.hpp>
 
 // Compile-Time type identifiers.
 //
 namespace retro::ctti {
-	// Type flags.
-	//
-	enum type_id_flags : u64 {
-		flag_none       = 0,
-		flag_const      = 1 << 0,
-		flag_volatile   = 1 << 1,
-		flag_lvalue_ref = 1 << 2,
-		flag_rvalue_lef = 1 << 3,
-		flag_pointer    = 1 << 4,
-		flag_builtin    = 1 << 5,
-		flag_modifiers  = (flag_builtin << 1) - 1
-	};
+	using id = u32;
 
 	// Define the type hash.
 	//
@@ -61,58 +51,18 @@ namespace retro::ctti {
 			#endif
 			assume_unreachable();
 		}
-		static constexpr auto get() {
-			u64 tmp = 0xcbf29ce484222325;
+		static constexpr id get() {
+			id tmp = fnv1a_32_hasher::offset;
 			for (char c : name()) {
-				tmp ^= (u8) c;
-				tmp *= 0x00000100000001B3;
+				tmp = fnv1a_32_hash(u8(c), tmp);
 			}
-			return tmp & ~flag_modifiers;
+			return tmp;
 		}
-		static constexpr u64 value = get();
+		static constexpr id value = get();
 	};
-
-	// Implement specializations for modifiers and builtin types.
-	//
-	// clang-format off
-	template<typename T> struct type_id<T*> { static constexpr u64 value = type_id<T>::value | flag_pointer; };
-	template<typename T> struct type_id<T&> { static constexpr u64 value = type_id<T>::value | flag_lvalue_ref; };
-	template<typename T> struct type_id<T&&> { static constexpr u64 value = type_id<T>::value | flag_rvalue_lef; };
-	template<typename T> struct type_id<T[]> { static constexpr u64 value = type_id<T>::value | flag_pointer; };
-	template<typename T> struct type_id<const T> { static constexpr u64 value = type_id<T>::value | flag_const; };
-	template<typename T> struct type_id<volatile T> { static constexpr u64 value = type_id<T>::value | flag_volatile; };
-	template<typename T, size_t N> struct type_id<T[N]> { static constexpr u64 value = type_id<T>::value | flag_pointer; };
-	template<> struct type_id<void> { static constexpr u64 value = 0; };
-	template<> struct type_id<bool> { static constexpr u64 value = flag_builtin + 0; };
-	template<> struct type_id<i8> { static constexpr u64 value = flag_builtin + 1; };
-	template<> struct type_id<i16> { static constexpr u64 value = flag_builtin + 2; };
-	template<> struct type_id<i32> { static constexpr u64 value = flag_builtin + 3; };
-	template<> struct type_id<i64> { static constexpr u64 value = flag_builtin + 4; };
-	template<> struct type_id<wchar_t> { static constexpr u64 value = flag_builtin + 5; };
-	template<> struct type_id<char8_t> { static constexpr u64 value = flag_builtin + 6; };
-	template<> struct type_id<char16_t> { static constexpr u64 value = flag_builtin + 7; };
-	template<> struct type_id<char32_t> { static constexpr u64 value = flag_builtin + 8; };
-	template<> struct type_id<u8> { static constexpr u64 value = flag_builtin + 9; };
-	template<> struct type_id<u16> { static constexpr u64 value = flag_builtin + 10; };
-	template<> struct type_id<u32> { static constexpr u64 value = flag_builtin + 11; };
-	template<> struct type_id<u64> { static constexpr u64 value = flag_builtin + 12; };
-	template<> struct type_id<f32> { static constexpr u64 value = flag_builtin + 13; };
-	template<> struct type_id<f64> { static constexpr u64 value = flag_builtin + 14; };
-	// clang-format on
 
 	// Wrapper for type_id::value.
 	//
 	template<typename T>
-	static constexpr u64 of = type_id<T>::value;
-
-	// Helper to test two type ids.
-	//
-	RC_INLINE static constexpr bool test(u64 a, u64 b, u64 ignored = flag_none) {
-		a ^= b;
-		return (a & ~ignored) == 0;
-	}
-	template<typename T>
-	RC_INLINE static constexpr bool test(u64 b, u64 ignored = flag_none) {
-		return test(of<T>, b, ignored);
-	}
+	static constexpr id of = type_id<T>::value;
 };

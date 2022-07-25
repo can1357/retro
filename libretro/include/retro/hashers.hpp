@@ -54,45 +54,53 @@ namespace retro {
 
 	// FNV1-A.
 	//
-	struct fnv1a_hasher {
-#if RC_32
-		static constexpr size_t offset = 0x811c9dc5;
-		static constexpr size_t prime	 = 0x01000193;
-#else
-		static constexpr size_t offset = 0xcbf29ce484222325;
-		static constexpr size_t prime  = 0x00000100000001b3;
-#endif
+	namespace detail {
+		template<typename T, T Offset, T Prime>
+		struct fnv1a_impl {
+			static constexpr T offset = Offset;
+			static constexpr T prime  = Prime;
 
-		// Hashers for each size of integral.
-		//
-		RC_INLINE constexpr size_t operator()(u8 data, size_t hash = offset) const noexcept {
-			hash ^= data;
-			hash *= prime;
-			return hash;
-		}
-		RC_INLINE constexpr size_t operator()(u16 data, size_t hash = offset) const noexcept {
-			hash = operator()(u8(data & 0xFF), hash);
-			hash = operator()(u8((data >> 8) & 0xFF), hash);
-			return hash;
-		}
-		RC_INLINE constexpr size_t operator()(u32 data, size_t hash = offset) const noexcept {
-			hash = operator()(u16(data & 0xFFFF), hash);
-			hash = operator()(u16((data >> 16) & 0xFFFF), hash);
-			return hash;
-		}
-		RC_INLINE constexpr size_t operator()(u64 data, size_t hash = offset) const noexcept {
-			hash = operator()(u32(data & 0xFFFFFFFF), hash);
-			hash = operator()(u32((data >> 32) & 0xFFFFFFFF), hash);
-			return hash;
-		}
-		RC_INLINE constexpr size_t operator()(i8 data, size_t hash = offset) const noexcept { return operator()(u8(data), hash); }
-		RC_INLINE constexpr size_t operator()(i16 data, size_t hash = offset) const noexcept { return operator()(u16(data), hash); }
-		RC_INLINE constexpr size_t operator()(i32 data, size_t hash = offset) const noexcept { return operator()(u32(data), hash); }
-		RC_INLINE constexpr size_t operator()(i64 data, size_t hash = offset) const noexcept { return operator()(u64(data), hash); }
+			// Hashers for each size of integral.
+			//
+			RC_INLINE constexpr T operator()(u8 data, T hash = Offset) const noexcept {
+				hash ^= data;
+				hash *= Prime;
+				return hash;
+			}
+			RC_INLINE constexpr T operator()(u16 data, T hash = Offset) const noexcept {
+				hash = operator()(u8(data & 0xFF), hash);
+				hash = operator()(u8((data >> 8) & 0xFF), hash);
+				return hash;
+			}
+			RC_INLINE constexpr T operator()(u32 data, T hash = Offset) const noexcept {
+				hash = operator()(u16(data & 0xFFFF), hash);
+				hash = operator()(u16((data >> 16) & 0xFFFF), hash);
+				return hash;
+			}
+			RC_INLINE constexpr T operator()(u64 data, T hash = Offset) const noexcept {
+				hash = operator()(u32(data & 0xFFFFFFFF), hash);
+				hash = operator()(u32((data >> 32) & 0xFFFFFFFF), hash);
+				return hash;
+			}
+			RC_INLINE constexpr T operator()(i8 data, T hash = Offset) const noexcept { return operator()(u8(data), hash); }
+			RC_INLINE constexpr T operator()(i16 data, T hash = Offset) const noexcept { return operator()(u16(data), hash); }
+			RC_INLINE constexpr T operator()(i32 data, T hash = Offset) const noexcept { return operator()(u32(data), hash); }
+			RC_INLINE constexpr T operator()(i64 data, T hash = Offset) const noexcept { return operator()(u64(data), hash); }
+		};
 	};
+	
+	using fnv1a_64_hasher = detail::fnv1a_impl<u64, 0xcbf29ce484222325, 0x00000100000001b3>;
+	using fnv1a_32_hasher = detail::fnv1a_impl<u32, 0x811c9dc5, 0x01000193>;
+#if RC_32
+	using fnv1a_hasher = fnv1a_32_hasher;
+#else
+	using fnv1a_hasher = fnv1a_64_hasher;
+#endif
 
 	// Functional versions.
 	//
-	inline static constexpr fnv1a_hasher  fnv1a_hash;
-	inline static constexpr sparse_hasher sparse_hash;
+	inline static constexpr fnv1a_hasher	 fnv1a_hash		= {};
+	inline static constexpr fnv1a_32_hasher fnv1a_32_hash = {};
+	inline static constexpr fnv1a_64_hasher fnv1a_64_hash = {};
+	inline static constexpr sparse_hasher	 sparse_hash	= {};
 };

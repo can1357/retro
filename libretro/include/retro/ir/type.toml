@@ -1,0 +1,120 @@
+Includes = [
+	"<retro/targets.hxx>",
+	"<retro/ir/ops.hxx>",
+	"<string>",
+]
+
+type_kind = [
+	"pseudo",    # bit-size = 0, since not used at runtime.
+	"integral",
+	"pointer",
+	"floating-point",
+	"simd-int",
+	"simd-fp",
+]
+
+# Generate SIMD types.
+#
+Script = """
+SIMD_WIDTHS = [128, 256, 512]
+
+for l in SIMD_WIDTHS:
+	# Generate int types.
+	for k in [64, 32, 16, 8]:
+		ty = "i" + str(k)
+		lane_width = l // k
+		vty = "{0}x{1}".format(ty, lane_width)
+		desc = {
+			"kind":        "@type_kind.simd-int",
+			"underlying":  "@type." + ty,
+			"lane_width":  lane_width,
+			"bit_size":    l,
+			"VisitorArgs": [vty]
+		}
+		data["type"][vty] = desc
+
+	# Generate float types.
+	for k in [64, 32]:
+		ty = "f" + str(k)
+		lane_width = l // k
+		vty = "{0}x{1}".format(ty, lane_width)
+		desc = {
+			"kind":        "@type_kind.simd-fp",
+			"underlying":  "@type." + ty,
+			"lane_width":  lane_width,
+			"bit_size":    l,
+			"VisitorArgs": [vty]
+		}
+		data["type"][vty] = desc
+"""
+
+# Pseudo.
+#
+[type.pack]
+kind     =    "@type_kind.pseudo"
+VisitorArgs = ["void"]
+[type.reg]
+kind     =    "@type_kind.pseudo"
+VisitorArgs = ["retro::reg"]
+[type.op]
+kind     =    "@type_kind.pseudo"
+VisitorArgs = ["retro::ir::op"]
+[type.label]
+kind     =    "@type_kind.pseudo"
+VisitorArgs = ["uptr"]
+[type.str]
+kind     =    "@type_kind.pseudo"
+VisitorArgs = ["std::string"]
+
+# Integral types.
+#
+[type.i1]
+kind     =    "@type_kind.integral"
+bit_size =    1
+VisitorArgs = ["bool"]
+[type.i8]
+kind     =    "@type_kind.integral"
+bit_size =    8
+VisitorArgs = ["i8"]
+[type.i16]
+kind     =    "@type_kind.integral"
+bit_size =    16
+VisitorArgs = ["i16"]
+[type.i32]
+kind     =    "@type_kind.integral"
+bit_size =    32
+VisitorArgs = ["i32"]
+[type.i64]
+kind     =    "@type_kind.integral"
+bit_size =    64
+VisitorArgs = ["i64"]
+[type.i128]
+kind     =    "@type_kind.integral"
+bit_size =    128
+VisitorArgs = ["i128"]
+
+# Floating point types.
+#
+[type.f32]
+kind     =    "@type_kind.floating-point"
+bit_size =    32
+VisitorArgs = ["f32"]
+[type.f64]
+kind     =    "@type_kind.floating-point"
+bit_size =    64
+VisitorArgs = ["f64"]
+
+# Pointer type.
+#
+[type.ptr16]
+kind     =    "@type_kind.pointer"
+bit_size =    16
+VisitorArgs = ["u16"]
+[type.ptr32]
+kind     =    "@type_kind.pointer"
+bit_size =    32
+VisitorArgs = ["u32"]
+[type.ptr64]
+kind     =    "@type_kind.pointer"
+bit_size =    64
+VisitorArgs = ["u64"]
