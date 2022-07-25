@@ -12,8 +12,11 @@
 //
 namespace retro {
 	namespace detail {
+		struct dyn_tag_t {};
+
 		// Dynamic info in .rdata.
 		//
+#pragma pack(push, 1)
 		template<typename Self, typename BaseInfo>
 		struct dyn_info : BaseInfo {
 			ctti::id entry = ctti::of<Self>;
@@ -26,11 +29,11 @@ namespace retro {
 		};
 		template<>
 		struct dyn_info<void, void> {
-			std::string_view		name			  = {};
-			ctti::id					highest_entry = 0;
-			u32						size			  = 0;
-			i32						class_index	  = -1;
-			std::span<const ctti::id> get_bases() const { return {(const ctti::id*) (this + 1), size_t(class_index + 1)}; }
+			std::string_view			  name			 = {};
+			ctti::id						  highest_entry = 0;
+			u32							  size			 = 0;
+			i32							  class_index	 = -1;
+			RC_INLINE std::span<const ctti::id> bases() const { return {(const ctti::id*) (this + 1), size_t(class_index + 1)}; }
 		};
 		template<typename Self>
 		struct dyn_info<Self, void> : dyn_info<void, void> {
@@ -42,11 +45,12 @@ namespace retro {
 		};
 		template<typename T>
 		inline constexpr T dyn_instance = {};
+#pragma pack(pop)
 
 		// Base class implementing the interface.
 		//
 		template<typename Base>
-		struct dyn_base {
+		struct dyn_base : dyn_tag_t {
 			using base_type = Base;
 
 			// Default construction, copy and move.
@@ -90,7 +94,7 @@ namespace retro {
 				//
 				else {
 					constexpr auto& target_info = dyn_instance<typename X::Info>;
-					return info->class_index >= target_info.class_index && info->get_bases()[target_info.class_index] == ctti::of<X>;
+					return info->class_index >= target_info.class_index && info->bases().data()[target_info.class_index] == ctti::of<X>;
 				}
 			}
 
@@ -170,6 +174,11 @@ namespace retro {
 		friend struct dyn;
 		friend struct detail::dyn_base<Self>;
 	};
+
+	// Concept for checking if type dynamic.
+	//
+	template<typename T>
+	concept Dynamic = std::is_base_of_v<detail::dyn_tag_t, T>;
 
 	// Unique ptr with copy.
 	//

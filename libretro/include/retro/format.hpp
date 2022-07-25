@@ -1,39 +1,39 @@
 #pragma once
-#include <retro/common.hpp>
-#include <retro/utf.hpp>
 #include <cstdarg>
 #include <cstdio>
 #include <cstring>
+#include <filesystem>
+#include <memory>
+#include <optional>
+#include <retro/common.hpp>
+#include <retro/utf.hpp>
 #include <string>
 #include <string_view>
-#include <filesystem>
-#include <optional>
 #include <tuple>
-#include <memory>
 
 #if !RC_NO_ANSI
-	#define RC_ANSI_ESC(...)  "\x1B[" __VA_ARGS__ "m"
+	#define RC_ANSI_ESC(...) "\x1B[" __VA_ARGS__ "m"
 #else
 	#define RC_ANSI_ESC(...) ""
 #endif
-#define RC_BLACK		RC_ANSI_ESC("0;2;30")	// Black -> White
-#define RC_GRAY		RC_ANSI_ESC("0;1;30")	//
-#define RC_DEFAULT	RC_ANSI_ESC("0;2;37")	//
-#define RC_WHITE		RC_ANSI_ESC("0;1;37")	//
-#define RC_PURPLE		RC_ANSI_ESC("0;1;35")	// Purple
-#define RC_VIOLET		RC_ANSI_ESC("0;2;35")	//
-#define RC_CYAN		RC_ANSI_ESC("0;1;36")	// Cyan
-#define RC_TEAL		RC_ANSI_ESC("0;2;36")	//
-#define RC_YELLOW		RC_ANSI_ESC("0;1;33")	// Yellow
-#define RC_ORANGE		RC_ANSI_ESC("0;2;33")	//
-#define RC_RED			RC_ANSI_ESC("0;1;31")	// Red
-#define RC_CRIMSON	RC_ANSI_ESC("0;2;31")	//
-#define RC_GREEN		RC_ANSI_ESC("0;1;32")	// Green
-#define RC_SEA_GREEN RC_ANSI_ESC("0;2;32")	//
-#define RC_BLUE		RC_ANSI_ESC("0;1;34")	// Blue
-#define RC_NAVY_BLUE RC_ANSI_ESC("0;2;34")	//
-#define RC_UNDERLINE RC_ANSI_ESC("000004")	//
-#define RC_RESET		RC_ANSI_ESC("000000")	//
+#define RC_BLACK		RC_ANSI_ESC("0;2;30")  // Black -> White
+#define RC_GRAY		RC_ANSI_ESC("0;1;30")  //
+#define RC_DEFAULT	RC_ANSI_ESC("0;2;37")  //
+#define RC_WHITE		RC_ANSI_ESC("0;1;37")  //
+#define RC_PURPLE		RC_ANSI_ESC("0;1;35")  // Purple
+#define RC_VIOLET		RC_ANSI_ESC("0;2;35")  //
+#define RC_CYAN		RC_ANSI_ESC("0;1;36")  // Cyan
+#define RC_TEAL		RC_ANSI_ESC("0;2;36")  //
+#define RC_YELLOW		RC_ANSI_ESC("0;1;33")  // Yellow
+#define RC_ORANGE		RC_ANSI_ESC("0;2;33")  //
+#define RC_RED			RC_ANSI_ESC("0;1;31")  // Red
+#define RC_CRIMSON	RC_ANSI_ESC("0;2;31")  //
+#define RC_GREEN		RC_ANSI_ESC("0;1;32")  // Green
+#define RC_SEA_GREEN RC_ANSI_ESC("0;2;32")  //
+#define RC_BLUE		RC_ANSI_ESC("0;1;34")  // Blue
+#define RC_NAVY_BLUE RC_ANSI_ESC("0;2;34")  //
+#define RC_UNDERLINE RC_ANSI_ESC("000004")  //
+#define RC_RESET		RC_ANSI_ESC("000000")  //
 
 namespace retro::fmt {
 	// We use fixed escape code lengths to make stripping code faster.
@@ -115,10 +115,10 @@ namespace retro::fmt {
 	};
 	template<typename T>
 	static auto to_str(const T& arg) {
-		if constexpr (std::is_bounded_array_v<T> ) {
+		if constexpr (std::is_bounded_array_v<T>) {
 			using El = std::remove_extent_t<T>;
 			if constexpr (std::is_same_v<std::remove_const_t<El>, char>) {
-				return std::string_view{ arg, std::extent_v<T> - 1 };
+				return std::string_view{arg, std::extent_v<T> - 1};
 			}
 		}
 		using Td = std::decay_t<T>;
@@ -158,7 +158,7 @@ namespace retro::fmt {
 			static_assert(sizeof(T) == -1, "Type is not formattable.");
 		}
 	}
-	
+
 	// Variable count string concat, Tx should be all convertible to string_view.
 	//
 	namespace detail {
@@ -221,20 +221,20 @@ namespace retro::fmt {
 	}
 
 #if RC_DEBUG
-	#define RC_ASSERT(...)                                                                                                            \
-		do                                                                                                                             \
-			if (!(__VA_ARGS__)) [[unlikely]]                                                                                            \
+	#define RC_ASSERT(...)                                                                                                         \
+		do                                                                                                                          \
+			if (!(__VA_ARGS__)) [[unlikely]]                                                                                         \
 				retro::fmt::abort("Assertion \"" RC_STRINGIFY(__VA_ARGS__) "\" failed. [" __FILE__ ":" RC_STRINGIFY(__LINE__) "]\n"); \
 		while (0)
-	#define RC_ASSERT_MSG(msg, ...)                                                   \
-		do                                                                             \
-			if (!(__VA_ARGS__)) [[unlikely]]                                            \
+	#define RC_ASSERTS(msg, ...)                                                   \
+		do                                                                          \
+			if (!(__VA_ARGS__)) [[unlikely]]                                         \
 				retro::fmt::abort(msg "[" __FILE__ ":" RC_STRINGIFY(__LINE__) "]\n"); \
 		while (0)
 	#define RC_UNREACHABLE() retro::fmt::abort("Unreachable assumption failed at [" __FILE__ ":" RC_STRINGIFY(__LINE__) "]\n");
 #else
-	#define RC_ASSERT(...)			  retro::assume_that(bool(__VA_ARGS__))
-	#define RC_ASSERT_MSG(msg, ...) retro::assume_that(bool(__VA_ARGS__))
-	#define RC_UNREACHABLE()		  retro::assume_unreachable()
+	#define RC_ASSERT(...)		  retro::assume_that(bool(__VA_ARGS__))
+	#define RC_ASSERTS(msg, ...) retro::assume_that(bool(__VA_ARGS__))
+	#define RC_UNREACHABLE()	  retro::assume_unreachable()
 #endif
 };

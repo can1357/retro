@@ -19,6 +19,8 @@
     </ProjectConfiguration>
   </ItemGroup>
   <ItemGroup>
+    <ClInclude Include="include\retro\graph\naive.hpp" />
+    <ClInclude Include="include\retro\graph\search.hpp" />
     <ClInclude Include="include\retro\intrin.hpp" />
     <ClInclude Include="include\retro\bitset.hpp" />
     <ClInclude Include="include\retro\common.hpp" />
@@ -29,18 +31,21 @@
     <ClInclude Include="include\retro\format.hpp" />
     <ClInclude Include="include\retro\func.hpp" />
     <ClInclude Include="include\retro\hashers.hpp" />
+    <ClInclude Include="include\retro\ir\builtin_types.hxx" />
     <ClInclude Include="include\retro\ir\ops.hxx" />
-    <ClInclude Include="include\retro\ir\type.hxx" />
+    <ClInclude Include="include\retro\ir\types.hpp" />
+    <ClInclude Include="include\retro\ir\use.hpp" />
     <ClInclude Include="include\retro\list.hpp" />
     <ClInclude Include="include\retro\lock.hpp" />
     <ClInclude Include="include\retro\platform.hpp" />
+    <ClInclude Include="include\retro\rc.hpp" />
     <ClInclude Include="include\retro\targets.hxx" />
     <ClInclude Include="include\retro\utf.hpp" />
   </ItemGroup>
   <ItemGroup>
     <None Include="..\.clang-format" />
+    <None Include="include\retro\ir\builtin_types.toml" />
     <None Include="include\retro\ir\ops.toml" />
-    <None Include="include\retro\ir\type.toml" />
     <None Include="include\retro\targets.toml" />
   </ItemGroup>
   <ItemGroup>

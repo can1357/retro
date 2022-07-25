@@ -7,10 +7,10 @@
 #include <initializer_list>
 #include <array>
 #include <bit>
-#include <algorithm>
 #include <string_view>
 #include <numeric>
 #include <ranges>
+#include <algorithm>
 
 // Compiler details.
 //
@@ -441,6 +441,19 @@ namespace retro {
 		}
 #endif
 		return Dst(o);
+	}
+
+	// Helper for coercing void returns into another type.
+	//
+	template<typename R, typename F, typename... Tx>
+	RC_INLINE inline static constexpr decltype(auto) apply_novoid(F&& fn, Tx&&... args) {
+		using T = decltype(fn(std::forward<Tx>(args)...));
+		if constexpr (std::is_void_v<T>) {
+			fn(std::forward<Tx>(args)...);
+			return R{};
+		} else {
+			return fn(std::forward<Tx>(args)...);
+		}
 	}
 
 	// Tagging for structured types described via the TOML.
