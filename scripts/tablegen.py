@@ -679,7 +679,7 @@ def generate_all(root):
         cache[file] = filedata
         
         print("-- Generating ", namespace)
-        out = file.rsplit(".",1)[0] + ".table.hpp"
+        out = file.rsplit(".",1)[0] + ".hxx"
         with open(out, "w") as outf:
             result =  "#pragma once\n#include <retro/common.hpp>\n\n"
             result += Namespace(None, namespace, toml.loads(filedata)).write()

@@ -5,4 +5,4 @@ build/
 *.exe
 .vs/
 *.ipynb
-*.table.hpp
+**/retro/**/*.hxx

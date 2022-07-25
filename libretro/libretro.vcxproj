@@ -19,7 +19,7 @@
     </ProjectConfiguration>
   </ItemGroup>
   <ItemGroup>
-    <ClInclude Include="include\retro\il\ops.table.hpp" />
+    <ClInclude Include="include\retro\il\ops.hxx" />
     <ClInclude Include="include\retro\intrin.hpp" />
     <ClInclude Include="include\retro\bitset.hpp" />
     <ClInclude Include="include\retro\common.hpp" />
@@ -33,7 +33,7 @@
     <ClInclude Include="include\retro\list.hpp" />
     <ClInclude Include="include\retro\lock.hpp" />
     <ClInclude Include="include\retro\platform.hpp" />
-    <ClInclude Include="include\retro\targets.table.hpp" />
+    <ClInclude Include="include\retro\targets.hxx" />
     <ClInclude Include="include\retro\utf.hpp" />
   </ItemGroup>
   <ItemGroup>
