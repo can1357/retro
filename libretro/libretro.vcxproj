@@ -40,10 +40,12 @@
     <ClInclude Include="include\retro\format.hpp" />
     <ClInclude Include="include\retro\func.hpp" />
     <ClInclude Include="include\retro\hashers.hpp" />
+    <ClInclude Include="include\retro\ir\basic_block.hpp" />
     <ClInclude Include="include\retro\ir\builtin_types.hxx" />
     <ClInclude Include="include\retro\ir\insn.hpp" />
     <ClInclude Include="include\retro\ir\opcodes.hxx" />
     <ClInclude Include="include\retro\ir\ops.hxx" />
+    <ClInclude Include="include\retro\ir\procedure.hpp" />
     <ClInclude Include="include\retro\ir\types.hpp" />
     <ClInclude Include="include\retro\ir\value.hpp" />
     <ClInclude Include="include\retro\list.hpp" />
