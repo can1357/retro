@@ -283,6 +283,18 @@ namespace retro {
 		constexpr operator std::string_view() const { return to_string(); }
 	};
 
+	// Tags.
+	//
+	template<typename T>
+	struct type_tag {
+		using type = T;
+	};
+	template<auto V>
+	struct value_tag {
+		using type						 = decltype(V);
+		static constexpr type value = V;
+	};
+
 	// Compiler specifics.
 	//
 #if RC_GNU
@@ -478,6 +490,26 @@ namespace retro {
 	inline constexpr std::string_view enum_name(T value) {
 		return enum_reflect(value).name;
 	}
+
+	// Python generated std::visit for enums.
+	//
+#define _RC_DEFINE_STD_VISIT_CASE_FOR(V, ...) \
+	case _Type::V:                             \
+		return vis(retro::value_tag<_Type::V>{});
+#define RC_DEFINE_STD_VISITOR_FOR(_TYPE, _MACRO_VISITOR)                   \
+	namespace std {                                                         \
+		template<typename Visitor>                                           \
+		inline constexpr decltype(auto) visit(Visitor&& vis, _TYPE opcode) { \
+			using _Type = _TYPE;                                              \
+			switch (opcode) {                                                 \
+				_MACRO_VISITOR(_RC_DEFINE_STD_VISIT_CASE_FOR)                  \
+				_RC_DEFINE_STD_VISIT_CASE_FOR(none)                            \
+				default:                                                       \
+					RC_UNREACHABLE();                                           \
+			}                                                                 \
+			RC_UNREACHABLE();                                                 \
+		}                                                                    \
+	};
 
 	// Small array type for TOML generated lists.
 	//

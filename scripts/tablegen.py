@@ -1,7 +1,7 @@
 #!/usr/bin/env python
 # coding: utf-8
 
-# In[16]:
+# In[18]:
 
 
 #!conda install --yes toml
@@ -26,7 +26,8 @@ CXX_HELP_DCL_FMT =  """RC_INLINE constexpr std::span<const {0}_desc> {0}_desc::l
 CXX_ARR_DCL_FMT =   "\ninline constexpr {0} {1}s[] = {{\n"
 CXX_DESC_SUFFIX =   "_desc"
 CXX_NS_SUFFIX_PER_ENUM = """namespace retro {{ template<> struct descriptor<{0}::{1}> {{ using type = {0}::{1}_desc; }}; }};
-"""
+RC_DEFINE_STD_VISITOR_FOR({0}::{1}, RC_VISIT_{2})
+""" 
 CXX_NULL_ENUM = "none"
 CXX_USE_BOOL = False
 
@@ -478,8 +479,6 @@ class Enum(Decl):
         # Must have been expanded.
         assert self.desc != None
         
-        
-        
         # Start the declaration.
         #
         out = CXX_ARR_DCL_FMT.format(self.desc.name, to_cname(self.name))
@@ -598,7 +597,7 @@ class Namespace(Decl):
         out = ""
         for k in self.decls:
             if isinstance(self.decls[k], Enum):
-                ext_suffix += CXX_NS_SUFFIX_PER_ENUM.format(self.name, to_cname(self.decls[k].name))
+                ext_suffix += CXX_NS_SUFFIX_PER_ENUM.format(self.name, to_cname(self.decls[k].name), to_cname(self.decls[k].name).upper())
                 out += self.decls[k].write()
         out += "\n\n" + make_box("Descriptors")
         for k in self.decls:
