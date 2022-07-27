@@ -5,27 +5,118 @@ Forwards = [
 	"type"
 ]
 
+
+Script = """
+# Generate the visitor for creating the constructors.
+#
+insns = data["opcode"]
+for k,v in insns.items():
+	# Start by setting the opcode.
+	#
+	tmplist = []
+	arglist = []
+	stmts = ["r->op = opcode::" + k]
+	stmts_last = [
+		"r->validate()",
+		"return r"
+	]
+
+	# If instruction is templated:
+	#
+	for i in range(v.get("template-count", 0)):
+		# Determine if we can deduce this template.
+		#
+		arg_match = 0
+		for j in range(1, len(v["types"])):
+			if v["templates"][j] == (i+1):
+				arg_match = j
+				break
+
+		# If we cant, explicitly ask for it.
+		#
+		if arg_match == 0:
+			arglist.append("type t{0}".format(i))
+			stmts.append("r->template_types[{0}] = t{0}".format(i))
+		# Otherwise, deduce.
+		#
+		else:
+			argname = v["names"][arg_match].lower()
+			stmts_last.insert(0, "r->template_types[{0}] = r->operands()[{1}].get_type()".format(i, arg_match-1))
+
+	# For each argument:
+	#
+	fixed_arg_count =   0
+	var_arg_sentinels = []
+	for i in range(1, len(v["types"])):
+		argname = v["names"][i].lower()
+		fixed_arg_count += 1
+
+		# If constexpr, request the real type.
+		#
+		if i in v.get("constexprs", []):
+			arglist.append("type_t<type::" + v["types"][i][6:] + "> " + argname)
+			stmts.append("r->set_operand({0}, {1})".format(i-1, argname))
+		# Otherwise if vararg:
+		#
+		elif v["types"][i] == "@type.pack":
+			fixed_arg_count -= 1
+			var_arg_sentinels.append("sizeof...(T{0})".format(argname))
+			tmplist.append("...T"+argname)
+			arglist.append("T{0}&&... {0}".format(argname))
+			stmts.append("r->set_operand({0}, std::forward<T{1}>({1})...)".format(i-1, argname))
+			assert (i+1) == len(v["types"]);
+		# Finally accept any value.
+		#
+		else:
+			tmplist.append("T"+argname)
+			arglist.append("T{0}&& {0}".format(argname))
+			stmts.append("r->set_operand({0}, std::forward<T{1}>({1}))".format(i-1, argname))
+		
+	# Finally add the allocation with operand count and return the result.
+	#
+	var_arg_sentinels.append(str(fixed_arg_count))
+	stmts.insert(0, "auto r = insn::allocate({0})".format("+".join(var_arg_sentinels)))
+
+	# Finally combined all the code together.
+	#
+	result =    "inline shared<insn> make_" + k + "("
+	if len(tmplist) != 0:
+		for i in range(len(tmplist)):
+			tmplist[i] = "typename " + tmplist[i]
+		result = "template<" + ", ".join(tmplist) + "> " + result
+	if len(arglist) != 0:
+		result += ", ".join(arglist)
+	result += ") {\\n"
+	stmts.extend(stmts_last)
+	result += ";\\n".join(stmts)
+	result += ";\\n}"
+
+	# Set the visitor arg.
+	v["VisitorArgs"] = ["RC_IDENTITY(" + result.replace("\\n", "") + ")"]
+	#print(result)
+"""
+
 # T    read_reg<T>  reg:id
-[insn.read_reg]
+[opcode.read_reg]
 side-effects   = false
 is-const =       false
 is-pure =        true
 template-count = 1
 types =          ["@type.none", "@type.reg"]
 templates =      [1,            0]
-names =          ["",           "register"]
+names =          ["",           "regid"]
 
 #void write_reg<T> reg:id	T:value
-[insn.write_reg]
+[opcode.write_reg]
 side-effects   = true
 is-const =       false
 template-count = 1
 types =          ["@type.none", "@type.reg", "@type.none"]
 templates =      [0,            0,           1]
-names =          ["",           "register",  "value"]
+names =          ["",           "regid",     "value"]
 
 #T    load_mem<T>  uptr:adr	
-[insn.load_mem]
+[opcode.load_mem]
 side-effects   = false
 is-const =       false
 is-pure =        true
@@ -35,7 +126,7 @@ templates =      [1,            0]
 names =          ["",           "pointer"]
 
 #void store_mem<T> uptr:adr	T:value
-[insn.store_mem]
+[opcode.store_mem]
 side-effects   = true
 is-const =       false
 template-count = 1
@@ -44,7 +135,7 @@ templates =      [0,            0,             1]
 names =          ["",           "pointer",     "value"]
 
 #T    undef<T>
-[insn.undef]
+[opcode.undef]
 side-effects   = false
 is-const =       true
 is-pure =        true
@@ -55,7 +146,7 @@ names =          [""]
 constexprs =     []
 
 #T    poison<T>    str:Reason
-[insn.poison]
+[opcode.poison]
 side-effects   = false
 is-const =       true
 is-pure =        true
@@ -66,7 +157,7 @@ names =          ["",           "Reason"]
 constexprs =     [1]
 
 #Ty   uext<Tx,Ty>  Tx:value
-[insn.uext]
+[opcode.uext]
 side-effects   = false
 is-const =       true
 is-pure =        true
@@ -75,7 +166,7 @@ types =          ["@type.none", "@type.none"]
 templates =      [2,            1]
 names =          ["",           "value"]
 #Ty   iext<Tx,Ty>  Tx:value
-[insn.iext]
+[opcode.iext]
 side-effects   = false
 is-const =       true
 is-pure =        true
@@ -84,7 +175,7 @@ types =          ["@type.none", "@type.none"]
 templates =      [2,            1]
 names =          ["",           "value"]
 #Ty   cast<Tx,Ty>  Tx:value
-[insn.cast]
+[opcode.cast]
 side-effects   = false
 is-const =       true
 is-pure =        true
@@ -93,7 +184,7 @@ types =          ["@type.none", "@type.none"]
 templates =      [2,            1]
 names =          ["",           "value"]
 #Ty   bitcast<Tx,Ty>  Tx:value
-[insn.bitcast]
+[opcode.bitcast]
 side-effects   = false
 is-const =       true
 is-pure =        true
@@ -104,37 +195,38 @@ names =          ["",           "value"]
 
 
 #T    binop<T>     Op:Operator  T:lhs  T:rhs
-[insn.binop]
+[opcode.binop]
 side-effects   = false
 is-const =       true
 is-pure =        true
 template-count = 1
 types =          ["@type.none", "@type.op", "@type.none", "@type.none"]
 templates =      [1,            0,          1,            1]
-names =          ["",           "Operator", "lhs",        "rhs"]
+names =          ["",           "Op", "lhs",        "rhs"]
 constexprs =     [1]
 #T    unop<T>     Op:Operator  T:rhs
-[insn.unop]
+[opcode.unop]
 side-effects   = false
 is-const =       true
 is-pure =        true
 template-count = 1
 types =          ["@type.none", "@type.op", "@type.none"]
 templates =      [1,            0,          1]
-names =          ["",           "Operator", "rhs"]
+names =          ["",           "Op", "rhs"]
 constexprs =     [1]
 #i1    cmp<T>     Op:Operator  T:lhs  T:rhs
-[insn.cmp]
+[opcode.cmp]
 side-effects   = false
 is-const =       true
 is-pure =        true
 template-count = 1
 types =          ["@type.i1", "@type.op", "@type.none", "@type.none"]
 templates =      [0,          0,          1,            1]
-names =          ["",         "Operator", "lhs",        "rhs"]
+names =          ["",         "Op", "lhs",        "rhs"]
 constexprs =     [1]
+
 #T     phi<T>     Tx...
-[insn.phi]
+[opcode.phi]
 side-effects   = false
 is-const =       false
 template-count = 1
@@ -143,7 +235,7 @@ templates =      [1,            0]
 names =          ["",           "incoming"]
 
 #T    select<T>   i1:cc  T:tv T:fv
-[insn.select]
+[opcode.select]
 side-effects   = false
 is-const =       true
 is-pure =        true
@@ -151,10 +243,9 @@ template-count = 1
 types =          ["@type.none", "@type.i1", "@type.none", "@type.none"]
 templates =      [1,            0,          1,            1]
 names =          ["",           "cc",      "tv",          "fv"]
-constexprs =     [1]
 
 #void  xcall      uptr:destination
-[insn.xcall]
+[opcode.xcall]
 side-effects   = true
 is-const =       false
 template-count = 0
@@ -162,8 +253,8 @@ types =          ["@type.none", "@type.ptr64"]
 templates =      [0,            0]
 names =          ["",           "destination"]
 
-#void  jmp        uptr:destination
-[insn.jmp]
+#void  xjmp      uptr:destination
+[opcode.xjmp]
 side-effects   = true
 is-const =       false
 terminator =     true
@@ -172,8 +263,8 @@ types =          ["@type.none", "@type.ptr64"]
 templates =      [0,            0]
 names =          ["",           "destination"]
 
-#void  br        label:destination
-[insn.br]
+#void  jmp       label:destination
+[opcode.jmp]
 side-effects   = true
 is-const =       false
 terminator =     true
@@ -182,8 +273,8 @@ types =          ["@type.none", "@type.label"]
 templates =      [0,            0]
 names =          ["",           "destination"]
 
-#void  brc       i1:cc  label:tb label:fb
-[insn.brc]
+#void  js        i1:cc  label:tb label:fb
+[opcode.js]
 side-effects   = true
 is-const =       false
 terminator =     true
@@ -192,7 +283,7 @@ templates =      [0,            0,          0,            0]
 names =          ["",           "cc",      "tb",          "fb"]
 
 #void  ret<T>    T:result
-[insn.ret]
+[opcode.ret]
 side-effects   = true
 is-const =       false
 terminator =     true
@@ -202,7 +293,7 @@ templates =      [0,            1]
 names =          ["",           "result"]
 
 #void  unreachable
-[insn.unreachable]
+[opcode.unreachable]
 side-effects   = true
 is-const =       false
 terminator =     true
@@ -214,7 +305,7 @@ names =          [""]
 
 #TODO:
 #  -- vector stuff
-#  T    intrinsic<T> str:name, Ty:ArgOrTup // lsb,msb,popcnt,sin,cos,memcpy,readgs,atomic,can represent all things we dont care about
+#  T    intrinsic<T> constexpr intrinsic:Id, Ty:ArgOrTup // lsb,msb,popcnt,sin,cos,memcpy,readgs,atomic,can represent all things we dont care about
 #  Tup  insert       Tup, int:idx, Ty:value
 #  T    extract      Tup
 #  R    call<R, A>   uptr:adr A:arg CC:CallConvention

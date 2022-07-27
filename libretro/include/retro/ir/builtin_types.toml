@@ -1,6 +1,5 @@
 Includes = [
 	"<retro/targets.hxx>",
-	"<retro/ir/ops.hxx>",
 	"<string>",
 ]
 
@@ -55,6 +54,8 @@ VisitorArgs = ["retro::ir::value_pack_t"]
 VisitorArgs = ["retro::reg"]
 [type.op]
 VisitorArgs = ["retro::ir::op"]
+[type.intrinsic]
+VisitorArgs = ["retro::ir::intrinsic"]
 [type.label]
 VisitorArgs = ["basic_block*"]
 [type.str]

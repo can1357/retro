@@ -1,3 +1,10 @@
+Includes = [
+	"<retro/ir/builtin_types.hxx>"
+]
+Forwards = [
+	"type"
+]
+
 op-kind = [
 	"unary-signed",
 	"unary-unsigned",
@@ -28,6 +35,9 @@ symbol = "msb"
 kind   = "@op-kind.unary-bitwise"
 [op.bit_popcnt]
 symbol = "popcnt"
+kind   = "@op-kind.unary-bitwise"
+[op.bit_swap]
+symbol = "bswap"
 kind   = "@op-kind.unary-bitwise"
 [op.bit_not]
 symbol = "~"
@@ -186,3 +196,104 @@ symbol = "!="
 kind   = "@op-kind.op-signed"
 inverse = "@op.eq"
 commutative = true
+
+# Memory intrinsics.
+#
+[intrinsic.stack-alloc]
+symbol = "alloca"
+args =   ["@type.i32"]
+ret =    "@type.ptr64"
+[intrinsic.malloc]
+args =   ["@type.i64"]
+ret =    "@type.ptr64"
+[intrinsic.realloc]
+args =   ["@type.ptr64", "@type.i64"]
+ret =    "@type.ptr64"
+[intrinsic.free]
+args =   ["@type.ptr64"]
+[intrinsic.sfence]
+args =   []
+[intrinsic.lfence]
+args =   []
+[intrinsic.mfence]
+args =   []
+
+# String intrinsics.
+#
+[intrinsic.memcpy]
+args =   ["@type.ptr64", "@type.ptr64", "@type.i64"]
+ret =    "@type.ptr64"
+[intrinsic.memmove]
+args =   ["@type.ptr64", "@type.ptr64", "@type.i64"]
+ret =    "@type.ptr64"
+[intrinsic.memcmp]
+args =   ["@type.ptr64", "@type.ptr64", "@type.i64"]
+ret =    "@type.i32"
+[intrinsic.memset]
+args =   ["@type.ptr64", "@type.i32", "@type.i64"]
+ret =    "@type.ptr64"
+[intrinsic.memchr]
+args =   ["@type.ptr64", "@type.i32", "@type.i64"]
+ret =    "@type.ptr64"
+[intrinsic.strcpy]
+args =   ["@type.ptr64", "@type.ptr64"]
+ret =    "@type.ptr64"
+[intrinsic.strcmp]
+args =   ["@type.ptr64", "@type.ptr64"]
+ret =    "@type.i32"
+[intrinsic.strchr]
+args =   ["@type.ptr64", "@type.i32"]
+ret =    "@type.ptr64"
+[intrinsic.strstr]
+args =   ["@type.ptr64", "@type.ptr64"]
+ret =    "@type.ptr64"
+
+# FP intrinsics.
+#
+[intrinsic.sin]
+args =   ["@type.f64"]
+ret =    "@type.f64"
+[intrinsic.cos]
+args =   ["@type.f64"]
+ret =    "@type.f64"
+[intrinsic.tan]
+args =   ["@type.f64"]
+ret =    "@type.f64"
+[intrinsic.asin]
+args =   ["@type.f64"]
+ret =    "@type.f64"
+[intrinsic.acos]
+args =   ["@type.f64"]
+ret =    "@type.f64"
+[intrinsic.atan]
+args =   ["@type.f64"]
+ret =    "@type.f64"
+[intrinsic.atan2]
+args =   ["@type.f64", "@type.f64"]
+ret =    "@type.f64"
+[intrinsic.exp]
+args =   ["@type.f64"]
+ret =    "@type.f64"
+[intrinsic.pow]
+args =   ["@type.f64", "@type.f64"]
+ret =    "@type.f64"
+[intrinsic.sqrt]
+args =   ["@type.f64"]
+ret =    "@type.f64"
+[intrinsic.log]
+args =   ["@type.f64"]
+ret =    "@type.f64"
+[intrinsic.copysign]
+args =   ["@type.f64", "@type.f64"]
+ret =    "@type.f64"
+
+# Low level intrinsics.
+#
+[intrinsic.retaddr]
+symbol = "_ReturnAddress"
+args =   []
+ret =    "@type.ptr64"
+[intrinsic.addr-retaddr]
+symbol = "_AddressOfReturnAddress"
+args =   []
+ret =    "@type.ptr64"

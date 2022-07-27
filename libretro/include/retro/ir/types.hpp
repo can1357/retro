@@ -1,7 +1,6 @@
 #pragma once
 #include <retro/ir/builtin_types.hxx>
 #include <retro/format.hpp>
-#include <retro/ir/use.hpp>
 
 // Scoped enums to create alternative types for some builtins.
 //
@@ -63,8 +62,8 @@ namespace retro::ir {
 		u64 type_id : 8		= 0;	// Type id, ir::type.
 		u64 data_length : 55 = 0;	// Data length, used to determine internal/external storage.
 		union {
-			u8		data[sizeof(use) - 8];	// Inline storage.
-			void* ptr = nullptr;				// External storage.
+			u8		data[24];		 // Inline storage.
+			void* ptr = nullptr;	 // External storage.
 		};
 
 		// Default constructor.
@@ -195,5 +194,4 @@ namespace retro::ir {
 		//
 		constexpr ~constant() { reset(); }
 	};
-	static_assert(sizeof(constant) <= sizeof(use), "ir::constant must be smaller or equally large as as ir::use.");
 };

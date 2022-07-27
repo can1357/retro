@@ -26,6 +26,8 @@ namespace retro {
 		//
 		virtual ~ref_counted() = default;
 	};
+	using rc	 = ref_counted<false>;
+	using arc = ref_counted<true>;
 
 	// Ref counter header.
 	//
@@ -126,6 +128,12 @@ namespace retro {
 		//
 		RC_INLINE explicit constexpr shared(rc_header* ctrl) : ctrl(ctrl) {}
 
+		// Construction by type decay.
+		//
+		template<typename T2>
+			requires(!std::is_same_v<T, T2> && std::is_convertible_v<T2*, T*>)
+		RC_INLINE constexpr shared(shared<T2> o) : ctrl(std::exchange(o.ctrl, nullptr)) {}
+
 		// Implement copy.
 		//
 		RC_INLINE constexpr shared(const shared<T>& o) : ctrl(o.ctrl) {
@@ -159,12 +167,22 @@ namespace retro {
 		RC_INLINE bool					  unique() const { return ctrl && ctrl->ref_counter == 1; }
 		RC_INLINE explicit constexpr operator bool() const { return ctrl != nullptr; }
 
+		// Comparison.
+		//
+		RC_INLINE constexpr bool operator==(const shared<T>& o) const { return ctrl == o.ctrl; }
+		RC_INLINE constexpr bool operator!=(const shared<T>& o) const { return ctrl != o.ctrl; }
+		RC_INLINE constexpr bool operator<(const shared<T>& o) const { return ctrl < o.ctrl; }
+		RC_INLINE constexpr bool operator==(std::nullptr_t) const { return ctrl == nullptr; }
+		RC_INLINE constexpr bool operator!=(std::nullptr_t) const { return ctrl != nullptr; }
+		RC_INLINE constexpr bool operator<(std::nullptr_t) const { return false; }
+
 		// Destructor.
 		//
-		RC_INLINE constexpr ~shared() {
+		RC_INLINE constexpr void reset() {
 			if (ctrl)
 				ctrl->dec_ref();
 		}
+		RC_INLINE constexpr ~shared() { reset(); }
 	};
 	template<typename T = void>
 	struct RC_TRIVIAL_ABI weak {
@@ -178,12 +196,24 @@ namespace retro {
 
 		// Construction by pointer.
 		//
-		constexpr weak(T* ptr) {
+		RC_INLINE constexpr weak(T* ptr) {
 			if (ptr) {
 				ctrl = ptr->get_ref_ctrl();
 				ctrl->inc_ref_weak();
 			}
 		}
+
+		// Construction by type decay.
+		//
+		template<typename T2>
+			requires(!std::is_same_v<T, T2> && std::is_convertible_v<T2*, T*>)
+		RC_INLINE constexpr weak(const shared<T2>& o) : ctrl(o.ctrl) {
+			if (ctrl)
+				ctrl->inc_ref_weak();
+		}
+		template<typename T2>
+			requires(!std::is_same_v<T, T2> && std::is_convertible_v<T2*, T*>)
+		RC_INLINE constexpr weak(weak<T2> o) : ctrl(std::exchange(o.ctrl, nullptr)) {}
 
 		// Explicit construction by control block.
 		//
@@ -240,30 +270,43 @@ namespace retro {
 		}
 		RC_INLINE explicit constexpr operator bool() const { return ctrl != nullptr; }
 
+		// Comparison.
+		//
+		RC_INLINE constexpr bool		  operator==(const weak<T>& o) const { return ctrl == o.ctrl; }
+		RC_INLINE constexpr bool		  operator!=(const weak<T>& o) const { return ctrl != o.ctrl; }
+		RC_INLINE constexpr bool		  operator<(const weak<T>& o) const { return ctrl < o.ctrl; }
+		RC_INLINE constexpr bool		  operator==(const shared<T>& o) const { return ctrl == o.ctrl; }
+		RC_INLINE constexpr bool		  operator!=(const shared<T>& o) const { return ctrl != o.ctrl; }
+		RC_INLINE constexpr bool		  operator<(const shared<T>& o) const { return ctrl < o.ctrl; }
+		RC_INLINE constexpr bool		  operator==(std::nullptr_t) const { return ctrl == nullptr; }
+		RC_INLINE constexpr bool		  operator!=(std::nullptr_t) const { return ctrl != nullptr; }
+		RC_INLINE constexpr bool		  operator<(std::nullptr_t) const { return false; }
+		RC_INLINE friend constexpr bool operator==(const shared<T>& s, const weak<T>& o) { return s.ctrl == o.ctrl; }
+		RC_INLINE friend constexpr bool operator!=(const shared<T>& s, const weak<T>& o) { return s.ctrl != o.ctrl; }
+		RC_INLINE friend constexpr bool operator<(const shared<T>& s, const weak<T>& o) { return s.ctrl < o.ctrl; }
+
 		// Destructor.
 		//
-		RC_INLINE constexpr ~weak() {
+		RC_INLINE constexpr void reset() {
 			if (ctrl)
 				ctrl->dec_ref_weak();
 		}
+		RC_INLINE constexpr ~weak() { reset(); }
 	};
 	template<typename T>
 	weak(shared<T>) -> weak<T>;
-
-	// Ref counted tags.
+	
+	// std::make_shared equivalent.
 	//
-	template<typename T, bool Atomic>
-	struct ref_counted_tag : ref_counted<Atomic> {
-		template<typename... Tx>
-		inline static shared<T> make(Tx&&... args) {
-			using rc_header = basic_rc_header<Atomic>;
-			rc_header* rc	 = new (operator new(sizeof(T) + sizeof(rc_header))) rc_header();
-			T*			  data = new (rc->data()) T(std::forward<Tx>(args)...);
-			return shared<T>{rc};
-		}
+	template<typename T, typename... Tx>
+	inline static shared<T> make_overalloc_rc(size_t overalloc, Tx&&... args) {
+		using rc_header = basic_rc_header<T::is_rc_atomic>;
+		rc_header* rc	 = new (operator new(sizeof(T) + sizeof(rc_header) + overalloc)) rc_header();
+		T*			  data = new (rc->data()) T(std::forward<Tx>(args)...);
+		return shared<T>{rc};
+	}
+	template<typename T, typename... Tx>
+	inline static shared<T> make_rc(Tx&&... args) {
+		return make_overalloc_rc<T, Tx...>(0, std::forward<Tx>(args)...);
 	};
-	template<typename T>
-	using rc = ref_counted_tag<T, false>;
-	template<typename T>
-	using arc = ref_counted_tag<T, true>;
-};
+}

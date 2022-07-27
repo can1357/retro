@@ -98,6 +98,29 @@ namespace retro::fmt {
 		}
 	}
 
+	// Justification.
+	//
+	inline void ljust(std::string& str, size_t len, char c = ' ') {
+		size_t n = display_length(str);
+		if (n < len) {
+			str.insert(str.size(), len-n, c);
+		}
+	}
+	inline void rjust(std::string& str, size_t len, char c = ' ') {
+		size_t n = display_length(str);
+		if (n < len) {
+			str.insert(0, len-n, c);
+		}
+	}
+	inline std::string ljust(std::string&& str, size_t len, char c = ' ') {
+		ljust(str, len, c);
+		return std::move(str);
+	}
+	inline std::string rjust(std::string&& str, size_t len, char c = ' ') {
+		rjust(str, len, c);
+		return std::move(str);
+	}
+
 	// Forward declaration of concat.
 	//
 	template<typename... Tx>

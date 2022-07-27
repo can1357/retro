@@ -32,10 +32,11 @@
     <ClInclude Include="include\retro\func.hpp" />
     <ClInclude Include="include\retro\hashers.hpp" />
     <ClInclude Include="include\retro\ir\builtin_types.hxx" />
-    <ClInclude Include="include\retro\ir\insn.hxx" />
+    <ClInclude Include="include\retro\ir\insn.hpp" />
+    <ClInclude Include="include\retro\ir\opcodes.hxx" />
     <ClInclude Include="include\retro\ir\ops.hxx" />
     <ClInclude Include="include\retro\ir\types.hpp" />
-    <ClInclude Include="include\retro\ir\use.hpp" />
+    <ClInclude Include="include\retro\ir\value.hpp" />
     <ClInclude Include="include\retro\list.hpp" />
     <ClInclude Include="include\retro\lock.hpp" />
     <ClInclude Include="include\retro\platform.hpp" />
@@ -46,7 +47,7 @@
   <ItemGroup>
     <None Include="..\.clang-format" />
     <None Include="include\retro\ir\builtin_types.toml" />
-    <None Include="include\retro\ir\insn.toml" />
+    <None Include="include\retro\ir\opcodes.toml" />
     <None Include="include\retro\ir\ops.toml" />
     <None Include="include\retro\targets.toml" />
   </ItemGroup>
