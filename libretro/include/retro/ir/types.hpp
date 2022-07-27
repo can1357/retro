@@ -50,19 +50,25 @@ namespace retro::ir {
 	RC_VISIT_TYPE(MAP_VTY)
 	MAP_VTY(none, void)
 #undef MAP_VTY
+
+	template<typename T>
+	concept BuiltinType = requires {
+		type_to_builtin<T>::value;
+	};
+
 	template<type Id>
 	using type_t = typename builtin_to_type<Id>::type;
 	template<typename T>
 	constexpr type type_v = type_to_builtin<T>::value;
-
+	
 	// Define constant type.
 	//
 	struct constant {
-		u64 __rsvd : 1			= 1;	// Should be one to act as a thombstone for ir::use.
+		u64 __rsvd : 1			= 1;	// Should be one to act as a thombstone for ir::operand.
 		u64 type_id : 8		= 0;	// Type id, ir::type.
 		u64 data_length : 55 = 0;	// Data length, used to determine internal/external storage.
 		union {
-			u8		data[24];		 // Inline storage.
+			u8		data[16];		 // Inline storage.
 			void* ptr = nullptr;	 // External storage.
 		};
 
@@ -72,9 +78,9 @@ namespace retro::ir {
 
 		// Construction by value.
 		//
-		template<typename T>
+		template<BuiltinType T>
 		constant(T value) {
-			constexpr type Id = type_v<T>;
+			constexpr type Id = type_v<std::decay_t<T>>;
 			type_id				= (u64) Id;
 
 			// Decompose the type as [ptr, length].
@@ -141,7 +147,8 @@ namespace retro::ir {
 
 		// Expose the buffer details.
 		//
-		constexpr bool			 is_large() const { return data_length > sizeof(data); }
+		constexpr size_t		 size() const { return data_length; }
+		constexpr bool			 is_large() const { return size() > sizeof(data); }
 		constexpr void*		 address() { return is_large() ? ptr : (void*) data; };
 		constexpr const void* address() const { return is_large() ? ptr : (void*) data; };
 
@@ -158,13 +165,28 @@ namespace retro::ir {
 			constexpr type Id = type_v<T>;
 			RC_ASSERT(type_id == u64(Id));
 			if constexpr (Id == type::str) {
-				return std::string_view{(char*) address(), data_length};
+				return std::string_view{(char*) address(), size()};
 			} else if (sizeof(T) > sizeof(data)) {
 				return *(const T*) ptr;
 			} else {
 				return *(const T*) &data[0];
 			}
 		}
+
+		// Equality comparison.
+		//
+		bool equals(const constant& other) const {
+			// Compare data_length and type_id.
+			//
+			if (*(u64*) this != *(u64*) &other)
+				return false;
+
+			// Compare the actual data.
+			//
+			return !memcmp(address(), other.address(), size());
+		}
+		bool operator==(const constant& other) const { return equals(other); }
+		bool operator!=(const constant& other) const { return !equals(other); }
 
 		// Reset handling freeing of the data.
 		//
@@ -194,4 +216,5 @@ namespace retro::ir {
 		//
 		constexpr ~constant() { reset(); }
 	};
+
 };

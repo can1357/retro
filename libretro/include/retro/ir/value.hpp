@@ -1,8 +1,9 @@
 #pragma once
 #include <retro/common.hpp>
-#include <retro/list.hpp>
 #include <retro/dyn.hpp>
 #include <retro/format.hpp>
+#include <retro/ir/types.hpp>
+#include <retro/list.hpp>
 #include <retro/rc.hpp>
 
 // Automatic cross-reference tracking system, similar to LLVM's.
@@ -14,18 +15,18 @@ namespace retro::ir {
 
 	// Value type.
 	//
-	struct use;
+	struct operand;
 	struct value : rc, dyn<value>, pinned {
 	  private:
 		// Circular linked list for the uses.
 		//
-		mutable use* use_list_prev = (use*) &use_list_prev;
-		mutable use* use_list_next = (use*) &use_list_prev;
-		friend use;
+		mutable operand* use_list_prev = (operand*) &use_list_prev;
+		mutable operand* use_list_next = (operand*) &use_list_prev;
+		friend operand;
 
 		// List head.
 		//
-		use* use_list_head() const { return (use*) &use_list_prev; }
+		operand* use_list_head() const { return (operand*) &use_list_prev; }
 
 	  public:
 		// String conversion and type getter.
@@ -35,11 +36,18 @@ namespace retro::ir {
 
 		// Gets the list of uses.
 		//
-		range::subrange<list::iterator<use>> uses() const;
+		range::subrange<list::iterator<operand>> uses() const;
 
 		// Replaces all uses with another value.
 		//
-		void replace_all_uses_with(const shared<value>& val) const;
+		template<typename T>
+		void replace_all_uses_with(T&& val) const {
+			for (auto it = use_list_head()->next; it != use_list_head();) {
+				auto next = it->next;
+				it->reset(std::forward<T>(val));
+				it = next;
+			}
+		}
 
 		// Ensure no references left on destruction.
 		//
@@ -48,89 +56,112 @@ namespace retro::ir {
 
 	// Use instance.
 	//
-	struct alignas(8) use : pinned {
-		// Circular linked list.
+	struct alignas(8) operand : pinned {
+		// Since operand is aligned by 8, operand.prev will also be aligned by 8.
+		// - If misaligned (eg check bit 0 == 1), we can use it as a thombstone.
 		//
-		use* prev = this;
-		use* next = this;
+		union {
+			struct {
+				operand*		  prev;
+				operand*		  next;
+				shared<value> value_ptr;
+			};
+			constant const_val;
+		};
 
-		// Offset to base of user.
+		// Pointer to user.
 		//
-		iptr offset = 0;
+		value* const user;
 
-		// Pointer to used type.
+		// Constructed by reference to user, creates a constant of type::none.
 		//
-		shared<value> target = nullptr;
+		operand(value* user) : user(user), const_val{} {}
 
-		// Checks if use has a value.
-		//
-		bool has_value() const {
-			RC_ASSERT((target == nullptr) == list::is_detached(this));
-			return target != nullptr;
-		}
-
-		// Sets a new use.
-		//
-		void reset(value* to, const void* base) {
-			reset();
-			offset = uptr(this) - uptr(base);
-			if (to) {
-				list::link_before(to->use_list_head(), this);
-				target = to;
-			}
-		}
-
-		// Clears the used value.
+		// Assignment.
 		//
 		void reset() {
-			if (has_value()) {
+			if (is_const()) {
+				const_val.reset();
+			} else {
 				list::unlink(this);
+				value_ptr.reset();
+				std::construct_at(&const_val);
 			}
-			target.reset();
 		}
+		void reset(constant value) {
+			reset();
+			std::construct_at(&const_val, std::move(value));
+			RC_ASSERT(is_const());
+		}
+		void reset(shared<value> value) {
+			reset();
+			if (value) {
+				prev			= this;
+				next			= this;
+				list::link_before(value->use_list_head(), this);
+				std::construct_at(&value_ptr, std::move(value));
+				RC_ASSERT(!is_const());
+			}
+		}
+		void reset(operand&& o) {
+			if (o.is_const()) {
+				return reset(std::move(o.const_val));
+			} else {
+				return reset(std::move(o.value_ptr));
+			}
+		}
+		void reset(const operand& o) {
+			if (o.is_const()) {
+				return reset(o.get_const());
+			} else {
+				return reset(o.value_ptr);
+			}
+		}
+		RC_INLINE operand& operator=(constant o) { reset(std::move(o)); return *this; }
+		RC_INLINE operand& operator=(shared<value> o) { reset(std::move(o)); return *this; }
+		RC_INLINE operand& operator=(operand&& o) { reset(std::move(o)); return *this; }
+		RC_INLINE operand& operator=(const operand& o) { reset(o); return *this; }
 
-		// Replaces this use with another value.
+		// Observers.
 		//
-		void replace_use_with(shared<value> val) {
-			RC_ASSERT(has_value());
-			list::unlink(this);
-			if (val)
-				list::link_before(val->use_list_head(), this);
-			target = std::move(val);
-		}
+		bool is_const() const { return const_val.__rsvd == 1; }
+		bool is_value() const { return !is_const(); }
 
-		// Value pointer getter.
-		//
-		RC_INLINE value* get() const {
-			return target.get();
+		const constant& get_const() const {
+			RC_ASSERT(is_const());
+			return const_val;
 		}
+		value* get_value() const {
+			RC_ASSERT(is_value());
+			return value_ptr.get();
+		}
+		std::string to_string(fmt_style s = {}) const { return is_const() ? get_const().to_string() : get_value()->to_string(s); }
+		type			get_type() const { return is_const() ? get_const().get_type() : get_value()->get_type(); }
 
-		// User pointer getter.
+		// Equality comparison.
 		//
-		template<typename T = void>
-		RC_INLINE T* user() const {
-			RC_ASSERT(has_value());
-			return (T*) (uptr(this) - offset);
+		bool equals(const operand& other) const {
+			if (is_const()) {
+				if (!other.is_const())
+					return false;
+				return get_const() == other.get_const();
+			} else {
+				if (!other.is_value())
+					return false;
+				return get_value() == other.get_value();
+			}
 		}
+		bool operator==(const operand& other) const { return equals(other); }
+		bool operator!=(const operand& other) const { return !equals(other); }
 
 		// Reset on destruction.
 		//
-		~use() { reset(); }
+		~operand() { reset(); }
 	};
 
 	// Gets the list of uses.
 	//
-	inline range::subrange<list::iterator<use>> value::uses() const { return list::range(use_list_head()); }
-
-	// Replaces all uses with another value.
-	//
-	void value::replace_all_uses_with(const shared<value>& val) const {
-		for (auto it = use_list_head()->next; it != use_list_head();) {
-			auto next = it->next;
-			it->replace_use_with(val);
-			it = next;
-		}
-	}
+	inline range::subrange<list::iterator<operand>> value::uses() const { return list::range(use_list_head()); }
 
 	// Ensure no references left on destruction.
 	//

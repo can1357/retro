@@ -151,8 +151,8 @@ namespace retro {
 
 		// Implement move via swap.
 		//
-		RC_INLINE constexpr shared(shared<T>&& o) : ctrl(std::exchange(o.ctrl, nullptr)) {}
-		RC_INLINE constexpr shared& operator=(shared<T>&& o) {
+		RC_INLINE constexpr shared(shared<T>&& o) noexcept : ctrl(std::exchange(o.ctrl, nullptr)) {}
+		RC_INLINE constexpr shared& operator=(shared<T>&& o) noexcept {
 			swap(o);
 			return *this;
 		}
@@ -243,8 +243,8 @@ namespace retro {
 
 		// Implement move via swap.
 		//
-		RC_INLINE constexpr weak(weak<T>&& o) : ctrl(std::exchange(o.ctrl, nullptr)) {}
-		RC_INLINE constexpr weak& operator=(weak<T>&& o) {
+		RC_INLINE constexpr weak(weak<T>&& o) noexcept : ctrl(std::exchange(o.ctrl, nullptr)) {}
+		RC_INLINE constexpr weak& operator=(weak<T>&& o) noexcept {
 			swap(o);
 			return *this;
 		}
