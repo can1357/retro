@@ -3,12 +3,6 @@
 #include <retro/common.hpp>
 #include <retro/format.hpp>
 
-/*
-TODO:
-	add retro::unique
-	ref shouldnt store control block.
-*/
-
 // Type-specialized ref-counting primitives.
 //
 namespace retro {
@@ -75,8 +69,9 @@ namespace retro {
 		// Data getter.
 		//
 		RC_INLINE void* data() const { return (void*) (this + 1); }
+
+		inline static rc_header* from(const void* a) { return std::prev((rc_header*) a); }
 	};
-	inline static rc_header* get_rc_header(const void* a) { return std::prev((rc_header*) a); }
 
 	// Define the ref and weak similar to shared_ptr and weak_ptr.
 	//
@@ -93,13 +88,17 @@ namespace retro {
 		//
 		constexpr ref(T* ptr) : ptr(ptr) {
 			if (ptr) {
-				get_rc_header(ptr)->inc_ref_unsafe();
+				rc_header::from(ptr)->inc_ref_unsafe();
 			}
 		}
 
 		// Explicit construction by control block.
 		//
 		RC_INLINE explicit constexpr ref(rc_header* hdr) : ptr((T*)hdr->data()) {}
+
+		// Adopting.
+		//
+		RC_INLINE static ref<T> adopt(T* ptr) { return ref<T>{rc_header::from(ptr)}; }
 
 		// Construction by type decay.
 		//
@@ -111,13 +110,13 @@ namespace retro {
 		//
 		RC_INLINE constexpr ref(const ref<T>& o) : ptr(o.ptr) {
 			if (ptr)
-				get_rc_header(ptr)->inc_ref_unsafe();
+				rc_header::from(ptr)->inc_ref_unsafe();
 		}
 		RC_INLINE constexpr ref& operator=(const ref<T>& o) {
 			if (o.ptr)
-				get_rc_header(o.ptr)->inc_ref_unsafe();
+				rc_header::from(o.ptr)->inc_ref_unsafe();
 			if (ptr)
-				get_rc_header(ptr)->dec_ref();
+				rc_header::from(ptr)->dec_ref();
 			ptr = o.ptr;
 			return *this;
 		}
@@ -136,8 +135,8 @@ namespace retro {
 		RC_INLINE T*					  get() const { return (T*) ptr; }
 		RC_INLINE T&					  operator*() const { return *ptr; }
 		RC_INLINE T*					  operator->() const { return get(); }
-		RC_INLINE size_t				  use_count() const { return ptr ? get_rc_header(ptr)->ref_counter & bit_mask(32) : 0; }
-		RC_INLINE bool					  unique() const { return ptr && get_rc_header(ptr)->ref_counter == 1; }
+		RC_INLINE size_t				  use_count() const { return ptr ? rc_header::from(ptr)->ref_counter & bit_mask(32) : 0; }
+		RC_INLINE bool					  unique() const { return ptr && rc_header::from(ptr)->ref_counter == 1; }
 		RC_INLINE explicit constexpr operator bool() const { return ptr != nullptr; }
 
 		// Decay to pointer.
@@ -169,7 +168,7 @@ namespace retro {
 		//
 		RC_INLINE constexpr void reset() {
 			if (ptr)
-				get_rc_header(release())->dec_ref();
+				rc_header::from(release())->dec_ref();
 		}
 		RC_INLINE constexpr ~ref() { reset(); }
 	};
@@ -186,7 +185,7 @@ namespace retro {
 		//
 		RC_INLINE constexpr weak(T* ptr) : ptr(ptr) {
 			if (ptr) {
-				get_rc_header(ptr)->inc_ref_weak();
+				rc_header::from(ptr)->inc_ref_weak();
 			}
 		}
 
@@ -196,7 +195,7 @@ namespace retro {
 			requires(!std::is_same_v<T, T2> && std::is_convertible_v<T2*, T*>)
 		RC_INLINE constexpr weak(const ref<T2>& o) : ptr(o.ptr) {
 			if (ptr)
-				get_rc_header(ptr)->inc_ref_weak();
+				rc_header::from(ptr)->inc_ref_weak();
 		}
 		template<typename T2>
 			requires(!std::is_same_v<T, T2> && std::is_convertible_v<T2*, T*>)
@@ -206,24 +205,28 @@ namespace retro {
 		//
 		RC_INLINE explicit constexpr weak(rc_header* hdr) : ptr((T*) hdr->data()) {}
 
+		// Adopting.
+		//
+		RC_INLINE static weak<T> adopt(T* ptr) { return weak<T>{rc_header::from(ptr)}; }
+
 		// Construction from ref<T>.
 		//
 		RC_INLINE constexpr weak(const ref<T>& o) : ptr(o.ptr) {
 			if (ptr)
-				get_rc_header(ptr)->inc_ref_weak();
+				rc_header::from(ptr)->inc_ref_weak();
 		}
 
 		// Implement copy.
 		//
 		RC_INLINE constexpr weak(const weak<T>& o) : ptr(o.ptr) {
 			if (ptr)
-				get_rc_header(ptr)->inc_ref_weak();
+				rc_header::from(ptr)->inc_ref_weak();
 		}
 		RC_INLINE constexpr weak& operator=(const weak<T>& o) {
 			if (o.ptr)
-				get_rc_header(o.ptr)->inc_ref_weak();
+				rc_header::from(o.ptr)->inc_ref_weak();
 			if (ptr)
-				get_rc_header(ptr)->dec_ref_weak();
+				rc_header::from(ptr)->dec_ref_weak();
 			ptr = o.ptr;
 			return *this;
 		}
@@ -248,12 +251,12 @@ namespace retro {
 			return *ptr;
 		}
 		RC_INLINE T*	  operator->() const { return get(); }
-		RC_INLINE size_t use_count() const { return ptr ? get_rc_header(ptr)->ref_counter & bit_mask(32) : 0; }
-		RC_INLINE bool	  expired() const { return !ptr || (get_rc_header(ptr)->ref_counter & bit_mask(32)) == 0; }
+		RC_INLINE size_t use_count() const { return ptr ? rc_header::from(ptr)->ref_counter & bit_mask(32) : 0; }
+		RC_INLINE bool	  expired() const { return !ptr || (rc_header::from(ptr)->ref_counter & bit_mask(32)) == 0; }
 		RC_INLINE ref<T> lock() const {
-			if (!ptr || !get_rc_header(ptr)->inc_ref())
+			if (!ptr || !rc_header::from(ptr)->inc_ref())
 				return nullptr;
-			return ref<T>(get_rc_header(ptr));
+			return ref<T>(rc_header::from(ptr));
 		}
 		RC_INLINE explicit constexpr operator bool() const { return ptr != nullptr; }
 
@@ -292,13 +295,12 @@ namespace retro {
 		//
 		RC_INLINE constexpr void reset() {
 			if (ptr)
-				get_rc_header(release())->dec_ref_weak();
+				rc_header::from(release())->dec_ref_weak();
 		}
 		RC_INLINE constexpr ~weak() { reset(); }
 	};
 	template<typename T>
 	weak(ref<T>) -> weak<T>;
-
 
 	// std::make_shared equivalent.
 	//

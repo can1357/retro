@@ -100,10 +100,6 @@ namespace retro::ir {
 			to->predecessors.erase(pit);
 		}
 
-		// TODO:
-		// split
-		// clone()
-
 		// Validation.
 		//
 		diag::lazy validate() const {

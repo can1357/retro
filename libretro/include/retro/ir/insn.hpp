@@ -75,7 +75,7 @@ namespace retro::ir {
 
 			// Parent had a strong reference already, no need to increment anything, simply re-use it.
 			//
-			return ref<insn>{get_rc_header(this)};
+			return ref<insn>::adopt(this);
 		}
 
 		// Given a use from this instruction, gets the operand index.

@@ -117,10 +117,6 @@ namespace retro::ir {
 				return result;
 			}
 		}
-
-		// TODO:
-		// clone()
-		// validate()
 	};
 
 	namespace detail {
