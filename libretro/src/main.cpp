@@ -79,13 +79,13 @@ namespace retro::debug {
 namespace retro::x86::sema {
 	inline void set_pf(ir::basic_block* bb, ir::insn* result) {
 		// %cast = cast.i32.i8  %result
-		auto cast = ir::push_cast(bb, ir::type::i8, result);
+		auto cast = bb->push_cast(ir::type::i8, result);
 		// %pcnt = unop.i8      popcnt,  %cast
-		auto pcnt = ir::push_unop(bb, ir::op::bit_popcnt, cast);
+		auto pcnt = bb->push_unop(ir::op::bit_popcnt, cast);
 		// %mod2 = cast.i8.i1   %pcnt
-		auto mod2 = ir::push_cast(bb, ir::type::i1, pcnt);
+		auto mod2 = bb->push_cast(ir::type::i1, pcnt);
 		// write_reg.i1         flag_pf, %mod2
-		ir::push_write_reg(bb, reg::flag_pf, mod2);
+		bb->push_write_reg(reg::flag_pf, mod2);
 	}
 };
 
@@ -106,8 +106,8 @@ int main(int argv, const char** args) {
 	auto	proc = make_rc<ir::procedure>();
 	auto* bb	  = proc->add_block();
 
-	auto i0 = ir::push_binop(bb, ir::op::add, 2, 3);
-	auto i1 = ir::push_binop(bb, ir::op::add, 3, i0);
+	auto i0 = bb->push_binop(ir::op::add, 2, 3);
+	auto i1 = bb->push_binop(ir::op::add, 3, i0);
 
 	x86::sema::set_pf(bb, i1);
 

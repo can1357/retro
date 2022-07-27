@@ -85,9 +85,8 @@ for k,v in insns.items():
 	oprhan_ctor = oprhan_ctor.write("make_" + k)
 
 	bb_ctor = func.clone()
-	bb_ctor.args.insert(0, "basic_block* parent_block")
 	bb_ctor.return_type = "list::iterator<insn>"
-	bb_ctor.post_stmts.append("return parent_block->push_back(std::move(r))")
+	bb_ctor.post_stmts.append("return this->push_back(std::move(r))")
 	bb_ctor = bb_ctor.write("push_" + k)
 
 	#print(oprhan_ctor + "\\n" + bb_ctor)
