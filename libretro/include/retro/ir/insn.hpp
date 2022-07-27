@@ -26,8 +26,8 @@ namespace retro::ir {
 
 		// Opcode and operand count.
 		//
-		const u32 operand_count = 0;
-		opcode	 op				= opcode::none;
+		u32	 operand_count = 0;
+		opcode op				= opcode::none;
 
 		// Template types.
 		//
@@ -89,16 +89,39 @@ namespace retro::ir {
 
 		// Changes an operands value.
 		//
-		void set_operand(size_t idx) {}
+		void set_operands(size_t idx) {}
 		template<typename T, typename... Tx>
-		void set_operand(size_t idx, T&& new_value, Tx&&... rest) {
-			auto& op = operands()[idx];
-			op.reset(std::forward<T>(new_value));
+		void set_operands(size_t idx, T&& new_value, Tx&&... rest) {
+			operands()[idx] = std::forward<T>(new_value);
 			if constexpr (sizeof...(Tx) != 0) {
-				set_operand<Tx...>(idx + 1, std::forward<Tx>(rest)...);
+				set_operands<Tx...>(idx + 1, std::forward<Tx>(rest)...);
 			}
 		}
 
+		// Erases an operand.
+		//
+		void erase_operand(size_t i) {
+			// Reset the operand, move rest of it.
+			// - Note: this is very unsafe!
+			//
+			operands()[i].reset();
+			if (i != (operand_count - 1)) {
+				memmove(&operands()[i], &operands()[i + 1], (operand_count - i - 1) * sizeof(operand));
+
+				// Fix list entries.
+				//
+				for (; i != (operand_count - 1); ++i) {
+					auto& op = operands()[i];
+					if (!op.is_const()) {
+						auto* p = op.prev;
+						auto* n = op.next;
+						p->next = &op;
+						n->prev = &op;
+					}
+				}
+			}
+			--operand_count;
+		}
 
 		// Declare string conversion and type getter.
 		//

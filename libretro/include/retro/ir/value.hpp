@@ -72,6 +72,11 @@ namespace retro::ir {
 				}
 			}
 		}
+		template<typename T>
+		operand& operator=(T&& val) {
+			reset<T>(std::forward<T>(val));
+			return *this;
+		}
 
 		// Observers.
 		//

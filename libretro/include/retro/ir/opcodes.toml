@@ -55,7 +55,7 @@ for k,v in insns.items():
 		#
 		if i in v.get("constexprs", []):
 			arglist.append("type_t<type::" + v["types"][i][6:] + "> " + argname)
-			stmts.append("r->set_operand({0}, {1})".format(i-1, argname))
+			stmts.append("r->set_operands({0}, {1})".format(i-1, argname))
 		# Otherwise if vararg:
 		#
 		elif v["types"][i] == "@type.pack":
@@ -63,14 +63,14 @@ for k,v in insns.items():
 			var_arg_sentinels.append("sizeof...(T{0})".format(argname))
 			tmplist.append("...T"+argname)
 			arglist.append("T{0}&&... {0}".format(argname))
-			stmts.append("r->set_operand({0}, std::forward<T{1}>({1})...)".format(i-1, argname))
+			stmts.append("r->set_operands({0}, std::forward<T{1}>({1})...)".format(i-1, argname))
 			assert (i+1) == len(v["types"]);
 		# Finally accept any value.
 		#
 		else:
 			tmplist.append("T"+argname)
 			arglist.append("T{0}&& {0}".format(argname))
-			stmts.append("r->set_operand({0}, std::forward<T{1}>({1}))".format(i-1, argname))
+			stmts.append("r->set_operands({0}, std::forward<T{1}>({1}))".format(i-1, argname))
 		
 	# Finally add the allocation with operand count and return the result.
 	#

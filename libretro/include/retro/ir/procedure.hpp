@@ -26,25 +26,25 @@ namespace retro::ir {
 
 		// List of basic-blocks.
 		//
-		container basic_blocks = {};
+		container blocks = {};
 
 		// Container observers.
 		//
-		iterator			begin() { return basic_blocks.begin(); }
-		iterator			end() { return basic_blocks.end(); }
-		const_iterator begin() const { return basic_blocks.begin(); }
-		const_iterator end() const { return basic_blocks.end(); }
-		size_t			size() const { return basic_blocks.size(); }
-		bool				empty() const { return basic_blocks.empty(); }
+		iterator			begin() { return blocks.begin(); }
+		iterator			end() { return blocks.end(); }
+		const_iterator begin() const { return blocks.begin(); }
+		const_iterator end() const { return blocks.end(); }
+		size_t			size() const { return blocks.size(); }
+		bool				empty() const { return blocks.empty(); }
 
 		// Gets the entry point.
 		//
-		basic_block* get_entry() const { return basic_blocks.empty() ? nullptr : basic_blocks.front().get(); }
+		basic_block* get_entry() const { return blocks.empty() ? nullptr : blocks.front().get(); }
 
 		// Creates or removes a block.
 		//
 		basic_block* add_block() {
-			auto* blk = basic_blocks.emplace_back(make_rc<basic_block>()).get();
+			auto* blk = blocks.emplace_back(make_rc<basic_block>()).get();
 			blk->proc = this;
 			blk->name = next_blk_name++;
 			return blk;
@@ -52,10 +52,10 @@ namespace retro::ir {
 		auto del_block(basic_block* b) {
 			RC_ASSERT(b->predecessors.empty());
 			RC_ASSERT(b->successors.empty());
-			for (auto it = basic_blocks.begin();; ++it) {
-				RC_ASSERT(it != basic_blocks.end());
+			for (auto it = blocks.begin();; ++it) {
+				RC_ASSERT(it != blocks.end());
 				if (it->get() == b) {
-					return basic_blocks.erase(it);
+					return blocks.erase(it);
 				}
 			}
 			RC_UNREACHABLE();
@@ -64,19 +64,19 @@ namespace retro::ir {
 		// Topologically sorts the basic block list.
 		//
 		void topological_sort() {
-			u32 tmp = narrow_cast<u32>(basic_blocks.size());
+			u32 tmp = narrow_cast<u32>(blocks.size());
 
 			basic_block* ep = get_entry();
 			graph::dfs(ep, [&](basic_block* b) { b->name = --tmp; });
 			RC_ASSERT(ep->name == 0);
-			range::sort(basic_blocks, [](auto& a, auto& b) { return a->name < b->name; });
+			range::sort(blocks, [](auto& a, auto& b) { return a->name < b->name; });
 		}
 
 		// Simple renaming by order.
 		//
 		void rename_insns() {
 			next_ins_name = 0;
-			for (auto& bb : basic_blocks) {
+			for (auto& bb : blocks) {
 				for (auto i : *bb) {
 					i->name = next_ins_name++;
 				}
@@ -84,7 +84,7 @@ namespace retro::ir {
 		}
 		void rename_blocks() {
 			next_blk_name = 0;
-			for (auto& bb : basic_blocks) {
+			for (auto& bb : blocks) {
 				bb->name = next_blk_name++;
 			}
 		}

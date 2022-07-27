@@ -41,8 +41,6 @@ namespace retro::ir {
 		}
 		auto phis() const { return range::subrange(begin(), end_phi()); }
 		auto insns() const { return range::subrange(begin(), end()); }
-		auto after(insn* i) const { return range::subrange(i ? list::iterator<insn>(i->next) : begin(), end()); }
-		auto before(insn* i) const { return range::subrange(begin(), i ? list::iterator<insn>(i) : end()); }
 
 		// Insertion.
 		//
@@ -90,15 +88,14 @@ namespace retro::ir {
 			successors.emplace_back(to);
 			to->predecessors.emplace_back(this);
 		}
-		void del_jump(basic_block* to) {
+		void del_jump(basic_block* to, bool fix_phi = true) {
 			auto sit = range::find(successors, to);
 			auto pit = range::find(to->predecessors, this);
-			// TODO:
-			/*if (fix_phi) {
+			if (fix_phi) {
 				size_t n = pit - to->predecessors.begin();
 				for (auto phi : to->phis())
-					phi->operands.erase(phi->operands.begin() + n);
-			}*/
+					phi->erase_operand(n);
+			}
 			successors.erase(sit);
 			to->predecessors.erase(pit);
 		}

@@ -9,21 +9,8 @@ using namespace retro;
 
 #include <retro/arch/x86/zydis.hpp>
 
-/*
-test rcx, rcx
-jz   x
-  lea rax, [rdx+rcx]
-  ret
-x:
-  lea rax, [rdx+r8]
-  ret
-*/
-constexpr const char lift_example[] = "\x48\x85\xC9\x74\x05\x48\x8D\x04\x0A\xC3\x4A\x8D\x04\x02\xC3";
-
-
 #include <retro/ir/insn.hpp>
 #include <retro/ir/procedure.hpp>
-
 
 namespace retro::doc {
 	// Image type.
@@ -90,6 +77,21 @@ namespace retro::debug {
 	}
 };
 
+namespace retro::x86::sema {
+
+};
+
+/*
+test rcx, rcx
+jz   x
+  lea rax, [rdx+rcx]
+  ret
+x:
+  lea rax, [rdx+r8]
+  ret
+*/
+constexpr const char lift_example[] = "\x48\x85\xC9\x74\x05\x48\x8D\x04\x0A\xC3\x4A\x8D\x04\x02\xC3";
+
 
 int main(int argv, const char** args) {
 	platform::setup_ansi_escapes();
@@ -98,7 +100,11 @@ int main(int argv, const char** args) {
 	auto* bb	  = proc->add_block();
 
 	auto i0 = bb->push_back(ir::make_binop(ir::op::add, 2, 3));
-	auto i1 = bb->push_back(ir::make_binop(ir::op::add, i0, 3));
+	auto i1 = bb->push_back(ir::make_binop(ir::op::add, 3, i0));
+
+	i1->erase_operand(1);
+	i0->replace_all_uses_with(6);
+
 	fmt::println(proc->to_string());
 
 	/*std::span<const u8> data = {(u8*) lift_example, sizeof(lift_example) - 1};

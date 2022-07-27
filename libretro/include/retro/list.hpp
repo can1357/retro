@@ -15,7 +15,7 @@ namespace retro::list {
 		// Traits.
 		//
 		using iterator_category = std::bidirectional_iterator_tag;
-		using difference_type	= ptrdiff_t;
+		using difference_type	= iptr;
 		using value_type			= T*;
 		using pointer				= T*;
 		using reference			= T*;
@@ -124,13 +124,9 @@ namespace retro::list {
 	struct head : pinned, range::view_base {
 		using iterator = iterator<T>;
 	  private:
-		T* prev;
-		T* next;
-
+		T* prev = entry();
+		T* next = entry();
 	  public:
-		// Default construct.
-		//
-		head() : prev(entry()), next(entry()) {}
 
 		// Explicitly cast to value type.
 		//
@@ -146,5 +142,7 @@ namespace retro::list {
 		size_t					size() const { return std::distance(begin(), end()); };
 		T*							front() const { return (!empty()) ? (next) : nullptr; }
 		T*							back() const { return (!empty()) ? (prev) : nullptr; }
+		auto						slice(iterator it) const { return range::subrange(it, end()); }
+		auto						rslice(iterator it) const { return range::subrange(rbegin(), std::reverse_iterator(it)); }
 	};
 };
