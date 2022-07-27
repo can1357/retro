@@ -64,7 +64,7 @@ namespace retro::ir {
 			struct {
 				operand*		  prev;
 				operand*		  next;
-				shared<value> value_ptr;
+				value*		  value_ptr;
 			};
 			constant const_val;
 		};
@@ -84,56 +84,54 @@ namespace retro::ir {
 				const_val.reset();
 			} else {
 				list::unlink(this);
-				value_ptr.reset();
+				value_ptr = nullptr;
 				std::construct_at(&const_val);
 			}
 		}
-		void reset(constant value) {
-			reset();
-			std::construct_at(&const_val, std::move(value));
-			RC_ASSERT(is_const());
-		}
-		void reset(shared<value> value) {
-			reset();
-			if (value) {
-				prev			= this;
-				next			= this;
-				list::link_before(value->use_list_head(), this);
-				std::construct_at(&value_ptr, std::move(value));
-				RC_ASSERT(!is_const());
-			}
-		}
-		void reset(operand&& o) {
-			if (o.is_const()) {
-				return reset(std::move(o.const_val));
+		template<typename T>
+		void reset(T&& val) {
+			if constexpr (std::is_same_v<std::decay_t<T>, operand>) {
+				if (val.is_const()) {
+					return reset(val.get_const());
+				} else {
+					return reset(val.get_value());
+				}
 			} else {
-				return reset(std::move(o.value_ptr));
+				reset();
+				if constexpr (std::is_convertible_v<T, const value*>) {
+					if (val) {
+						prev = this;
+						next = this;
+						list::link_before(val->use_list_head(), this);
+						value_ptr = (value*)val;
+						RC_ASSERT(!is_const());
+					}
+				} else {
+					std::construct_at(&const_val, std::forward<T>(val));
+					RC_ASSERT(is_const());
+				}
 			}
 		}
-		void reset(const operand& o) {
-			if (o.is_const()) {
-				return reset(o.get_const());
-			} else {
-				return reset(o.value_ptr);
-			}
-		}
-		RC_INLINE operand& operator=(constant o) { reset(std::move(o)); return *this; }
-		RC_INLINE operand& operator=(shared<value> o) { reset(std::move(o)); return *this; }
-		RC_INLINE operand& operator=(operand&& o) { reset(std::move(o)); return *this; }
-		RC_INLINE operand& operator=(const operand& o) { reset(o); return *this; }
 
 		// Observers.
 		//
 		bool is_const() const { return const_val.__rsvd == 1; }
-		bool is_value() const { return !is_const(); }
 
-		const constant& get_const() const {
+		constant&& get_const() && {
+			RC_ASSERT(is_const());
+			return std::move(const_val);
+		}
+		constant& get_const() & {
+			RC_ASSERT(is_const());
+			return const_val;
+		}
+		const constant& get_const() const& {
 			RC_ASSERT(is_const());
 			return const_val;
 		}
 		value* get_value() const {
-			RC_ASSERT(is_value());
-			return value_ptr.get();
+			RC_ASSERT(!is_const());
+			return value_ptr;
 		}
 		std::string to_string(fmt_style s = {}) const { return is_const() ? get_const().to_string() : get_value()->to_string(s); }
 		type			get_type() const { return is_const() ? get_const().get_type() : get_value()->get_type(); }

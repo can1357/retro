@@ -183,6 +183,23 @@ constexpr const char lift_example[] = "\x48\x85\xC9\x74\x05\x48\x8D\x04\x0A\xC3\
 #include <retro/ir/value.hpp>
 #include <memory>
 #include <retro/rc.hpp>
+#include <retro/ir/insn.hpp>
+
+namespace retro::doc {
+	// Image type.
+	//
+	struct image : arc {
+		// TODO: ??
+		//
+	};
+
+	// Workspace type.
+	//
+	struct workspace : arc {
+		// TODO: ??
+		//
+	};
+};
 
 namespace retro::ir {
 	// Fake IP value for synthetic blocks.
@@ -251,7 +268,7 @@ namespace retro::ir {
 
 		// Owning image.
 		//
-		image* img = nullptr;
+		doc::image* img = nullptr;
 
 		// Entry point IP and user-declared name if relevant.
 		//
@@ -317,25 +334,8 @@ namespace retro::ir {
 		// print()
 	};
 
-	// Image type.
-	//
-	struct image : arc {
-		// TODO: ??
-		//
-	};
-
-	// Workspace type.
-	//
-	struct workspace : arc {
-		// TODO: ??
-		//
-	};
 };
 
-
-// Define constant and base value type.
-//
-#include <retro/ir/insn.hpp>
 
 
 int main(int argv, const char** args) {

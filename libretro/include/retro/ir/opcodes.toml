@@ -17,7 +17,7 @@ for k,v in insns.items():
 	arglist = []
 	stmts = ["r->op = opcode::" + k]
 	stmts_last = [
-		"r->validate()",
+		"r->validate().raise()",
 		"return r"
 	]
 
@@ -79,7 +79,7 @@ for k,v in insns.items():
 
 	# Finally combined all the code together.
 	#
-	result =    "inline shared<insn> make_" + k + "("
+	result =    "inline ref<insn> make_" + k + "("
 	if len(tmplist) != 0:
 		for i in range(len(tmplist)):
 			tmplist[i] = "typename " + tmplist[i]

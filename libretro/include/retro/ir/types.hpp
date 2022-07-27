@@ -26,8 +26,6 @@ namespace std {
 namespace retro::ir {
 	// IR hierarchy.
 	//
-	struct workspace;
-	struct image;
 	struct procedure;
 	struct basic_block;
 
@@ -47,7 +45,17 @@ namespace retro::ir {
 		static constexpr auto value = type::A; \
 	};
 
+	// Map all types.
+	//
 	RC_VISIT_TYPE(MAP_VTY)
+
+	// Handle unsigned decay and void type.
+	//
+	template<> struct type_to_builtin<u128> { static constexpr auto value = type::i128; };
+	template<> struct type_to_builtin<u64> { static constexpr auto value = type::i64; };
+	template<> struct type_to_builtin<u32> { static constexpr auto value = type::i32; };
+	template<> struct type_to_builtin<u16> { static constexpr auto value = type::i16; };
+	template<> struct type_to_builtin<u8> { static constexpr auto value = type::i8; };
 	MAP_VTY(none, void)
 #undef MAP_VTY
 
@@ -80,7 +88,7 @@ namespace retro::ir {
 		//
 		template<BuiltinType T>
 		constant(T value) {
-			constexpr type Id = type_v<std::decay_t<T>>;
+			constexpr type Id = type_v<T>;
 			type_id				= (u64) Id;
 
 			// Decompose the type as [ptr, length].
@@ -216,5 +224,4 @@ namespace retro::ir {
 		//
 		constexpr ~constant() { reset(); }
 	};
-
 };

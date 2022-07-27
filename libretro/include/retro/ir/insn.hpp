@@ -1,8 +1,11 @@
 #pragma once
 #include <retro/ir/opcodes.hxx>
 #include <retro/ir/value.hpp>
+#include <retro/diag.hpp>
 
 namespace retro::ir {
+	RC_DEF_ERR(insn_type_mismatch, "expected operand #% to be of type '%', got '%' instead: %")
+
 	// Instruction type.
 	//
 	struct insn final : dyn<insn, value> {
@@ -27,7 +30,7 @@ namespace retro::ir {
 		// Allocated with operand count.
 		//
 		inline insn(u32 n) : operand_count(n) {}
-		inline static shared<insn> allocate(size_t operand_count) {
+		inline static ref<insn> allocate(size_t operand_count) {
 			u32  oc = narrow_cast<u32>(operand_count);
 			auto r  = make_overalloc_rc<insn>(sizeof(operand) * oc, oc);
 			for (auto& op : r->operands())
@@ -98,8 +101,8 @@ namespace retro::ir {
 
 		// Basic validation.
 		//
-		void validate() const {
-			// TODO: Diag::
+		diag::lazy validate() const {
+			// Validate the operand types.
 			//
 			auto& info = enum_reflect(op);
 			for (size_t i = 1; i < info.templates.size(); i++) {
@@ -113,13 +116,11 @@ namespace retro::ir {
 						continue;
 					}
 				}
-
 				if (treal != texpc) {
-					fmt::println("Expected ", texpc, " got ", treal);
-					fmt::println(to_string());
-					fmt::abort_no_msg();
+					return err::insn_type_mismatch(i - 1, texpc, treal, to_string());
 				}
 			}
+			return diag::ok;
 		}
 
 		// Destroy all operands on destruction.

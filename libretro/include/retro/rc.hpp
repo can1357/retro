@@ -3,6 +3,12 @@
 #include <retro/common.hpp>
 #include <retro/format.hpp>
 
+/*
+TODO:
+	add retro::unique
+	ref shouldnt store control block.
+*/
+
 // Type-specialized ref-counting primitives.
 //
 namespace retro {
@@ -103,21 +109,21 @@ namespace retro {
 	template<typename T>
 	concept RefCounted = (std::is_base_of_v<ref_counted<true>, T> || std::is_base_of_v<ref_counted<false>, T>);
 
-	// Define the shared and weak similar to shared_ptr and weak_ptr.
+	// Define the ref and weak similar to shared_ptr and weak_ptr.
 	//
 	template<typename T = void>
-	struct RC_TRIVIAL_ABI shared {
+	struct RC_TRIVIAL_ABI ref {
 		using rc_header = typename T::rc_header;
 		rc_header* ctrl = nullptr;
 
 		// Null construction.
 		//
-		constexpr shared() = default;
-		RC_INLINE constexpr shared(std::nullptr_t) {}
+		constexpr ref() = default;
+		RC_INLINE constexpr ref(std::nullptr_t) {}
 
 		// Construction by pointer.
 		//
-		constexpr shared(T* ptr) {
+		constexpr ref(T* ptr) {
 			if (ptr) {
 				ctrl = ptr->get_ref_ctrl();
 				ctrl->inc_ref_unsafe();
@@ -126,21 +132,21 @@ namespace retro {
 
 		// Explicit construction by control block.
 		//
-		RC_INLINE explicit constexpr shared(rc_header* ctrl) : ctrl(ctrl) {}
+		RC_INLINE explicit constexpr ref(rc_header* ctrl) : ctrl(ctrl) {}
 
 		// Construction by type decay.
 		//
 		template<typename T2>
 			requires(!std::is_same_v<T, T2> && std::is_convertible_v<T2*, T*>)
-		RC_INLINE constexpr shared(shared<T2> o) : ctrl(std::exchange(o.ctrl, nullptr)) {}
+		RC_INLINE constexpr ref(ref<T2> o) : ctrl(std::exchange(o.ctrl, nullptr)) {}
 
 		// Implement copy.
 		//
-		RC_INLINE constexpr shared(const shared<T>& o) : ctrl(o.ctrl) {
+		RC_INLINE constexpr ref(const ref<T>& o) : ctrl(o.ctrl) {
 			if (ctrl)
 				ctrl->inc_ref_unsafe();
 		}
-		RC_INLINE constexpr shared& operator=(const shared<T>& o) {
+		RC_INLINE constexpr ref& operator=(const ref<T>& o) {
 			if (o.ctrl)
 				o.ctrl->inc_ref_unsafe();
 			if (ctrl)
@@ -151,12 +157,12 @@ namespace retro {
 
 		// Implement move via swap.
 		//
-		RC_INLINE constexpr shared(shared<T>&& o) noexcept : ctrl(std::exchange(o.ctrl, nullptr)) {}
-		RC_INLINE constexpr shared& operator=(shared<T>&& o) noexcept {
+		RC_INLINE constexpr ref(ref<T>&& o) noexcept : ctrl(std::exchange(o.ctrl, nullptr)) {}
+		RC_INLINE constexpr ref& operator=(ref<T>&& o) noexcept {
 			swap(o);
 			return *this;
 		}
-		RC_INLINE constexpr void swap(shared<T>& o) noexcept { std::swap(ctrl, o.ctrl); }
+		RC_INLINE constexpr void swap(ref<T>& o) noexcept { std::swap(ctrl, o.ctrl); }
 
 		// Observers.
 		//
@@ -167,11 +173,15 @@ namespace retro {
 		RC_INLINE bool					  unique() const { return ctrl && ctrl->ref_counter == 1; }
 		RC_INLINE explicit constexpr operator bool() const { return ctrl != nullptr; }
 
+		// Decay to pointer.
+		//
+		RC_INLINE constexpr operator T*() const { return get(); }
+
 		// Comparison.
 		//
-		RC_INLINE constexpr bool operator==(const shared<T>& o) const { return ctrl == o.ctrl; }
-		RC_INLINE constexpr bool operator!=(const shared<T>& o) const { return ctrl != o.ctrl; }
-		RC_INLINE constexpr bool operator<(const shared<T>& o) const { return ctrl < o.ctrl; }
+		RC_INLINE constexpr bool operator==(const ref<T>& o) const { return ctrl == o.ctrl; }
+		RC_INLINE constexpr bool operator!=(const ref<T>& o) const { return ctrl != o.ctrl; }
+		RC_INLINE constexpr bool operator<(const ref<T>& o) const { return ctrl < o.ctrl; }
 		RC_INLINE constexpr bool operator==(std::nullptr_t) const { return ctrl == nullptr; }
 		RC_INLINE constexpr bool operator!=(std::nullptr_t) const { return ctrl != nullptr; }
 		RC_INLINE constexpr bool operator<(std::nullptr_t) const { return false; }
@@ -182,7 +192,7 @@ namespace retro {
 			if (ctrl)
 				ctrl->dec_ref();
 		}
-		RC_INLINE constexpr ~shared() { reset(); }
+		RC_INLINE constexpr ~ref() { reset(); }
 	};
 	template<typename T = void>
 	struct RC_TRIVIAL_ABI weak {
@@ -207,7 +217,7 @@ namespace retro {
 		//
 		template<typename T2>
 			requires(!std::is_same_v<T, T2> && std::is_convertible_v<T2*, T*>)
-		RC_INLINE constexpr weak(const shared<T2>& o) : ctrl(o.ctrl) {
+		RC_INLINE constexpr weak(const ref<T2>& o) : ctrl(o.ctrl) {
 			if (ctrl)
 				ctrl->inc_ref_weak();
 		}
@@ -219,9 +229,9 @@ namespace retro {
 		//
 		RC_INLINE explicit constexpr weak(rc_header* ctrl) : ctrl(ctrl) {}
 
-		// Construction from shared<T>.
+		// Construction from ref<T>.
 		//
-		RC_INLINE constexpr weak(const shared<T>& o) : ctrl(o.ctrl) {
+		RC_INLINE constexpr weak(const ref<T>& o) : ctrl(o.ctrl) {
 			if (ctrl)
 				ctrl->inc_ref_weak();
 		}
@@ -263,10 +273,10 @@ namespace retro {
 		RC_INLINE T*	  operator->() const { return get(); }
 		RC_INLINE size_t use_count() const { return ctrl ? ctrl->ref_counter & bit_mask(32) : 0; }
 		RC_INLINE bool	  expired() const { return !ctrl || (ctrl->ref_counter & bit_mask(32)) == 0; }
-		RC_INLINE shared<T> lock() const {
+		RC_INLINE ref<T> lock() const {
 			if (!ctrl || !ctrl->inc_ref())
 				return nullptr;
-			return shared<T>(ctrl);
+			return ref<T>(ctrl);
 		}
 		RC_INLINE explicit constexpr operator bool() const { return ctrl != nullptr; }
 
@@ -275,15 +285,15 @@ namespace retro {
 		RC_INLINE constexpr bool		  operator==(const weak<T>& o) const { return ctrl == o.ctrl; }
 		RC_INLINE constexpr bool		  operator!=(const weak<T>& o) const { return ctrl != o.ctrl; }
 		RC_INLINE constexpr bool		  operator<(const weak<T>& o) const { return ctrl < o.ctrl; }
-		RC_INLINE constexpr bool		  operator==(const shared<T>& o) const { return ctrl == o.ctrl; }
-		RC_INLINE constexpr bool		  operator!=(const shared<T>& o) const { return ctrl != o.ctrl; }
-		RC_INLINE constexpr bool		  operator<(const shared<T>& o) const { return ctrl < o.ctrl; }
+		RC_INLINE constexpr bool		  operator==(const ref<T>& o) const { return ctrl == o.ctrl; }
+		RC_INLINE constexpr bool		  operator!=(const ref<T>& o) const { return ctrl != o.ctrl; }
+		RC_INLINE constexpr bool		  operator<(const ref<T>& o) const { return ctrl < o.ctrl; }
 		RC_INLINE constexpr bool		  operator==(std::nullptr_t) const { return ctrl == nullptr; }
 		RC_INLINE constexpr bool		  operator!=(std::nullptr_t) const { return ctrl != nullptr; }
 		RC_INLINE constexpr bool		  operator<(std::nullptr_t) const { return false; }
-		RC_INLINE friend constexpr bool operator==(const shared<T>& s, const weak<T>& o) { return s.ctrl == o.ctrl; }
-		RC_INLINE friend constexpr bool operator!=(const shared<T>& s, const weak<T>& o) { return s.ctrl != o.ctrl; }
-		RC_INLINE friend constexpr bool operator<(const shared<T>& s, const weak<T>& o) { return s.ctrl < o.ctrl; }
+		RC_INLINE friend constexpr bool operator==(const ref<T>& s, const weak<T>& o) { return s.ctrl == o.ctrl; }
+		RC_INLINE friend constexpr bool operator!=(const ref<T>& s, const weak<T>& o) { return s.ctrl != o.ctrl; }
+		RC_INLINE friend constexpr bool operator<(const ref<T>& s, const weak<T>& o) { return s.ctrl < o.ctrl; }
 
 		// Destructor.
 		//
@@ -294,19 +304,19 @@ namespace retro {
 		RC_INLINE constexpr ~weak() { reset(); }
 	};
 	template<typename T>
-	weak(shared<T>) -> weak<T>;
-	
+	weak(ref<T>) -> weak<T>;
+
 	// std::make_shared equivalent.
 	//
 	template<typename T, typename... Tx>
-	inline static shared<T> make_overalloc_rc(size_t overalloc, Tx&&... args) {
+	inline static ref<T> make_overalloc_rc(size_t overalloc, Tx&&... args) {
 		using rc_header = basic_rc_header<T::is_rc_atomic>;
 		rc_header* rc	 = new (operator new(sizeof(T) + sizeof(rc_header) + overalloc)) rc_header();
 		T*			  data = new (rc->data()) T(std::forward<Tx>(args)...);
-		return shared<T>{rc};
+		return ref<T>{rc};
 	}
 	template<typename T, typename... Tx>
-	inline static shared<T> make_rc(Tx&&... args) {
+	inline static ref<T> make_rc(Tx&&... args) {
 		return make_overalloc_rc<T, Tx...>(0, std::forward<Tx>(args)...);
 	};
 }
