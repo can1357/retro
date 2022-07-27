@@ -13,49 +13,9 @@ namespace retro::ir {
 	//
 	enum class fmt_style : u8 { full, concise };
 
-	// Value type.
-	//
-	struct operand;
-	struct value : dyn<value>, pinned {
-	  private:
-		// Circular linked list for the uses.
-		//
-		mutable operand* use_list_prev = (operand*) &use_list_prev;
-		mutable operand* use_list_next = (operand*) &use_list_prev;
-		friend operand;
-
-		// List head.
-		//
-		operand* use_list_head() const { return (operand*) &use_list_prev; }
-
-	  public:
-		// String conversion and type getter.
-		//
-		virtual std::string to_string(fmt_style s = {}) const = 0;
-		virtual type		  get_type() const						= 0;
-
-		// Gets the list of uses.
-		//
-		range::subrange<list::iterator<operand>> uses() const;
-
-		// Replaces all uses with another value.
-		//
-		template<typename T>
-		void replace_all_uses_with(T&& val) const {
-			for (auto it = use_list_head()->next; it != use_list_head();) {
-				auto next = it->next;
-				it->reset(std::forward<T>(val));
-				it = next;
-			}
-		}
-
-		// Ensure no references left on destruction.
-		//
-		~value();
-	};
-
 	// Use instance.
 	//
+	struct value;
 	struct alignas(8) operand : pinned {
 		// Since operand is aligned by 8, operand.prev will also be aligned by 8.
 		// - If misaligned (eg check bit 0 == 1), we can use it as a thombstone.
@@ -102,7 +62,7 @@ namespace retro::ir {
 					if (val) {
 						prev = this;
 						next = this;
-						list::link_before(val->use_list_head(), this);
+						list::link_before(val->use_list.entry(), this);
 						std::construct_at(&value_ref, (value*) val);
 						RC_ASSERT(!is_const());
 					}
@@ -133,8 +93,8 @@ namespace retro::ir {
 			RC_ASSERT(!is_const());
 			return value_ref.get();
 		}
-		std::string to_string(fmt_style s = {}) const { return is_const() ? get_const().to_string() : get_value()->to_string(s); }
-		type			get_type() const { return is_const() ? get_const().get_type() : get_value()->get_type(); }
+		std::string to_string(fmt_style s = {}) const;
+		type			get_type() const;
 
 		// Equality comparison.
 		//
@@ -157,11 +117,44 @@ namespace retro::ir {
 		~operand() { reset(); }
 	};
 
-	// Gets the list of uses.
+	
+	// Value type.
 	//
-	inline range::subrange<list::iterator<operand>> value::uses() const { return list::range(use_list_head()); }
+	struct value : dyn<value>, pinned {
+	  private:
+		// Circular linked list for the uses.
+		//
+		list::head<operand> use_list;
+		friend operand;
 
-	// Ensure no references left on destruction.
+	  public:
+		// String conversion and type getter.
+		//
+		virtual std::string to_string(fmt_style s = {}) const = 0;
+		virtual type		  get_type() const						= 0;
+
+		// Gets the list of uses.
+		//
+		range::subrange<list::iterator<operand>> uses() const { return list::range(use_list.entry()); }
+
+		// Replaces all uses with another value.
+		//
+		template<typename T>
+		void replace_all_uses_with(T&& val) const {
+			for (auto it = use_list.begin(); it != use_list.end();) {
+				auto next = std::next(it);
+				it->reset(std::forward<T>(val));
+				it = next;
+			}
+		}
+
+		// Ensure no references left on destruction.
+		//
+		~value() { RC_ASSERTS("Destroying value with lingering uses.", !uses()); }
+	};
+
+	// Forwards.
 	//
-	inline value::~value() { RC_ASSERTS("Destroying value with lingering uses.", !uses()); }
+	inline std::string operand::to_string(fmt_style s) const { return is_const() ? get_const().to_string() : get_value()->to_string(s); }
+	inline type			 operand::get_type() const { return is_const() ? get_const().get_type() : get_value()->get_type(); }
 };

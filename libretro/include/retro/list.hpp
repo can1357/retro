@@ -117,4 +117,34 @@ namespace retro::list {
 	RC_INLINE static auto range(T* at) {
 		return list::subrange<T>(at->next, at);
 	}
+
+	// List head helper.
+	//
+	template<typename T>
+	struct head : pinned, range::view_base {
+		using iterator = iterator<T>;
+	  private:
+		T* prev;
+		T* next;
+
+	  public:
+		// Default construct.
+		//
+		head() : prev(entry()), next(entry()) {}
+
+		// Explicitly cast to value type.
+		//
+		T* entry() const { return (T*) (uptr(&prev) - (offsetof(T, prev))); }
+
+		// Observers.
+		//
+		iterator					begin() const { return {next}; }
+		iterator					end() const { return {entry()}; }
+		auto						rbegin() const { return std::reverse_iterator(end()); }
+		auto						rend() const { return std::reverse_iterator(begin()); }
+		bool						empty() const { return next == entry(); }
+		size_t					size() const { return std::distance(begin(), end()); };
+		T*							front() const { return (!empty()) ? (next) : nullptr; }
+		T*							back() const { return (!empty()) ? (prev) : nullptr; }
+	};
 };

@@ -209,7 +209,7 @@ namespace retro::ir {
 		static u32 next_name(const procedure*);
 	};
 
-	struct basic_block final : dyn<basic_block, value> {
+	struct basic_block final : dyn<basic_block, value>, list::head<insn> {
 		// Owning procedure.
 		//
 		procedure* proc = nullptr;
@@ -218,10 +218,6 @@ namespace retro::ir {
 		//
 		u32 name = 0;
 		u64 ip	= NO_LABEL;
-
-		// Instruction list.
-		//
-		mutable insn insn_list_head{0}; // TODO: Lame
 
 		// Temporary for algorithms.
 		//
@@ -235,13 +231,6 @@ namespace retro::ir {
 
 		// Container observers.
 		//
-		list::iterator<insn> begin() const { return {insn_list_head.next}; }
-		list::iterator<insn> end() const { return {&insn_list_head}; }
-		auto						rbegin() const { return std::reverse_iterator(end()); }
-		auto						rend() const { return std::reverse_iterator(begin()); }
-		bool						empty() const { return insn_list_head.next == &insn_list_head; }
-		insn*						front() const { return (!empty()) ? (insn_list_head.next) : nullptr; }
-		insn*						back() const { return (!empty()) ? (insn_list_head.prev) : nullptr; }
 		list::iterator<insn> end_phi() const {
 			return range::find_if(begin(), end(), [](insn* i) { return i->op != opcode::phi; });
 		}
@@ -341,6 +330,16 @@ namespace retro::ir {
 			}
 		}
 		type get_type() const override { return type::label; }
+
+		// Deref and oprhan all instructions on destruction.
+		//
+		~basic_block() {
+			for (auto it = begin(); it != end();) {
+				auto next = std::next(it);
+				it->erase();
+				it = next;
+			}
+		}
 	};
 
 	// Procedure type.
