@@ -141,14 +141,14 @@ namespace retro::ir {
 		// Equality comparison.
 		//
 		bool equals(const operand& other) const {
-			if (is_const()) {
-				if (!other.is_const())
-					return false;
-				return get_const() == other.get_const();
+			bool isc = is_const();
+			if (other.is_const() != isc)
+				return false;
+
+			if (isc) {
+				return const_val == other.const_val;
 			} else {
-				if (!other.is_value())
-					return false;
-				return get_value() == other.get_value();
+				return value_ptr == other.value_ptr;
 			}
 		}
 		bool operator==(const operand& other) const { return equals(other); }
