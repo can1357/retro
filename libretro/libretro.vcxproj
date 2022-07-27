@@ -27,6 +27,7 @@
     </ProjectConfiguration>
   </ItemGroup>
   <ItemGroup>
+    <ClInclude Include="include\retro\arch\x86\zydis.hpp" />
     <ClInclude Include="include\retro\diag.hpp" />
     <ClInclude Include="include\retro\graph\naive.hpp" />
     <ClInclude Include="include\retro\graph\search.hpp" />
@@ -35,7 +36,6 @@
     <ClInclude Include="include\retro\common.hpp" />
     <ClInclude Include="include\retro\coro.hpp" />
     <ClInclude Include="include\retro\ctti.hpp" />
-    <ClInclude Include="include\retro\disasm\zydis.hpp" />
     <ClInclude Include="include\retro\dyn.hpp" />
     <ClInclude Include="include\retro\format.hpp" />
     <ClInclude Include="include\retro\func.hpp" />

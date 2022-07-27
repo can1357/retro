@@ -53,9 +53,7 @@ namespace retro::ir {
 #undef MAP_VTY
 
 	template<typename T>
-	concept BuiltinType = requires {
-		type_to_builtin<T>::value;
-	};
+	concept BuiltinType = requires { type_to_builtin<T>::value; } && (std::is_arithmetic_v<T> || std::is_enum_v<T> || std::is_same_v<T, std::string_view>);
 
 	template<type Id>
 	using type_t = typename builtin_to_type<Id>::type;
@@ -76,6 +74,7 @@ namespace retro::ir {
 		// Default constructor.
 		//
 		constexpr constant() = default;
+		constexpr constant(std::nullopt_t){};
 
 		// Construction by value.
 		//
@@ -203,9 +202,14 @@ namespace retro::ir {
 		//
 		std::string to_string() const {
 			switch (get_type()) {
-#define FMT_TY(A, B) \
-	case type::A:     \
-		return std::string{fmt::to_str(get<B>())};
+#define FMT_TY(A, B)                                \
+	case type::A: {                                  \
+		if constexpr (BuiltinType<B>) {               \
+			return std::string{fmt::to_str(get<B>())}; \
+		} else {                                      \
+			RC_UNREACHABLE();                          \
+		}                                             \
+	}
 				RC_VISIT_TYPE(FMT_TY)
 #undef FMT_TY
 				default:

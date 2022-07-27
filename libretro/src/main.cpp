@@ -3,156 +3,11 @@
 
 using namespace retro;
 
-/*
-#include <coroutine>
-#include <retro/coro.hpp>
-namespace retro {
-	template<typename T>
-	struct task {
-		struct promise_type {
-			// Symetric transfer.
-			//
-			coroutine_handle<>				  continuation				= nullptr;
-			std::vector<coroutine_handle<>> extended_continuation = {};
-
-			// Result.
-			//
-			std::optional<T>	 result		  = std::nullopt;
-
-			// Make sure continuation was not leaked on destruction.
-			//
-			~promise_type() {
-				RC_ASSERT(!continuation);	 // Should not leak continuation!
-			}
-
-			struct final_awaitable {
-				inline bool await_ready() noexcept { return false; }
-
-				template<typename P = promise_type>
-				inline coroutine_handle<> await_suspend(coroutine_handle<P> handle) noexcept {
-					auto& pr = handle.promise();
-					for (auto& ex : pr.extended_continuation) {
-						ex();
-					}
-					if (auto c = pr.continuation)
-						return c;
-					else
-						return noop_coroutine();
-				}
-				inline void await_resume() const noexcept {}
-			};
-
-			task<T>			 get_return_object() { return *this; }
-			suspend_always	 initial_suspend() noexcept { return {}; }
-			final_awaitable final_suspend() noexcept { return {}; }
-			RC_UNHANDLED_RETHROW;
-
-			template<typename V>
-			void return_value(V&& v) {
-				result.emplace(std::forward<V>(v));
-			}
-		};
-
-		// Coroutine handle and the internal constructor.
-		//
-		mutable bool						 started = false;
-		unique_coroutine<promise_type> handle	= nullptr;
-		task(promise_type& pr) : handle(pr) {}
-
-		// Null constructor and validity check.
-		//
-		constexpr task() = default;
-		constexpr task(std::nullptr_t) : task() {}
-		constexpr bool has_value() const { return handle != nullptr; }
-		constexpr explicit operator bool() const { return has_value(); }
-
-		// No copy, default move.
-		//
-		constexpr task(task&&) noexcept				 = default;
-		constexpr task(const task&)					 = delete;
-		constexpr task& operator=(task&&) noexcept = default;
-		constexpr task& operator=(const task&)		 = delete;
-
-		// State.
-		//
-		bool done() const { return handle.promise().result.has_value(); }
-		constexpr bool pending() const { return started && !done(); }
-		constexpr bool lazy() const { return !started; }
-
-		// Resumes the coroutine and returns the status.
-		//
-		bool operator()() const {
-			if (!started) {
-				started = true;
-				handle.resume();
-			}
-			return done();
-		}
-	};
-
-	struct barrier {
-		std::vector<coroutine_handle<>> waiters;
-		void signal() {
-			for (auto& w : std::exchange(waiters, {}))
-				w();
-		}
-
-		inline bool await_ready() { return false; }
-		inline void await_resume() const {}
-		inline void await_suspend(coroutine_handle<> hnd) { waiters.emplace_back(hnd); }
-	};
-
-	template<typename T>
-	inline auto operator co_await(const task<T>& ref) {
-		struct awaitable {
-			const task<T>& ref;
-
-			inline bool					  await_ready() { return ref.done(); }
-			inline const auto&		  await_resume() const { return *ref.handle.promise().result; }
-			inline coroutine_handle<> await_suspend(coroutine_handle<> hnd) {
-				auto& pr = ref.handle.promise();
-				if (pr.continuation) {
-					pr.extended_continuation.emplace_back(pr.continuation);
-				}
-				pr.continuation = hnd;
-
-				if (ref.started)
-					return noop_coroutine();
-				ref.started = true;
-				return ref.handle.hnd;
-			}
-		};
-		return awaitable{ref};
-	}
-};
-
-barrier meme_Barrier;
-
-task<int> say_hi() {
-	co_await meme_Barrier;
-	co_return printf("hi\n");
-}
-task<std::monostate> stuff(const char* name, task<int>& task) {
-	printf("%s - x\n", name);
-	int x = co_await task;
-	printf("%s - z: %d\n", name, x);
-	co_return std::monostate{};
-}
-auto hi_task = say_hi();
-auto t0		 = stuff("t0", hi_task);
-auto t1		 = stuff("t1", hi_task);
-printf("t0: %d\n", t0());
-printf("t1: %d\n", t1());
-meme_Barrier.signal();
-printf("t0: %d\n", t0());
-printf("t1: %d\n", t1());
-*/
-
 #include <retro/common.hpp>
 #include <retro/targets.hxx>
 
 
-#include <retro/disasm/zydis.hpp>
+#include <retro/arch/x86/zydis.hpp>
 
 /*
 test rcx, rcx
@@ -302,8 +157,6 @@ namespace retro::ir {
 		// split
 		// clone()
 
-		
-
 		// Validation.
 		//
 		diag::lazy validate() const {
@@ -336,6 +189,7 @@ namespace retro::ir {
 		~basic_block() {
 			for (auto it = begin(); it != end();) {
 				auto next = std::next(it);
+				it->replace_all_uses_with(std::nullopt);
 				it->erase();
 				it = next;
 			}
@@ -355,7 +209,7 @@ namespace retro::ir {
 
 		// Counters.
 		//
-		mutable u32 next_ins_name	 = 0;	 // Next instruction name.
+		mutable u32 next_ins_name = 0;  // Next instruction name.
 		mutable u32 next_blk_name = 0;  // Next basic-block name.
 
 		// List of basic-blocks.
@@ -464,6 +318,54 @@ namespace retro::ir {
 };
 
 
+namespace retro::debug {
+	static void print_insn_list() {
+		std::string_view tmp_types[] = {"T", "Ty"};
+
+		for (auto& ins : ir::opcode_desc::list()) {
+			if (ins.id() == ir::opcode::none)
+				continue;
+
+			std::string_view ret_type = "!";
+			if (!ins.terminator) {
+				if (ins.templates.begin()[0] == 0) {
+					ret_type = enum_name(ins.types[0]);
+				} else {
+					ret_type = tmp_types[ins.templates[0] - 1];
+				}
+			}
+
+			fmt::print(RC_RED, ret_type, " " RC_YELLOW, ins.name);
+			if (ins.template_count == 1) {
+				fmt::print(RC_BLUE "<T>");
+			} else if (ins.template_count == 2) {
+				fmt::print(RC_BLUE "<T,Ty>");
+			}
+			fmt::print(" " RC_RESET);
+
+			size_t num_args = ins.types.size() - 1;
+			for (size_t i = 0; i != num_args; i++) {
+				auto tmp	 = ins.templates[i + 1];
+				auto type = ins.types[i + 1];
+				auto name = ins.names[i + 1];
+
+				std::string_view ty;
+				if (tmp == 0) {
+					ty = enum_name(type);
+				} else {
+					ty = tmp_types[tmp - 1];
+				}
+
+				if (range::count(ins.constexprs, i + 1)) {
+					fmt::print(RC_GREEN "constexpr ");
+				}
+				fmt::print(RC_RED, ty, RC_RESET ":" RC_WHITE, name, RC_RESET " ");
+			}
+			fmt::print("\n");
+		}
+	}
+};
+
 
 int main(int argv, const char** args) {
 	platform::setup_ansi_escapes();
@@ -473,85 +375,7 @@ int main(int argv, const char** args) {
 
 	auto i0 = bb->push_back(ir::make_binop(ir::op::add, 2, 3));
 	auto i1 = bb->push_back(ir::make_binop(ir::op::add, i0, 3));
-
 	fmt::println(proc->to_string());
-	i0->replace_all_uses_with(5);
-
-	fmt::println(proc->to_string());
-
-
-	/*
-
-
-	std::string_view tmp_types[] = {"T", "Ty"};
-
-	for (auto& ins : ir::insn_desc::list()) {
-		if (ins.id() == ir::insn::none)
-			continue;
-
-		std::string_view ret_type = "!";
-		if (!ins.terminator) {
-			if (ins.templates.begin()[0] == 0) {
-				ret_type = enum_name(ins.types[0]);
-			} else {
-				ret_type = tmp_types[ins.templates[0] - 1];
-			}
-		}
-
-		fmt::print(RC_RED, ret_type, " " RC_YELLOW, ins.name);
-		if (ins.template_count == 1) {
-			fmt::print(RC_BLUE "<T>");
-		} else if (ins.template_count == 2) {
-			fmt::print(RC_BLUE "<T,Ty>");
-		}
-		fmt::print(" " RC_RESET);
-
-
-		size_t num_args = ins.types.size() - 1;
-		for (size_t i = 0; i != num_args; i++) {
-			auto tmp	  = ins.templates[i + 1];
-			auto type  = ins.types[i + 1];
-			auto name  = ins.names[i + 1];
-
-			std::string_view ty;
-			if (tmp == 0) {
-				ty = enum_name(type);
-			} else {
-				ty = tmp_types[tmp-1];
-			}
-
-			if (range::count(ins.constexprs, i + 1)) {
-				fmt::print(RC_GREEN "constexpr ");
-			}
-			fmt::print(RC_RED, ty, RC_RESET ":" RC_WHITE, name, RC_RESET " ");
-		}
-		fmt::print("\n");
-	}*/
-
-
-	//auto procedure = ir::procedure::make();
-	//
-	//ir::constant kek = "abcddsads";
-	//ir::constant kek2 = std::move(kek);
-	//kek					= f32x4{1.0f, 2.0f, 3.0f, 4.0f};
-	//
-	//fmt::println("kek holds: ", kek.get_type(), "=", kek);
-	//fmt::println("kek2 holds: ", kek2.get_type(), "=", kek2);
-
-	/*instruction a;
-	instruction b;
-
-	a.set_operand(0, &b);
-	a.set_operand(1, &b);
-	a.set_operand(1, &b);
-	a.set_operand(0, nullptr);
-
-	b.replace_all_uses_with(&a);
-
-	a.replace_all_uses_with((instruction*)nullptr);
-
-	a.print("a");
-	b.print("b");*/
 
 	/*std::span<const u8> data = {(u8*) lift_example, sizeof(lift_example) - 1};
 
