@@ -6,3 +6,4 @@ build/
 .vs/
 *.ipynb
 **/retro/**/*.hxx
+build-vscmake/

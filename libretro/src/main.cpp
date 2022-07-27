@@ -28,7 +28,6 @@ namespace retro::doc {
 	};
 };
 
-
 namespace retro::debug {
 	static void print_insn_list() {
 		std::string_view tmp_types[] = {"T", "Ty"};
@@ -78,7 +77,6 @@ namespace retro::debug {
 };
 
 namespace retro::x86::sema {
-
 };
 
 /*

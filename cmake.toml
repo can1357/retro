@@ -1,0 +1,30 @@
+[project]
+name = "retro"
+languages = ["CXX"]
+
+[conditions]
+x86_64 = "CMAKE_SYSTEM_PROCESSOR MATCHES \"(amd64)|(AMD64)|(x86_64)\""
+
+[subdir.zydis]
+condition = "x86_64"
+
+[target.libretro]
+type = "static"
+x86_64.link-libraries = ["Zydis"]
+include-directories = ["libretro/include"]
+compile-features = ["cxx_std_20"]
+sources = [
+    "libretro/src/**.cpp",
+    "libretro/src/**.hpp",
+    "libretro/src/**.hxx",
+    "libretro/include/**.hpp",
+    "libretro/include/**.hxx",
+]
+
+[target.retro]
+type = "executable"
+link-libraries = ["libretro"]
+
+[[install]]
+targets = ["retro"]
+destination = "bin"
