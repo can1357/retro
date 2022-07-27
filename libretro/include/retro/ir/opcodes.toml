@@ -11,15 +11,13 @@ Script = """
 #
 insns = data["opcode"]
 for k,v in insns.items():
+	# Set the opcode.
+	#
+	func = CxxFunction()
+
 	# Start by setting the opcode.
 	#
-	tmplist = []
-	arglist = []
-	stmts = ["r->op = opcode::" + k]
-	stmts_last = [
-		"r->validate().raise()",
-		"return r"
-	]
+	func.stmts.append("r->op = opcode::" + k)
 
 	# If instruction is templated:
 	#
@@ -35,13 +33,12 @@ for k,v in insns.items():
 		# If we cant, explicitly ask for it.
 		#
 		if arg_match == 0:
-			arglist.append("type t{0}".format(i))
-			stmts.append("r->template_types[{0}] = t{0}".format(i))
+			func.add_argument("type", "t" + str(i))
+			func.stmts.append("r->template_types[{0}] = t{0}".format(i))
 		# Otherwise, deduce.
 		#
 		else:
-			argname = v["names"][arg_match].lower()
-			stmts_last.insert(0, "r->template_types[{0}] = r->operands()[{1}].get_type()".format(i, arg_match-1))
+			func.post_stmts.append("r->template_types[{0}] = r->operands()[{1}].get_type()".format(i, arg_match-1))
 
 	# For each argument:
 	#
@@ -54,46 +51,49 @@ for k,v in insns.items():
 		# If constexpr, request the real type.
 		#
 		if i in v.get("constexprs", []):
-			arglist.append("type_t<type::" + v["types"][i][6:] + "> " + argname)
-			stmts.append("r->set_operands({0}, {1})".format(i-1, argname))
+			func.add_argument("type_t<type::" + v["types"][i][6:] + ">", argname)
+			func.stmts.append("r->set_operands({0}, {1})".format(i-1, argname))
 		# Otherwise if vararg:
 		#
 		elif v["types"][i] == "@type.pack":
 			fixed_arg_count -= 1
 			var_arg_sentinels.append("sizeof...(T{0})".format(argname))
-			tmplist.append("...T"+argname)
-			arglist.append("T{0}&&... {0}".format(argname))
-			stmts.append("r->set_operands({0}, std::forward<T{1}>({1})...)".format(i-1, argname))
+			tname = func.add_argument_pack(argname)
+			func.stmts.append("r->set_operands({0}, std::forward<{2}>({1})...)".format(i-1, argname, tname))
 			assert (i+1) == len(v["types"]);
 		# Finally accept any value.
 		#
 		else:
-			tmplist.append("T"+argname)
-			arglist.append("T{0}&& {0}".format(argname))
-			stmts.append("r->set_operands({0}, std::forward<T{1}>({1}))".format(i-1, argname))
+			tname = func.add_argument(None, argname)
+			func.stmts.append("r->set_operands({0}, std::forward<{2}>({1}))".format(i-1, argname, tname))
 		
 	# Finally add the allocation with operand count and return the result.
 	#
 	var_arg_sentinels.append(str(fixed_arg_count))
-	stmts.insert(0, "auto r = insn::allocate({0})".format("+".join(var_arg_sentinels)))
-
-	# Finally combined all the code together.
+	func.stmts.insert(0, "auto r = insn::allocate({0})".format("+".join(var_arg_sentinels)))
+	
+	# Add validation.
 	#
-	result =    "inline ref<insn> make_" + k + "("
-	if len(tmplist) != 0:
-		for i in range(len(tmplist)):
-			tmplist[i] = "typename " + tmplist[i]
-		result = "template<" + ", ".join(tmplist) + "> " + result
-	if len(arglist) != 0:
-		result += ", ".join(arglist)
-	result += ") {\\n"
-	stmts.extend(stmts_last)
-	result += ";\\n".join(stmts)
-	result += ";\\n}"
+	func.post_stmts.append("r->validate().raise()")
+
+	
+	# Copy into two and generate the code.
+	#
+	oprhan_ctor = func.clone()
+	oprhan_ctor.return_type = "ref<insn>"
+	oprhan_ctor.post_stmts.append("return r")
+	oprhan_ctor = oprhan_ctor.write("make_" + k)
+
+	bb_ctor = func.clone()
+	bb_ctor.args.insert(0, "basic_block* parent_block")
+	bb_ctor.return_type = "list::iterator<insn>"
+	bb_ctor.post_stmts.append("return parent_block->push_back(std::move(r))")
+	bb_ctor = bb_ctor.write("push_" + k)
+
+	#print(oprhan_ctor + "\\n" + bb_ctor)
 
 	# Set the visitor arg.
-	v["VisitorArgs"] = ["RC_IDENTITY(" + result.replace("\\n", "") + ")"]
-	#print(result)
+	v["VisitorArgs"] = ["RC_IDENTITY(" + oprhan_ctor.replace("\\n", "") + ")", "RC_IDENTITY(" + bb_ctor.replace("\\n", "") + ")"]
 """
 
 # T    read_reg<T>  reg:id

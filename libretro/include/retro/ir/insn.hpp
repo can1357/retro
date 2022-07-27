@@ -142,7 +142,7 @@ namespace retro::ir {
 					result += ".";
 					result += enum_name(template_types[i]);
 				}
-				result += ' ';
+				result += " " RC_RESET;
 
 				for (auto& op : operands()) {
 					result += op.to_string(fmt_style::concise);
@@ -162,8 +162,6 @@ namespace retro::ir {
 				return template_types[info.templates[0] - 1];
 			}
 		}
-
-
 
 		// Basic validation.
 		//
@@ -190,7 +188,6 @@ namespace retro::ir {
 		}
 
 
-
 		// Destroy all operands on destruction.
 		//
 		~insn() { range::destroy(operands()); }
@@ -198,7 +195,7 @@ namespace retro::ir {
 
 	// Create the auto-generated constructors.
 	//
-#define ADD_CTOR(a, ...) __VA_ARGS__
+#define ADD_CTOR(a, oprhan, bb) oprhan
 	RC_VISIT_OPCODE(ADD_CTOR)
 #undef ADD_CTOR
 };

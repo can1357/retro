@@ -1,7 +1,7 @@
 #!/usr/bin/env python
 # coding: utf-8
 
-# In[18]:
+# In[19]:
 
 
 #!conda install --yes toml
@@ -87,6 +87,60 @@ def multiline_eval(expr, context, local_list):
     for eval_expr in eval_exprs:
         exec(compile(ast.Expression((eval_expr)), 'file', 'eval'), context, local_list)
 
+# Helper for writing C++ functions.
+#
+from copy import deepcopy
+class CxxFunction:
+	def __init__(self):
+		self.args =        []
+		self.tmps =        []
+		self.stmts =       []
+		self.post_args =   []
+		self.post_tmps =   []
+		self.post_stmts =  []
+		self.return_type = "decltype(auto)"
+		self.qualifiers = "inline"
+		
+	def add_argument(self, type, name):
+		if type == None:
+			type = "T" + name
+			self.post_tmps.insert(0, type)
+			self.args.append(type + "&& " + name)
+		else:
+			self.args.append(type + " " + name)
+		return type
+
+	def add_argument_pack(self, name):
+		self.post_tmps.append("...T"+name)
+		self.post_args.append("T{0}&&... {0}".format(name))
+		return "T" + name
+
+	def clone(self):
+		return deepcopy(self)
+
+	def write(self, name):
+		result = ""
+
+		# Add templates.
+		#
+		if len(self.tmps) != 0 or len(self.post_tmps) != 0:
+			tmps = self.tmps + self.post_tmps
+			for i in range(len(tmps)):
+				tmps[i] = "typename " + tmps[i]
+			result = "template<" + ", ".join(tmps) + ">\n"
+
+		# Create the decl.
+		#
+		result += self.qualifiers + " " + self.return_type + " " + name + "("
+		if len(self.args) != 0 or len(self.post_args) != 0:
+			args = self.args + self.post_args
+			result += ", ".join(args)
+		result += ") {\n"
+
+		result += ";\n".join(self.stmts + self.post_stmts)
+		result += ";\n}"
+		return result
+        
 # C++ Types.
 #
 class CxxType:

@@ -77,6 +77,16 @@ namespace retro::debug {
 };
 
 namespace retro::x86::sema {
+	inline void set_pf(ir::basic_block* bb, ir::insn* result) {
+		// %cast = cast.i32.i8  %result
+		auto cast = ir::push_cast(bb, ir::type::i8, result);
+		// %pcnt = unop.i8      popcnt,  %cast
+		auto pcnt = ir::push_unop(bb, ir::op::bit_popcnt, cast);
+		// %mod2 = cast.i8.i1   %pcnt
+		auto mod2 = ir::push_cast(bb, ir::type::i1, pcnt);
+		// write_reg.i1         flag_pf, %mod2
+		ir::push_write_reg(bb, reg::flag_pf, mod2);
+	}
 };
 
 /*
@@ -90,18 +100,16 @@ x:
 */
 constexpr const char lift_example[] = "\x48\x85\xC9\x74\x05\x48\x8D\x04\x0A\xC3\x4A\x8D\x04\x02\xC3";
 
-
 int main(int argv, const char** args) {
 	platform::setup_ansi_escapes();
 
 	auto	proc = make_rc<ir::procedure>();
 	auto* bb	  = proc->add_block();
 
-	auto i0 = bb->push_back(ir::make_binop(ir::op::add, 2, 3));
-	auto i1 = bb->push_back(ir::make_binop(ir::op::add, 3, i0));
+	auto i0 = ir::push_binop(bb, ir::op::add, 2, 3);
+	auto i1 = ir::push_binop(bb, ir::op::add, 3, i0);
 
-	i1->erase_operand(1);
-	i0->replace_all_uses_with(6);
+	x86::sema::set_pf(bb, i1);
 
 	fmt::println(proc->to_string());
 

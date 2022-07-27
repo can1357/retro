@@ -138,4 +138,10 @@ namespace retro::ir {
 			}
 		}
 	};
+
+	// Create the auto-generated constructors.
+	//
+#define ADD_CTOR(a, oprhan, bb) bb
+	RC_VISIT_OPCODE(ADD_CTOR)
+#undef ADD_CTOR
 };
