@@ -6,26 +6,41 @@
 namespace retro::ir {
 	RC_DEF_ERR(insn_type_mismatch, "expected operand #% to be of type '%', got '%' instead: %")
 
+	// Fake IP value.
+	//
+	inline constexpr u64 NO_LABEL = ~0ull;
+
 	// Instruction type.
 	//
+	struct basic_block;
 	struct insn final : dyn<insn, value> {
-		// TODO: linked list
-
-		// Opcode.
+		// Owning basic block and the linked list entry.
 		//
-		opcode op = opcode::none;
+		basic_block* block = nullptr;
+		insn*			 prev	 = this;
+		insn*			 next	 = this;
+
+		// Value name.
+		//
+		u32 name = 0;
+
+		// Opcode and operand count.
+		//
+		const u32 operand_count = 0;
+		opcode	 op				= opcode::none;
 
 		// Template types.
 		//
 		type template_types[2] = {};
 
-		// Value name.
-		// TODO:
-		u32 name = 0;
-
-		// Variable length operand array.
+		// Source instruction.
 		//
-		const u32 operand_count = 0;
+		u64 ip = NO_LABEL;
+
+		// Temporary for algorithms.
+		//
+		mutable u64 tmp_monotonic = 0;
+		mutable u64 tmp_mapping	  = 0;
 
 		// Allocated with operand count.
 		//
@@ -38,14 +53,39 @@ namespace retro::ir {
 			return r;
 		}
 
-		// Gets the operands.
+		// Gets the opcode descriptor.
 		//
-		std::span<operand>		 operands() { return {(operand*) (this + 1), operand_count}; }
-		std::span<const operand> operands() const { return {(operand*) (this + 1), operand_count}; }
+		const opcode_desc& desc() const { return enum_reflect(op); }
+
+		// Returns true if orphan instruction.
+		//
+		bool is_orphan() const {
+			RC_ASSERT(list::is_detached(this) == (block == nullptr));
+			return list::is_detached(this);
+		}
+
+		// Erases the instruction from the containing block.
+		//
+		ref<insn> erase() {
+			// Unlink from the linked list.
+			//
+			RC_ASSERT(!is_orphan());
+			block = nullptr;
+			list::unlink(this);
+
+			// Parent had a strong reference already, no need to increment anything, simply re-use it.
+			//
+			return ref<insn>{get_rc_header(this)};
+		}
 
 		// Given a use from this instruction, gets the operand index.
 		//
 		size_t index_of(const operand* operand) const { return operand - operands().data(); }
+
+		// Gets the operands.
+		//
+		std::span<operand>		 operands() { return {(operand*) (this + 1), operand_count}; }
+		std::span<const operand> operands() const { return {(operand*) (this + 1), operand_count}; }
 
 		// Changes an operands value.
 		//
@@ -59,17 +99,18 @@ namespace retro::ir {
 			}
 		}
 
-		// Forward string conversion and type getter.
+
+		// Declare string conversion and type getter.
 		//
 		std::string to_string(fmt_style s = {}) const override {
 			if (s == fmt_style::concise) {
-				return fmt::str(RC_YELLOW "%%%u" RC_RESET, name);
+				return fmt::str(RC_YELLOW "%%%x" RC_RESET, name);
 			} else {
 				auto& info = enum_reflect(op);
 
 				std::string result = {};
 				if (get_type() != type::none) {
-					result = fmt::str(RC_YELLOW "%%%u" RC_RESET " = ", name);
+					result = fmt::str(RC_YELLOW "%%%x" RC_RESET " = ", name);
 				}
 
 				result += RC_RED;
@@ -99,6 +140,8 @@ namespace retro::ir {
 			}
 		}
 
+
+
 		// Basic validation.
 		//
 		diag::lazy validate() const {
@@ -122,6 +165,8 @@ namespace retro::ir {
 			}
 			return diag::ok;
 		}
+
+
 
 		// Destroy all operands on destruction.
 		//

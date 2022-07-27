@@ -12,40 +12,20 @@ TODO:
 // Type-specialized ref-counting primitives.
 //
 namespace retro {
-	template<bool Atomic>
-	struct basic_rc_header;
-
-	// Ref counter base.
-	//
-	template<bool Atomic>
-	struct ref_counted {
-		// Reference-counting traits.
-		//
-		using rc_header						  = basic_rc_header<Atomic>;
-		static constexpr bool is_rc_atomic = Atomic;
-
-		// Gets the reference-counter control block.
-		//
-		inline rc_header* get_ref_ctrl() const { return std::prev((rc_header*) this); }
-
-		// Force virtual dtor.
-		//
-		virtual ~ref_counted() = default;
-	};
-	using rc	 = ref_counted<false>;
-	using arc = ref_counted<true>;
-
 	// Ref counter header.
 	//
-	template<bool Atomic>
-	struct basic_rc_header {
-		using refcnt_t = std::conditional_t<Atomic, std::atomic<u64>, u64>;
+	struct rc_header {
+		using refcnt_t = std::atomic<u64>;
 
 		// Reference counters.
 		// u64 strong_refs : 32
 		// u64 weaks       : 32
 		//
 		refcnt_t ref_counter{0x00000001'00000001};
+
+		// Destructor.
+		//
+		void (*dtor)(rc_header*) = nullptr;
 
 		// Manual ref-management.
 		//
@@ -58,20 +38,13 @@ namespace retro {
 			RC_ASSERT((newrefs & bit_mask(32)) != 1);
 		}
 		RC_INLINE bool inc_ref() {
-			if constexpr (Atomic) {
-				u64 expected = ref_counter.load(std::memory_order::relaxed);
-				while ((expected & bit_mask(32)) != 0)
-					[[likely]] {
-						if (ref_counter.compare_exchange_strong(expected, expected + 1)) {
-							return true;
-						}
+			u64 expected = ref_counter.load(std::memory_order::relaxed);
+			while ((expected & bit_mask(32)) != 0)
+				[[likely]] {
+					if (ref_counter.compare_exchange_strong(expected, expected + 1)) {
+						return true;
 					}
-			} else {
-				if ((ref_counter & bit_mask(32)) != 0) [[likely]] {
-					++ref_counter;
-					return true;
 				}
-			}
 			return false;
 		}
 		RC_INLINE void dec_ref_weak() {
@@ -89,9 +62,9 @@ namespace retro {
 			// If we were the last strong-reference:
 			//
 			if (!(leftover & bit_mask(32))) [[unlikely]] {
-				// Call the virtual destructor.
+				// Call the destructor.
 				//
-				std::destroy_at((ref_counted<Atomic>*) data());
+				dtor(this);
 
 				// Decrement the initial weak reference.
 				//
@@ -103,18 +76,13 @@ namespace retro {
 		//
 		RC_INLINE void* data() const { return (void*) (this + 1); }
 	};
-
-	// Ref counted object concept.
-	//
-	template<typename T>
-	concept RefCounted = (std::is_base_of_v<ref_counted<true>, T> || std::is_base_of_v<ref_counted<false>, T>);
+	inline static rc_header* get_rc_header(const void* a) { return std::prev((rc_header*) a); }
 
 	// Define the ref and weak similar to shared_ptr and weak_ptr.
 	//
 	template<typename T = void>
 	struct RC_TRIVIAL_ABI ref {
-		using rc_header = typename T::rc_header;
-		rc_header* ctrl = nullptr;
+		T* ptr = nullptr;
 
 		// Null construction.
 		//
@@ -123,55 +91,54 @@ namespace retro {
 
 		// Construction by pointer.
 		//
-		constexpr ref(T* ptr) {
+		constexpr ref(T* ptr) : ptr(ptr) {
 			if (ptr) {
-				ctrl = ptr->get_ref_ctrl();
-				ctrl->inc_ref_unsafe();
+				get_rc_header(ptr)->inc_ref_unsafe();
 			}
 		}
 
 		// Explicit construction by control block.
 		//
-		RC_INLINE explicit constexpr ref(rc_header* ctrl) : ctrl(ctrl) {}
+		RC_INLINE explicit constexpr ref(rc_header* hdr) : ptr((T*)hdr->data()) {}
 
 		// Construction by type decay.
 		//
 		template<typename T2>
 			requires(!std::is_same_v<T, T2> && std::is_convertible_v<T2*, T*>)
-		RC_INLINE constexpr ref(ref<T2> o) : ctrl(std::exchange(o.ctrl, nullptr)) {}
+		RC_INLINE constexpr ref(ref<T2> o) : ptr(std::exchange(o.ptr, nullptr)) {}
 
 		// Implement copy.
 		//
-		RC_INLINE constexpr ref(const ref<T>& o) : ctrl(o.ctrl) {
-			if (ctrl)
-				ctrl->inc_ref_unsafe();
+		RC_INLINE constexpr ref(const ref<T>& o) : ptr(o.ptr) {
+			if (ptr)
+				get_rc_header(ptr)->inc_ref_unsafe();
 		}
 		RC_INLINE constexpr ref& operator=(const ref<T>& o) {
-			if (o.ctrl)
-				o.ctrl->inc_ref_unsafe();
-			if (ctrl)
-				ctrl->dec_ref();
-			ctrl = o.ctrl;
+			if (o.ptr)
+				get_rc_header(o.ptr)->inc_ref_unsafe();
+			if (ptr)
+				get_rc_header(ptr)->dec_ref();
+			ptr = o.ptr;
 			return *this;
 		}
 
 		// Implement move via swap.
 		//
-		RC_INLINE constexpr ref(ref<T>&& o) noexcept : ctrl(std::exchange(o.ctrl, nullptr)) {}
+		RC_INLINE constexpr ref(ref<T>&& o) noexcept : ptr(std::exchange(o.ptr, nullptr)) {}
 		RC_INLINE constexpr ref& operator=(ref<T>&& o) noexcept {
 			swap(o);
 			return *this;
 		}
-		RC_INLINE constexpr void swap(ref<T>& o) noexcept { std::swap(ctrl, o.ctrl); }
+		RC_INLINE constexpr void swap(ref<T>& o) noexcept { std::swap(ptr, o.ptr); }
 
 		// Observers.
 		//
-		RC_INLINE T*					  get() const { return (T*) (ctrl ? ctrl->data() : nullptr); }
-		RC_INLINE T&					  operator*() const { return *(T*) ctrl->data(); }
+		RC_INLINE T*					  get() const { return (T*) ptr; }
+		RC_INLINE T&					  operator*() const { return *ptr; }
 		RC_INLINE T*					  operator->() const { return get(); }
-		RC_INLINE size_t				  use_count() const { return ctrl ? ctrl->ref_counter & bit_mask(32) : 0; }
-		RC_INLINE bool					  unique() const { return ctrl && ctrl->ref_counter == 1; }
-		RC_INLINE explicit constexpr operator bool() const { return ctrl != nullptr; }
+		RC_INLINE size_t				  use_count() const { return ptr ? get_rc_header(ptr)->ref_counter & bit_mask(32) : 0; }
+		RC_INLINE bool					  unique() const { return ptr && get_rc_header(ptr)->ref_counter == 1; }
+		RC_INLINE explicit constexpr operator bool() const { return ptr != nullptr; }
 
 		// Decay to pointer.
 		//
@@ -179,25 +146,36 @@ namespace retro {
 
 		// Comparison.
 		//
-		RC_INLINE constexpr bool operator==(const ref<T>& o) const { return ctrl == o.ctrl; }
-		RC_INLINE constexpr bool operator!=(const ref<T>& o) const { return ctrl != o.ctrl; }
-		RC_INLINE constexpr bool operator<(const ref<T>& o) const { return ctrl < o.ctrl; }
-		RC_INLINE constexpr bool operator==(std::nullptr_t) const { return ctrl == nullptr; }
-		RC_INLINE constexpr bool operator!=(std::nullptr_t) const { return ctrl != nullptr; }
-		RC_INLINE constexpr bool operator<(std::nullptr_t) const { return false; }
+		RC_INLINE constexpr bool		  operator==(const T* o) const { return ptr == o; }
+		RC_INLINE constexpr bool		  operator==(const ref<T>& o) const { return ptr == o.ptr; }
+		RC_INLINE constexpr bool		  operator==(std::nullptr_t) const { return ptr == ((T*) nullptr); }
+		RC_INLINE friend constexpr bool operator==(const T* o, const ref<T>& s) { return s.ptr == o; }
+
+		RC_INLINE constexpr bool		  operator!=(const T* o) const { return ptr != o; }
+		RC_INLINE constexpr bool		  operator!=(const ref<T>& o) const { return ptr != o.ptr; }
+		RC_INLINE constexpr bool		  operator!=(std::nullptr_t) const { return ptr != ((T*) nullptr); }
+		RC_INLINE friend constexpr bool operator!=(const T* o, const ref<T>& s) { return s.ptr != o; }
+
+		RC_INLINE constexpr bool		  operator<(const T* o) const { return ptr < o; }
+		RC_INLINE constexpr bool		  operator<(const ref<T>& o) const { return ptr < o.ptr; }
+		RC_INLINE constexpr bool		  operator<(std::nullptr_t) const { return ptr < ((T*) nullptr); }
+		RC_INLINE friend constexpr bool operator<(const T* o, const ref<T>& s) { return s.ptr < o; }
+
+		// Release without reference tracking.
+		//
+		RC_INLINE constexpr T* release() { return std::exchange(ptr, nullptr); }
 
 		// Destructor.
 		//
 		RC_INLINE constexpr void reset() {
-			if (ctrl)
-				ctrl->dec_ref();
+			if (ptr)
+				get_rc_header(release())->dec_ref();
 		}
 		RC_INLINE constexpr ~ref() { reset(); }
 	};
 	template<typename T = void>
 	struct RC_TRIVIAL_ABI weak {
-		using rc_header = typename T::rc_header;
-		rc_header* ctrl = nullptr;
+		T* ptr = nullptr;
 
 		// Null construction.
 		//
@@ -206,10 +184,9 @@ namespace retro {
 
 		// Construction by pointer.
 		//
-		RC_INLINE constexpr weak(T* ptr) {
+		RC_INLINE constexpr weak(T* ptr) : ptr(ptr) {
 			if (ptr) {
-				ctrl = ptr->get_ref_ctrl();
-				ctrl->inc_ref_weak();
+				get_rc_header(ptr)->inc_ref_weak();
 			}
 		}
 
@@ -217,102 +194,119 @@ namespace retro {
 		//
 		template<typename T2>
 			requires(!std::is_same_v<T, T2> && std::is_convertible_v<T2*, T*>)
-		RC_INLINE constexpr weak(const ref<T2>& o) : ctrl(o.ctrl) {
-			if (ctrl)
-				ctrl->inc_ref_weak();
+		RC_INLINE constexpr weak(const ref<T2>& o) : ptr(o.ptr) {
+			if (ptr)
+				get_rc_header(ptr)->inc_ref_weak();
 		}
 		template<typename T2>
 			requires(!std::is_same_v<T, T2> && std::is_convertible_v<T2*, T*>)
-		RC_INLINE constexpr weak(weak<T2> o) : ctrl(std::exchange(o.ctrl, nullptr)) {}
+		RC_INLINE constexpr weak(weak<T2> o) : ptr(std::exchange(o.ptr, nullptr)) {}
 
 		// Explicit construction by control block.
 		//
-		RC_INLINE explicit constexpr weak(rc_header* ctrl) : ctrl(ctrl) {}
+		RC_INLINE explicit constexpr weak(rc_header* hdr) : ptr((T*) hdr->data()) {}
 
 		// Construction from ref<T>.
 		//
-		RC_INLINE constexpr weak(const ref<T>& o) : ctrl(o.ctrl) {
-			if (ctrl)
-				ctrl->inc_ref_weak();
+		RC_INLINE constexpr weak(const ref<T>& o) : ptr(o.ptr) {
+			if (ptr)
+				get_rc_header(ptr)->inc_ref_weak();
 		}
 
 		// Implement copy.
 		//
-		RC_INLINE constexpr weak(const weak<T>& o) : ctrl(o.ctrl) {
-			if (ctrl)
-				ctrl->inc_ref_weak();
+		RC_INLINE constexpr weak(const weak<T>& o) : ptr(o.ptr) {
+			if (ptr)
+				get_rc_header(ptr)->inc_ref_weak();
 		}
 		RC_INLINE constexpr weak& operator=(const weak<T>& o) {
-			if (o.ctrl)
-				o.ctrl->inc_ref_weak();
-			if (ctrl)
-				ctrl->dec_ref_weak();
-			ctrl = o.ctrl;
+			if (o.ptr)
+				get_rc_header(o.ptr)->inc_ref_weak();
+			if (ptr)
+				get_rc_header(ptr)->dec_ref_weak();
+			ptr = o.ptr;
 			return *this;
 		}
 
 		// Implement move via swap.
 		//
-		RC_INLINE constexpr weak(weak<T>&& o) noexcept : ctrl(std::exchange(o.ctrl, nullptr)) {}
+		RC_INLINE constexpr weak(weak<T>&& o) noexcept : ptr(std::exchange(o.ptr, nullptr)) {}
 		RC_INLINE constexpr weak& operator=(weak<T>&& o) noexcept {
 			swap(o);
 			return *this;
 		}
-		RC_INLINE constexpr void swap(weak<T>& o) noexcept { std::swap(ctrl, o.ctrl); }
+		RC_INLINE constexpr void swap(weak<T>& o) noexcept { std::swap(ptr, o.ptr); }
 
 		// Observers.
 		//
 		RC_INLINE T* get() const {
-			RC_ASSERT(!ctrl || !expired());
-			return (T*) (ctrl ? ctrl->data() : nullptr);
+			RC_ASSERT(!ptr || !expired());
+			return ptr;
 		}
 		RC_INLINE T& operator*() const {
-			RC_ASSERT(!ctrl || !expired());
-			return *(T*) ctrl->data();
+			RC_ASSERT(!expired());
+			return *ptr;
 		}
 		RC_INLINE T*	  operator->() const { return get(); }
-		RC_INLINE size_t use_count() const { return ctrl ? ctrl->ref_counter & bit_mask(32) : 0; }
-		RC_INLINE bool	  expired() const { return !ctrl || (ctrl->ref_counter & bit_mask(32)) == 0; }
+		RC_INLINE size_t use_count() const { return ptr ? get_rc_header(ptr)->ref_counter & bit_mask(32) : 0; }
+		RC_INLINE bool	  expired() const { return !ptr || (get_rc_header(ptr)->ref_counter & bit_mask(32)) == 0; }
 		RC_INLINE ref<T> lock() const {
-			if (!ctrl || !ctrl->inc_ref())
+			if (!ptr || !get_rc_header(ptr)->inc_ref())
 				return nullptr;
-			return ref<T>(ctrl);
+			return ref<T>(get_rc_header(ptr));
 		}
-		RC_INLINE explicit constexpr operator bool() const { return ctrl != nullptr; }
+		RC_INLINE explicit constexpr operator bool() const { return ptr != nullptr; }
+
+		// Explicit cast to pointer.
+		//
+		RC_INLINE explicit constexpr operator T*() const { return get(); }
 
 		// Comparison.
 		//
-		RC_INLINE constexpr bool		  operator==(const weak<T>& o) const { return ctrl == o.ctrl; }
-		RC_INLINE constexpr bool		  operator!=(const weak<T>& o) const { return ctrl != o.ctrl; }
-		RC_INLINE constexpr bool		  operator<(const weak<T>& o) const { return ctrl < o.ctrl; }
-		RC_INLINE constexpr bool		  operator==(const ref<T>& o) const { return ctrl == o.ctrl; }
-		RC_INLINE constexpr bool		  operator!=(const ref<T>& o) const { return ctrl != o.ctrl; }
-		RC_INLINE constexpr bool		  operator<(const ref<T>& o) const { return ctrl < o.ctrl; }
-		RC_INLINE constexpr bool		  operator==(std::nullptr_t) const { return ctrl == nullptr; }
-		RC_INLINE constexpr bool		  operator!=(std::nullptr_t) const { return ctrl != nullptr; }
-		RC_INLINE constexpr bool		  operator<(std::nullptr_t) const { return false; }
-		RC_INLINE friend constexpr bool operator==(const ref<T>& s, const weak<T>& o) { return s.ctrl == o.ctrl; }
-		RC_INLINE friend constexpr bool operator!=(const ref<T>& s, const weak<T>& o) { return s.ctrl != o.ctrl; }
-		RC_INLINE friend constexpr bool operator<(const ref<T>& s, const weak<T>& o) { return s.ctrl < o.ctrl; }
+		RC_INLINE constexpr bool		  operator==(const T* o) const { return ptr == o; }
+		RC_INLINE constexpr bool		  operator==(const weak<T>& o) const { return ptr == o.ptr; }
+		RC_INLINE constexpr bool		  operator==(const ref<T>& o) const { return ptr == o.ptr; }
+		RC_INLINE constexpr bool		  operator==(std::nullptr_t) const { return ptr == ((T*) nullptr); }
+		RC_INLINE friend constexpr bool operator==(const T* o, const weak<T>& s) { return s.ptr == o; }
+		RC_INLINE friend constexpr bool operator==(const ref<T>& o, const weak<T>& s) { return s.ptr == o.ptr; }
+
+		RC_INLINE constexpr bool		  operator!=(const T* o) const { return ptr != o; }
+		RC_INLINE constexpr bool		  operator!=(const weak<T>& o) const { return ptr != o.ptr; }
+		RC_INLINE constexpr bool		  operator!=(const ref<T>& o) const { return ptr != o.ptr; }
+		RC_INLINE constexpr bool		  operator!=(std::nullptr_t) const { return ptr != ((T*) nullptr); }
+		RC_INLINE friend constexpr bool operator!=(const T* o, const weak<T>& s) { return s.ptr != o; }
+		RC_INLINE friend constexpr bool operator!=(const ref<T>& o, const weak<T>& s) { return s.ptr != o.ptr; }
+
+		RC_INLINE constexpr bool		  operator<(const T* o) const { return ptr < o; }
+		RC_INLINE constexpr bool		  operator<(const weak<T>& o) const { return ptr < o.ptr; }
+		RC_INLINE constexpr bool		  operator<(const ref<T>& o) const { return ptr < o.ptr; }
+		RC_INLINE constexpr bool		  operator<(std::nullptr_t) const { return ptr < ((T*) nullptr); }
+		RC_INLINE friend constexpr bool operator<(const T* o, const weak<T>& s) { return s.ptr < o; }
+		RC_INLINE friend constexpr bool operator<(const ref<T>& o, const weak<T>& s) { return s.ptr < o.ptr; }
+
+		// Release without reference tracking.
+		//
+		RC_INLINE constexpr T* release() { return std::exchange(ptr, nullptr); }
 
 		// Destructor.
 		//
 		RC_INLINE constexpr void reset() {
-			if (ctrl)
-				ctrl->dec_ref_weak();
+			if (ptr)
+				get_rc_header(release())->dec_ref_weak();
 		}
 		RC_INLINE constexpr ~weak() { reset(); }
 	};
 	template<typename T>
 	weak(ref<T>) -> weak<T>;
 
+
 	// std::make_shared equivalent.
 	//
 	template<typename T, typename... Tx>
 	inline static ref<T> make_overalloc_rc(size_t overalloc, Tx&&... args) {
-		using rc_header = basic_rc_header<T::is_rc_atomic>;
-		rc_header* rc	 = new (operator new(sizeof(T) + sizeof(rc_header) + overalloc)) rc_header();
-		T*			  data = new (rc->data()) T(std::forward<Tx>(args)...);
+		rc_header* rc = new (operator new(sizeof(T) + sizeof(rc_header) + overalloc)) rc_header();
+		rc->dtor		  = +[](rc_header* p) { std::destroy_at((T*) p->data()); };
+		T* data		  = new (rc->data()) T(std::forward<Tx>(args)...);
 		return ref<T>{rc};
 	}
 	template<typename T, typename... Tx>

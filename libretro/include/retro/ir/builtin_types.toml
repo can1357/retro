@@ -101,15 +101,7 @@ VisitorArgs = ["f64"]
 
 # Pointer type.
 #
-[type.ptr16]
-kind     =    "@type_kind.pointer"
-bit_size =    16
-VisitorArgs = ["retro::ir::ptr16"]
-[type.ptr32]
-kind     =    "@type_kind.pointer"
-bit_size =    32
-VisitorArgs = ["retro::ir::ptr32"]
-[type.ptr64]
+[type.pointer]
 kind     =    "@type_kind.pointer"
 bit_size =    64
-VisitorArgs = ["retro::ir::ptr64"]
+VisitorArgs = ["retro::ir::pointer"]

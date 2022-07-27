@@ -188,36 +188,40 @@ constexpr const char lift_example[] = "\x48\x85\xC9\x74\x05\x48\x8D\x04\x0A\xC3\
 namespace retro::doc {
 	// Image type.
 	//
-	struct image : arc {
+	struct image {
 		// TODO: ??
 		//
 	};
 
 	// Workspace type.
 	//
-	struct workspace : arc {
+	struct workspace {
 		// TODO: ??
 		//
 	};
 };
 
 namespace retro::ir {
-	// Fake IP value for synthetic blocks.
-	//
-	inline constexpr u64 NO_LABEL = ~0ull;
-
 	// Basic block type.
 	//
-	struct basic_block {
+	struct procedure;
+	namespace detail {
+		static u32 next_name(const procedure*);
+	};
+
+	struct basic_block final : dyn<basic_block, value> {
 		// Owning procedure.
 		//
 		procedure* proc = nullptr;
 
-		// Label IP, Unique identifier and user-declared name if relevant.
+		// Name and Label IP.
 		//
-		u32				  uid	 = 0;
-		u64				  ip	 = NO_LABEL;
-		std::string_view name = {};
+		u32 name = 0;
+		u64 ip	= NO_LABEL;
+
+		// Instruction list.
+		//
+		mutable insn insn_list_head{0}; // TODO: Lame
 
 		// Temporary for algorithms.
 		//
@@ -226,8 +230,63 @@ namespace retro::ir {
 
 		// Successor and predecesor list.
 		//
-		std::vector<basic_block*> successors	= {};
-		std::vector<basic_block*> predecessors = {};
+		std::vector<weak<basic_block>> successors	= {};
+		std::vector<weak<basic_block>> predecessors = {};
+
+		// Container observers.
+		//
+		list::iterator<insn> begin() const { return {insn_list_head.next}; }
+		list::iterator<insn> end() const { return {&insn_list_head}; }
+		auto						rbegin() const { return std::reverse_iterator(end()); }
+		auto						rend() const { return std::reverse_iterator(begin()); }
+		bool						empty() const { return insn_list_head.next == &insn_list_head; }
+		insn*						front() const { return (!empty()) ? (insn_list_head.next) : nullptr; }
+		insn*						back() const { return (!empty()) ? (insn_list_head.prev) : nullptr; }
+		list::iterator<insn> end_phi() const {
+			return range::find_if(begin(), end(), [](insn* i) { return i->op != opcode::phi; });
+		}
+		auto phis() const { return range::subrange(begin(), end_phi()); }
+		auto insns() const { return range::subrange(begin(), end()); }
+		auto after(insn* i) const { return range::subrange(i ? list::iterator<insn>(i->next) : begin(), end()); }
+		auto before(insn* i) const { return range::subrange(begin(), i ? list::iterator<insn>(i) : end()); }
+
+		// Insertion.
+		//
+		list::iterator<insn> insert(list::iterator<insn> position, ref<insn> v) {
+			RC_ASSERT(v->is_orphan());
+			v->block = this;
+			v->name	= detail::next_name(proc);
+			list::link_before(position.at, v.get());
+			return {v.release()};
+		}
+		list::iterator<insn> push_front(ref<insn> v) { return insert(begin(), std::move(v)); }
+		list::iterator<insn> push_back(ref<insn> v) { return insert(end(), std::move(v)); }
+
+		// Erasing.
+		//
+		list::iterator<insn> erase(list::iterator<insn> it) {
+			auto next = it->next;
+			it->erase();
+			return next;
+		}
+		list::iterator<insn> erase(ref<insn> it) {
+			auto r = erase(list::iterator<insn>(it.get()));
+			it.reset();
+			return r;
+		}
+		template<typename F>
+		size_t erase_if(F&& f) {
+			size_t n = 0;
+			for (auto it = begin(); it != end();) {
+				if (f(it.at)) {
+					n++;
+					it = erase(it);
+				} else {
+					++it;
+				}
+			}
+			return n;
+		}
 
 		// Adds or removes a jump from this basic-block to another.
 		//
@@ -251,34 +310,54 @@ namespace retro::ir {
 		}
 
 		// TODO:
-		// ins list, erase_if, insertion, phis(), etc.
 		// split
 		// clone()
-		// validate()
-		// print()
 
-		std::string to_string() const { return "bla"; }
+		
+
+		// Validation.
+		//
+		diag::lazy validate() const {
+			for (auto&& ins : insns()) {
+				if (auto err = ins->validate()) {
+					return err;
+				}
+			}
+			return diag::ok;
+		}
+
+		// Declare string conversion and type getter.
+		//
+		std::string to_string(fmt_style s = {}) const override {
+			if (s == fmt_style::concise) {
+				return fmt::str(RC_CYAN "$%x" RC_RESET, name);
+			} else {
+				std::string result = fmt::str(RC_CYAN "$%x:" RC_RESET, name);
+				for (insn* i : *this) {
+					result += "\n\t" + i->to_string();
+				}
+				result += RC_RESET;
+				return result;
+			}
+		}
+		type get_type() const override { return type::label; }
 	};
 
 	// Procedure type.
 	//
-	struct procedure : arc, range::view_base {
-		using container = std::vector<std::unique_ptr<basic_block>>;
-		using iterator  = typename container::iterator;
+	struct procedure : range::view_base {
+		using container		= std::vector<ref<basic_block>>;
+		using iterator			= typename container::iterator;
+		using const_iterator = typename container::const_iterator;
 
-		// Owning image.
+		// Entry point ip if relevant.
 		//
-		doc::image* img = nullptr;
-
-		// Entry point IP and user-declared name if relevant.
-		//
-		std::string_view name	  = {};
-		u64				  start_ip = NO_LABEL;
+		u64 start_ip = NO_LABEL;
 
 		// Counters.
 		//
-		u32 next_reg_name	 = 0;	 // Next register name.
-		u32 next_blk_uid = 0;	 // Next basic-block uid.
+		mutable u32 next_ins_name	 = 0;	 // Next instruction name.
+		mutable u32 next_blk_name = 0;  // Next basic-block name.
 
 		// List of basic-blocks.
 		//
@@ -286,10 +365,12 @@ namespace retro::ir {
 
 		// Container observers.
 		//
-		iterator begin() { return basic_blocks.begin(); }
-		iterator end() { return basic_blocks.end(); }
-		size_t	size() { return basic_blocks.size(); }
-		bool		empty() { return basic_blocks.empty(); }
+		iterator			begin() { return basic_blocks.begin(); }
+		iterator			end() { return basic_blocks.end(); }
+		const_iterator begin() const { return basic_blocks.begin(); }
+		const_iterator end() const { return basic_blocks.end(); }
+		size_t			size() const { return basic_blocks.size(); }
+		bool				empty() const { return basic_blocks.empty(); }
 
 		// Gets the entry point.
 		//
@@ -298,9 +379,9 @@ namespace retro::ir {
 		// Creates or removes a block.
 		//
 		basic_block* add_block() {
-			auto* blk = basic_blocks.emplace_back(std::make_unique<basic_block>()).get();
+			auto* blk = basic_blocks.emplace_back(make_rc<basic_block>()).get();
 			blk->proc = this;
-			blk->uid	 = next_blk_uid++;
+			blk->name = next_blk_name++;
 			return blk;
 		}
 		auto del_block(basic_block* b) {
@@ -321,19 +402,66 @@ namespace retro::ir {
 			u32 tmp = narrow_cast<u32>(basic_blocks.size());
 
 			basic_block* ep = get_entry();
-			graph::dfs(ep, [&](basic_block* b) { b->uid = --tmp; });
-			RC_ASSERT(ep->uid == 0);
+			graph::dfs(ep, [&](basic_block* b) { b->name = --tmp; });
+			RC_ASSERT(ep->name == 0);
 
-			range::sort(basic_blocks, [](auto& a, auto& b) { return a->uid < b->uid; });
+			range::sort(basic_blocks, [](auto& a, auto& b) { return a->name < b->name; });
+		}
+
+		// Simple renaming by order.
+		//
+		void rename_insns() {
+			next_ins_name = 0;
+			for (auto& bb : basic_blocks) {
+				for (auto i : *bb) {
+					i->name = next_ins_name++;
+				}
+			}
+		}
+		void rename_blocks() {
+			next_blk_name = 0;
+			for (auto& bb : basic_blocks) {
+				bb->name = next_blk_name++;
+			}
+		}
+
+		// Validation.
+		//
+		diag::lazy validate() const {
+			for (auto&& blk : *this) {
+				if (auto err = blk->validate()) {
+					return err;
+				}
+			}
+			return diag::ok;
+		}
+
+		// String conversion.
+		//
+		std::string to_string(fmt_style s = {}) const {
+			std::string result = fmt::str(RC_ORANGE "proc-%llx" RC_RESET, this);
+			if (start_ip != NO_LABEL) {
+				result += fmt::str("[%p]", start_ip);
+			}
+			if (s == fmt_style::concise) {
+				return result;
+			} else {
+				for (auto&& blk : *this) {
+					result += "\n" + fmt::shift(blk->to_string());
+				}
+				result += RC_RESET;
+				return result;
+			}
 		}
 
 		// TODO:
-		// reset_names
 		// clone()
 		// validate()
-		// print()
 	};
 
+	namespace detail {
+		static u32 next_name(const procedure* p) { return p->next_ins_name++; }
+	};
 };
 
 
@@ -341,20 +469,16 @@ namespace retro::ir {
 int main(int argv, const char** args) {
 	platform::setup_ansi_escapes();
 
+	auto	proc = make_rc<ir::procedure>();
+	auto* bb	  = proc->add_block();
 
-	auto i0	= ir::make_binop(ir::op::add, 2, 3);
-	i0->name = 0;
-	{
-		auto i1 = ir::make_binop(ir::op::add, i0, 3);
-		i1->name = 1;
+	auto i0 = bb->push_back(ir::make_binop(ir::op::add, 2, 3));
+	auto i1 = bb->push_back(ir::make_binop(ir::op::add, i0, 3));
 
-		fmt::println(i0->to_string());
-		fmt::println(i1->to_string());
-		i0->replace_all_uses_with(5);
-		fmt::println(i0->to_string());
-		fmt::println(i1->to_string());
-	}
+	fmt::println(proc->to_string());
+	i0->replace_all_uses_with(5);
 
+	fmt::println(proc->to_string());
 
 
 	/*

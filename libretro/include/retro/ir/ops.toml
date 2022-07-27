@@ -202,15 +202,15 @@ commutative = true
 [intrinsic.stack-alloc]
 symbol = "alloca"
 args =   ["@type.i32"]
-ret =    "@type.ptr64"
+ret =    "@type.pointer"
 [intrinsic.malloc]
 args =   ["@type.i64"]
-ret =    "@type.ptr64"
+ret =    "@type.pointer"
 [intrinsic.realloc]
-args =   ["@type.ptr64", "@type.i64"]
-ret =    "@type.ptr64"
+args =   ["@type.pointer", "@type.i64"]
+ret =    "@type.pointer"
 [intrinsic.free]
-args =   ["@type.ptr64"]
+args =   ["@type.pointer"]
 [intrinsic.sfence]
 args =   []
 [intrinsic.lfence]
@@ -221,32 +221,32 @@ args =   []
 # String intrinsics.
 #
 [intrinsic.memcpy]
-args =   ["@type.ptr64", "@type.ptr64", "@type.i64"]
-ret =    "@type.ptr64"
+args =   ["@type.pointer", "@type.pointer", "@type.i64"]
+ret =    "@type.pointer"
 [intrinsic.memmove]
-args =   ["@type.ptr64", "@type.ptr64", "@type.i64"]
-ret =    "@type.ptr64"
+args =   ["@type.pointer", "@type.pointer", "@type.i64"]
+ret =    "@type.pointer"
 [intrinsic.memcmp]
-args =   ["@type.ptr64", "@type.ptr64", "@type.i64"]
+args =   ["@type.pointer", "@type.pointer", "@type.i64"]
 ret =    "@type.i32"
 [intrinsic.memset]
-args =   ["@type.ptr64", "@type.i32", "@type.i64"]
-ret =    "@type.ptr64"
+args =   ["@type.pointer", "@type.i32", "@type.i64"]
+ret =    "@type.pointer"
 [intrinsic.memchr]
-args =   ["@type.ptr64", "@type.i32", "@type.i64"]
-ret =    "@type.ptr64"
+args =   ["@type.pointer", "@type.i32", "@type.i64"]
+ret =    "@type.pointer"
 [intrinsic.strcpy]
-args =   ["@type.ptr64", "@type.ptr64"]
-ret =    "@type.ptr64"
+args =   ["@type.pointer", "@type.pointer"]
+ret =    "@type.pointer"
 [intrinsic.strcmp]
-args =   ["@type.ptr64", "@type.ptr64"]
+args =   ["@type.pointer", "@type.pointer"]
 ret =    "@type.i32"
 [intrinsic.strchr]
-args =   ["@type.ptr64", "@type.i32"]
-ret =    "@type.ptr64"
+args =   ["@type.pointer", "@type.i32"]
+ret =    "@type.pointer"
 [intrinsic.strstr]
-args =   ["@type.ptr64", "@type.ptr64"]
-ret =    "@type.ptr64"
+args =   ["@type.pointer", "@type.pointer"]
+ret =    "@type.pointer"
 
 # FP intrinsics.
 #
@@ -292,8 +292,8 @@ ret =    "@type.f64"
 [intrinsic.retaddr]
 symbol = "_ReturnAddress"
 args =   []
-ret =    "@type.ptr64"
+ret =    "@type.pointer"
 [intrinsic.addr-retaddr]
 symbol = "_AddressOfReturnAddress"
 args =   []
-ret =    "@type.ptr64"
+ret =    "@type.pointer"

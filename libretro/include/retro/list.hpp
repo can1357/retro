@@ -67,14 +67,20 @@ namespace retro::list {
 	};
 
 	// Utilities for manual management.
+	// - Initializes the list head.
+	template<typename T>
+	RC_INLINE static void init(T* at) {
+		at->prev = at;
+		at->next = at;
+	}
 	// - Returns true if entry is detached.
 	template<typename T>
-	static bool is_detached(T* at) {
+	RC_INLINE static bool is_detached(T* at) {
 		return at->prev == at;
 	}
 	// - Links val before at.
 	template<typename T, typename T2 = T>
-	static void link_before(T* at, T2* val) {
+	RC_INLINE static void link_before(T* at, T2* val) {
 		RC_ASSERT(is_detached(val));
 		auto* prev = std::exchange(at->prev, val);
 		prev->next = val;
@@ -83,7 +89,7 @@ namespace retro::list {
 	}
 	// - Links val after at.
 	template<typename T, typename T2 = T>
-	static void link_after(T* at, T2* val) {
+	RC_INLINE static void link_after(T* at, T2* val) {
 		RC_ASSERT(is_detached(val));
 		auto* next = std::exchange(at->next, val);
 		next->prev = val;
@@ -92,7 +98,7 @@ namespace retro::list {
 	}
 	// - Unlinks the value from the list.
 	template<typename T>
-	static void unlink(T* val) {
+	RC_INLINE static void unlink(T* val) {
 		RC_ASSERT(!is_detached(val));
 		auto* prev = std::exchange(val->prev, val);
 		auto* next = std::exchange(val->next, val);
@@ -102,13 +108,13 @@ namespace retro::list {
 	// - Returns an enumerable subrange for each entry between begin and end.
 	//    If skipping list head, you may get an invalid entry.
 	template<typename T>
-	static auto subrange(T* begin, T* end) {
+	RC_INLINE static auto subrange(T* begin, T* end) {
 		return range::subrange(iterator<T>(begin), iterator<T>(end));
 	}
 	// - Returns an enumerable range starting at entry following this one.
 	//    If not applied to list head, you may get an invalid entry.
 	template<typename T>
-	static auto range(T* at) {
+	RC_INLINE static auto range(T* at) {
 		return list::subrange<T>(at->next, at);
 	}
 };

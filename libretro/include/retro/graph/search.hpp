@@ -18,7 +18,7 @@ namespace retro::graph {
 		n->tmp_monotonic = mark;
 		for (auto& s : n->successors)
 			if (s->tmp_monotonic != mark)
-				if (dfs<T, F>(s, fn, false, mark))
+				if (dfs<T, F>((T*) s, fn, false, mark))
 					return true;
 		return !no_self && apply_novoid<bool>(fn, n);
 	}
@@ -32,7 +32,7 @@ namespace retro::graph {
 			return true;
 		for (auto& s : n->successors)
 			if (s->tmp_monotonic != mark)
-				if (bfs<T, F>(s, fn, false, mark))
+				if (bfs<T, F>((T*)s, fn, false, mark))
 					return true;
 		return false;
 	}

@@ -5,9 +5,7 @@
 // Scoped enums to create alternative types for some builtins.
 //
 namespace retro::ir {
-	enum ptr16 : u16 {};
-	enum ptr32 : u32 {};
-	enum ptr64 : u64 {};
+	enum pointer : u64 {};
 	struct value_pack_t {
 		std::string to_string() const { return "(...)"; }
 	};
@@ -16,17 +14,12 @@ namespace retro::ir {
 // Define the formatters.
 //
 namespace std {
-	inline std::string to_string(retro::ir::ptr16 p) { return fmt::str("0x%p", (uptr) p); }
-	inline std::string to_string(retro::ir::ptr32 p) { return fmt::str("0x%p", (uptr) p); }
-	inline std::string to_string(retro::ir::ptr64 p) { return fmt::str("0x%p", (uptr) p); }
+	inline std::string to_string(retro::ir::pointer p) { return fmt::str("0x%p", (uptr) p); }
 };
 
 // Finally declare the type interface.
 //
 namespace retro::ir {
-	// IR hierarchy.
-	//
-	struct procedure;
 	struct basic_block;
 
 	// Map builtin type enums to the actual C++ types represeting them, and vice-versa.

@@ -16,7 +16,7 @@ namespace retro::ir {
 	// Value type.
 	//
 	struct operand;
-	struct value : rc, dyn<value>, pinned {
+	struct value : dyn<value>, pinned {
 	  private:
 		// Circular linked list for the uses.
 		//
@@ -64,7 +64,7 @@ namespace retro::ir {
 			struct {
 				operand*		  prev;
 				operand*		  next;
-				value*		  value_ptr;
+				weak<value>   value_ref;
 			};
 			constant const_val;
 		};
@@ -84,7 +84,7 @@ namespace retro::ir {
 				const_val.reset();
 			} else {
 				list::unlink(this);
-				value_ptr = nullptr;
+				value_ref = nullptr;
 				std::construct_at(&const_val);
 			}
 		}
@@ -103,7 +103,7 @@ namespace retro::ir {
 						prev = this;
 						next = this;
 						list::link_before(val->use_list_head(), this);
-						value_ptr = (value*)val;
+						std::construct_at(&value_ref, (value*) val);
 						RC_ASSERT(!is_const());
 					}
 				} else {
@@ -131,7 +131,7 @@ namespace retro::ir {
 		}
 		value* get_value() const {
 			RC_ASSERT(!is_const());
-			return value_ptr;
+			return value_ref.get();
 		}
 		std::string to_string(fmt_style s = {}) const { return is_const() ? get_const().to_string() : get_value()->to_string(s); }
 		type			get_type() const { return is_const() ? get_const().get_type() : get_value()->get_type(); }
@@ -146,7 +146,7 @@ namespace retro::ir {
 			if (isc) {
 				return const_val == other.const_val;
 			} else {
-				return value_ptr == other.value_ptr;
+				return value_ref == other.value_ref;
 			}
 		}
 		bool operator==(const operand& other) const { return equals(other); }

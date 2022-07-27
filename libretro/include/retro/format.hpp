@@ -98,6 +98,27 @@ namespace retro::fmt {
 		}
 	}
 
+	// Shifting.
+	//
+	inline void shift(std::string& str, size_t n = 1) {
+		str.insert(0, n, '\t');
+
+		size_t it = 0;
+		while (true) {
+			it = str.find('\n', it + 1);
+			if (it == std::string::npos)
+				break;
+			str.insert(it + 1, n, '\t');
+			it++;
+		}
+		if (str.back() == '\t')
+			str.erase(str.end());
+	}
+	inline std::string shift(std::string&& str, size_t n = 1) {
+		shift(str, n);
+		return std::move(str);
+	}
+
 	// Justification.
 	//
 	inline void ljust(std::string& str, size_t len, char c = ' ') {
