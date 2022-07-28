@@ -7,3 +7,5 @@ build/
 *.ipynb
 **/retro/**/*.hxx
 build-vscmake/
+
+*.i64

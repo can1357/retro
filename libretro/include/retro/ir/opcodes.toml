@@ -97,7 +97,6 @@ for k,v in insns.items():
 
 # T    read_reg<T>  reg:id
 [opcode.read_reg]
-side-effects   = false
 is-const =       false
 is-pure =        true
 template-count = 1
@@ -118,7 +117,6 @@ constexprs =     [1]
 
 #T    load_mem<T>  segment:Seg pointer:adr	
 [opcode.load_mem]
-side-effects   = false
 is-const =       false
 is-pure =        true
 template-count = 1
@@ -139,7 +137,6 @@ constexprs =     [1]
 
 #T    undef<T>
 [opcode.undef]
-side-effects   = false
 is-const =       true
 is-pure =        true
 template-count = 1
@@ -150,7 +147,6 @@ constexprs =     []
 
 #T    poison<T>    str:Reason
 [opcode.poison]
-side-effects   = false
 is-const =       true
 is-pure =        true
 template-count = 1
@@ -161,7 +157,6 @@ constexprs =     [1]
 
 #Ty   sign_extend<Tx,Ty>  Tx:value
 [opcode.sign_extend]
-side-effects   = false
 is-const =       true
 is-pure =        true
 template-count = 2
@@ -170,7 +165,6 @@ templates =      [2,            1]
 names =          ["",           "value"]
 #Ty   cast<Tx,Ty>  Tx:value
 [opcode.cast]
-side-effects   = false
 is-const =       true
 is-pure =        true
 template-count = 2
@@ -179,7 +173,6 @@ templates =      [2,            1]
 names =          ["",           "value"]
 #Ty   bitcast<Tx,Ty>  Tx:value
 [opcode.bitcast]
-side-effects   = false
 is-const =       true
 is-pure =        true
 template-count = 2
@@ -190,27 +183,43 @@ names =          ["",           "value"]
 
 #T    binop<T>     Op:Operator  T:lhs  T:rhs
 [opcode.binop]
-side-effects   = false
 is-const =       true
 is-pure =        true
 template-count = 1
 types =          ["@type.none", "@type.op", "@type.none", "@type.none"]
 templates =      [1,            0,          1,            1]
-names =          ["",           "Op", "lhs",        "rhs"]
+names =          ["",           "Op",       "lhs",        "rhs"]
 constexprs =     [1]
 #T    unop<T>     Op:Operator  T:rhs
 [opcode.unop]
-side-effects   = false
 is-const =       true
 is-pure =        true
 template-count = 1
 types =          ["@type.none", "@type.op", "@type.none"]
 templates =      [1,            0,          1]
-names =          ["",           "Op", "rhs"]
+names =          ["",           "Op",       "rhs"]
 constexprs =     [1]
+
+#T    atomic_binop<T>     Op:Operator  segment:Seg  pointer:lhs_ptr T:rhs
+[opcode.atomic_binop]
+side-effects   = true
+template-count = 1
+types =          ["@type.none", "@type.op", "@type.segment", "@type.pointer", "@type.none"]
+templates =      [1,            0,          0,               0,               1]
+names =          ["",           "Op",       "segment",       "lhs_ptr",       "rhs"]
+constexprs =     [1, 2]
+
+#T    atomic_unop<T>     Op:Operator  segment:Seg  pointer:rhs_ptr
+[opcode.atomic_unop]
+side-effects   = true
+template-count = 1
+types =          ["@type.none", "@type.op", "@type.segment", "@type.pointer"]
+templates =      [1,            0,          0,               0]
+names =          ["",           "Op",       "segment",       "rhs_ptr"]
+constexprs =     [1, 2]
+
 #i1    cmp<T>     Op:Operator  T:lhs  T:rhs
 [opcode.cmp]
-side-effects   = false
 is-const =       true
 is-pure =        true
 template-count = 1
@@ -221,7 +230,6 @@ constexprs =     [1]
 
 #T     phi<T>     Tx...
 [opcode.phi]
-side-effects   = false
 is-const =       false
 template-count = 1
 types =          ["@type.none", "@type.pack"]
@@ -230,7 +238,6 @@ names =          ["",           "incoming"]
 
 #T    select<T>   i1:cc  T:tv T:fv
 [opcode.select]
-side-effects   = false
 is-const =       true
 is-pure =        true
 template-count = 1
@@ -238,7 +245,7 @@ types =          ["@type.none", "@type.i1", "@type.none", "@type.none"]
 templates =      [1,            0,          1,            1]
 names =          ["",           "cc",      "tv",          "fv"]
 
-#void  xcall      uptr:destination
+#void  xcall      pointer:destination
 [opcode.xcall]
 side-effects   = true
 is-const =       false
@@ -247,12 +254,12 @@ types =          ["@type.none", "@type.pointer"]
 templates =      [0,            0]
 names =          ["",           "destination"]
 
-#void  xjmp      uptr:destination
+#void  xjmp      pointer:destination
 [opcode.xjmp]
 side-effects   = true
 is-const =       false
 terminator =     true
-blk-terminator = true
+bb-terminator  = true
 template-count = 0
 types =          ["@type.none", "@type.pointer"]
 templates =      [0,            0]
@@ -282,18 +289,30 @@ names =          ["",           "cc",      "tb",          "fb"]
 side-effects   = true
 is-const =       false
 terminator =     true
-blk-terminator = true
+bb-terminator  = true
 template-count = 1
 types =          ["@type.none", "@type.none"]
 templates =      [0,            1]
 names =          ["",           "result"]
+
+#void  trap      str:Reason
+[opcode.trap]
+side-effects   = true
+is-const =       false
+terminator =     true
+bb-terminator  = true
+template-count = 0
+types =          ["@type.none", "@type.str"]
+templates =      [0,            0]
+names =          ["",           "Reason"]
+constexprs =     [1]
 
 #void  unreachable
 [opcode.unreachable]
 side-effects   = true
 is-const =       false
 terminator =     true
-blk-terminator = true
+bb-terminator  = true
 template-count = 0
 types =          ["@type.none"]
 templates =      [0]
@@ -302,7 +321,7 @@ names =          [""]
 
 #TODO:
 #  -- vector stuff
-#  T    intrinsic<T> constexpr intrinsic:Id, Ty:ArgOrTup // lsb,msb,popcnt,sin,cos,memcpy,readgs,atomic,can represent all things we dont care about
+#  T    intrinsic<T> constexpr intrinsic:Id, Ty:ArgOrTup // lsb,msb,popcnt,sin,cos,memcpy,atomic,can represent all things we dont care about
 #  Tup  insert       Tup, int:idx, Ty:value
 #  T    extract      Tup
 #  R    call<R, A>   uptr:adr A:arg CC:CallConvention

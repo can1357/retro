@@ -322,18 +322,27 @@ namespace retro::x86::sema {
 	static diag::lazy lift_add(ir::basic_block* bb, const zydis::decoded_ins& dec, u64 ip) {
 		auto ty = int_type(dec.ins.operand_width);
 
-		auto lhs = read(bb, dec, ip, 0, ty);
 		auto rhs = read(bb, dec, ip, 1, ty);
-		auto result = bb->push_binop(ir::op::add, lhs, rhs);
-		write(bb, dec, ip, 0, result);
 
+		ir::insn* result;
+		ir::variant lhs;
+		if (dec.ins.attributes & ZYDIS_ATTRIB_HAS_LOCK) {
+			auto [ptr, seg] = agen(bb, dec, ip, 0, true);
+
+			lhs	 = bb->push_atomic_binop(ir::op::add, seg, std::move(ptr), rhs);
+			result = bb->push_binop(ir::op::add, lhs, rhs);
+		} else {
+			lhs	 = read(bb, dec, ip, 0, ty);
+			result = bb->push_binop(ir::op::add, lhs, rhs);
+			write(bb, dec, ip, 0, result);
+		}
+
+		set_af(bb, lhs, rhs, result);
 		set_sf(bb, result);
 		set_zf(bb, result);
 		set_pf(bb, result);
-		set_af(bb, lhs, rhs, result);
-		//TODO:
-		bb->push_write_reg(reg::flag_of, bb->push_poison(ir::type::i1, "Overflow flag NYI"));
-		bb->push_write_reg(reg::flag_cf, bb->push_poison(ir::type::i1, "Carry flag NYI"));
+		bb->push_write_reg(reg::flag_of, bb->push_poison(ir::type::i1, "Overflow flag NYI"));	// TODO
+		bb->push_write_reg(reg::flag_cf, bb->push_poison(ir::type::i1, "Carry flag NYI"));		// TODO
 		return diag::ok;
 	}
 
@@ -382,6 +391,8 @@ x:
 */
 constexpr const char lift_example[] = "\x48\x85\xC9\x74\x05\x48\x8D\x04\x0A\xC3\x4A\x8D\x04\x02\xC3";
 
+#include <nt/image.hpp>
+
 int main(int argv, const char** args) {
 	platform::setup_ansi_escapes();
 
@@ -397,14 +408,28 @@ int main(int argv, const char** args) {
 
 	fmt::println(proc->to_string());*/
 
-	u8 test[] = {0x48, 0x8D, 0x04, 0x0A, 0x48, 0x8D, 0x0D, 0x01, 0x00, 0x00, 0x00, 0x48, 0x8D, 0x1C, 0x88, 0x48, 0x01, 0x0B, 0x48, 0x01, 0x0B, 0xB9, 0x02, 0x00, 0x00, 0x00};
+	u8 test[] = {0x48, 0x8D, 0x04, 0x0A, 0x48, 0x8D, 0x0D, 0x01, 0x00, 0x00, 0x00, 0x48, 0x8D, 0x1C, 0x88, 0x48, 0x01, 0x0B, 0xF0, 0x48, 0x01, 0x0B, 0xB9, 0x02, 0x00, 0x00, 0x00};
 	std::span<const u8> data	= test;
+
+	/*
+	add, sub, and, or, xor, shl, shr...
+	bt
+	cpuid, xgetbv
+	jcc, setcc
+	cmp, test
+	movzx, movsxd
+	push, pop
+	call jmp ret
+	*/
+
 
 	while (true) {
 		auto i = zydis::decode(data);
 		if (!i) {
 			break;
 		}
+
+
 
 		u64 rip = 0x140000000 + (data.data() - test);
 		fmt::println((void*)(rip - i->ins.length), ": ", i->to_string(rip - i->ins.length));

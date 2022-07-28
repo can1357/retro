@@ -123,6 +123,7 @@ inverse = "@op.bit_ror"
 symbol = "rotr"
 kind   = "@op-kind.binary-bitwise"
 inverse = "@op.bit_rol"
+
 [op.max]
 symbol = "max"
 kind   = "@op-kind.binary-signed"

@@ -142,21 +142,21 @@
     <LinkIncremental>true</LinkIncremental>
     <OutDir>$(SolutionDir)\build\$(ProjectName)\$(Platform)\$(Configuration)\</OutDir>
     <IntDir>$(SolutionDir)\build\$(ProjectName)-tmp\$(Platform)\$(Configuration)\</IntDir>
-    <IncludePath>$(ProjectDir)include;$(SolutionDir)zydis\dependencies\zycore\include;$(SolutionDir)zydis\include;$(VC_IncludePath);$(WindowsSDK_IncludePath)</IncludePath>
+    <IncludePath>$(ProjectDir)include;$(SolutionDir)zydis\dependencies\zycore\include;$(SolutionDir)zydis\include;$(SolutionDir)linux-pe\includes;$(VC_IncludePath);$(WindowsSDK_IncludePath)</IncludePath>
     <PublicIncludeDirectories>$(ProjectDir)include;</PublicIncludeDirectories>
   </PropertyGroup>
   <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Release|Win32'">
     <LinkIncremental>false</LinkIncremental>
     <OutDir>$(SolutionDir)\build\$(ProjectName)\$(Platform)\$(Configuration)\</OutDir>
     <IntDir>$(SolutionDir)\build\$(ProjectName)-tmp\$(Platform)\$(Configuration)\</IntDir>
-    <IncludePath>$(ProjectDir)include;$(SolutionDir)zydis\dependencies\zycore\include;$(SolutionDir)zydis\include;$(VC_IncludePath);$(WindowsSDK_IncludePath)</IncludePath>
+    <IncludePath>$(ProjectDir)include;$(SolutionDir)zydis\dependencies\zycore\include;$(SolutionDir)zydis\include;$(SolutionDir)linux-pe\includes;$(VC_IncludePath);$(WindowsSDK_IncludePath)</IncludePath>
     <PublicIncludeDirectories>$(ProjectDir)include;</PublicIncludeDirectories>
   </PropertyGroup>
   <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Release-LLVM|Win32'">
     <LinkIncremental>false</LinkIncremental>
     <OutDir>$(SolutionDir)\build\$(ProjectName)\$(Platform)\$(Configuration)\</OutDir>
     <IntDir>$(SolutionDir)\build\$(ProjectName)-tmp\$(Platform)\$(Configuration)\</IntDir>
-    <IncludePath>$(ProjectDir)include;$(SolutionDir)zydis\dependencies\zycore\include;$(SolutionDir)zydis\include;$(LLVM_PATH)\lib\clang\$(LLVMToolsVersion)\include;$(VC_IncludePath);$(WindowsSDK_IncludePath)</IncludePath>
+    <IncludePath>$(ProjectDir)include;$(SolutionDir)zydis\dependencies\zycore\include;$(SolutionDir)zydis\include;$(SolutionDir)linux-pe\includes;$(LLVM_PATH)\lib\clang\$(LLVMToolsVersion)\include;$(VC_IncludePath);$(WindowsSDK_IncludePath)</IncludePath>
     <PublicIncludeDirectories>$(ProjectDir)include;</PublicIncludeDirectories>
     <ExecutablePath>$(LLVM_PATH)\bin;$(ExecutablePath)</ExecutablePath>
   </PropertyGroup>
@@ -164,21 +164,21 @@
     <LinkIncremental>true</LinkIncremental>
     <OutDir>$(SolutionDir)\build\$(ProjectName)\$(Platform)\$(Configuration)\</OutDir>
     <IntDir>$(SolutionDir)\build\$(ProjectName)-tmp\$(Platform)\$(Configuration)\</IntDir>
-    <IncludePath>$(ProjectDir)include;$(SolutionDir)zydis\dependencies\zycore\include;$(SolutionDir)zydis\include;$(VC_IncludePath);$(WindowsSDK_IncludePath)</IncludePath>
+    <IncludePath>$(ProjectDir)include;$(SolutionDir)zydis\dependencies\zycore\include;$(SolutionDir)zydis\include;$(SolutionDir)linux-pe\includes;$(VC_IncludePath);$(WindowsSDK_IncludePath)</IncludePath>
     <PublicIncludeDirectories>$(ProjectDir)include;</PublicIncludeDirectories>
   </PropertyGroup>
   <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Release|x64'">
     <LinkIncremental>false</LinkIncremental>
     <OutDir>$(SolutionDir)\build\$(ProjectName)\$(Platform)\$(Configuration)\</OutDir>
     <IntDir>$(SolutionDir)\build\$(ProjectName)-tmp\$(Platform)\$(Configuration)\</IntDir>
-    <IncludePath>$(ProjectDir)include;$(SolutionDir)zydis\dependencies\zycore\include;$(SolutionDir)zydis\include;$(VC_IncludePath);$(WindowsSDK_IncludePath)</IncludePath>
+    <IncludePath>$(ProjectDir)include;$(SolutionDir)zydis\dependencies\zycore\include;$(SolutionDir)zydis\include;$(SolutionDir)linux-pe\includes;$(VC_IncludePath);$(WindowsSDK_IncludePath)</IncludePath>
     <PublicIncludeDirectories>$(ProjectDir)include;</PublicIncludeDirectories>
   </PropertyGroup>
   <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Release-LLVM|x64'">
     <LinkIncremental>false</LinkIncremental>
     <OutDir>$(SolutionDir)\build\$(ProjectName)\$(Platform)\$(Configuration)\</OutDir>
     <IntDir>$(SolutionDir)\build\$(ProjectName)-tmp\$(Platform)\$(Configuration)\</IntDir>
-    <IncludePath>$(ProjectDir)include;$(SolutionDir)zydis\dependencies\zycore\include;$(SolutionDir)zydis\include;$(LLVM_PATH)\lib\clang\$(LLVMToolsVersion)\include;$(VC_IncludePath);$(WindowsSDK_IncludePath)</IncludePath>
+    <IncludePath>$(ProjectDir)include;$(SolutionDir)zydis\dependencies\zycore\include;$(SolutionDir)zydis\include;$(SolutionDir)linux-pe\includes;$(LLVM_PATH)\lib\clang\$(LLVMToolsVersion)\include;$(VC_IncludePath);$(WindowsSDK_IncludePath)</IncludePath>
     <PublicIncludeDirectories>$(ProjectDir)include;</PublicIncludeDirectories>
     <ExecutablePath>$(LLVM_PATH)\bin;$(ExecutablePath)</ExecutablePath>
   </PropertyGroup>
