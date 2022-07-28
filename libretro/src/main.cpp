@@ -415,7 +415,7 @@ int main(int argv, const char** args) {
 		};
 		sample_file(args[0]);
 
-		std::vector<robin_hood::pair<ZydisMnemonic, size_t>> list(ins_map.begin(), ins_map.end());
+		std::vector<std::pair<ZydisMnemonic, size_t>> list(ins_map.begin(), ins_map.end());
 		range::sort(list, [](auto& a, auto& b) { return a.second >= b.second; });
 
 		for (auto& [m, c] : list) {

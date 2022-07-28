@@ -652,6 +652,10 @@ struct pair {
         swap(second, o.second);
     }
 
+	 operator std::pair<T1, T2>() && { return std::make_pair(std::move(first), std::move(second)); }
+	 operator std::pair<T1, T2>() & { return std::make_pair(first, second); }
+	 operator std::pair<T1, T2>() const& { return std::make_pair(first, second); }
+
     T1 first;  // NOLINT(misc-non-private-member-variables-in-classes)
     T2 second; // NOLINT(misc-non-private-member-variables-in-classes)
 };
