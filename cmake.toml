@@ -6,11 +6,11 @@ languages = ["CXX"]
 x86_64 = "CMAKE_SYSTEM_PROCESSOR MATCHES \"(amd64)|(AMD64)|(x86_64)\""
 
 [subdir.zydis]
-condition = "x86_64"
+[subdir.linux-pe]
 
 [target.libretro]
 type = "static"
-x86_64.link-libraries = ["Zydis"]
+link-libraries = ["Zydis", "linux-pe"]
 include-directories = ["libretro/include"]
 compile-features = ["cxx_std_20"]
 sources = [
