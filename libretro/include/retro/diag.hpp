@@ -259,7 +259,7 @@ namespace retro::diag {
 			RC_ASSERT(!has_value());
 			return std::get<0>(var);
 		}
-		constexpr lazy error() && {
+		constexpr lazy&& error() && {
 			RC_ASSERT(!has_value());
 			return std::get<0>(std::move(var));
 		}
@@ -277,7 +277,7 @@ namespace retro::diag {
 			}
 			return std::get<1>(var);
 		}
-		constexpr T value() && {
+		constexpr T&& value() && {
 			if (!has_value()) [[unlikely]] {
 				std::get<0>(var).raise();
 				fmt::abort_no_msg();
