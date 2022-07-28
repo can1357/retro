@@ -638,6 +638,8 @@ kind  =  "@reg_kind.flag"
 width =  1
 offset = 21
 
+# ABIs
+#
 [abi.win64]
 architecture =     "@arch.x86_64"
 retval-gpr =       ["@reg.rax", "@reg.rdx"]

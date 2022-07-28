@@ -153,8 +153,6 @@ namespace retro::fmt {
 		template<typename T>
 		concept CustomFormattable = requires(const T& v) { v.to_string(); };
 		template<typename T>
-		concept CustomFormattablePtr = requires(const T& v) { v->to_string(); };
-		template<typename T>
 		concept StlFormattable = requires(const T& v) { std::to_string(v); };
 	};
 	template<typename T>
@@ -190,8 +188,6 @@ namespace retro::fmt {
 			return result;
 		} else if constexpr (detail::CustomFormattable<Td>) {
 			return arg.to_string();
-		} else if constexpr (detail::CustomFormattablePtr<Td>) {
-			return arg->to_string();
 		} else if constexpr (std::is_same_v<Td, std::filesystem::path>) {
 			return arg.string();
 		} else if constexpr (StructuredEnum<Td>) {

@@ -5,7 +5,7 @@ Includes = [
 
 type_kind = [
 	"integral",
-	"pointer",
+	"memory",
 	"floating-point",
 	"simd-int",
 	"simd-fp",
@@ -99,9 +99,13 @@ kind     =    "@type_kind.floating-point"
 bit_size =    64
 VisitorArgs = ["f64"]
 
-# Pointer type.
+# Pointer types.
 #
 [type.pointer]
-kind     =    "@type_kind.pointer"
+kind     =    "@type_kind.memory"
 bit_size =    64
 VisitorArgs = ["retro::ir::pointer"]
+[type.segment]
+kind     =    "@type_kind.memory"
+bit_size =    32
+VisitorArgs = ["retro::ir::segment"]

@@ -116,24 +116,26 @@ templates =      [0,            0,           1]
 names =          ["",           "regid",     "value"]
 constexprs =     [1]
 
-#T    load_mem<T>  uptr:adr	
+#T    load_mem<T>  segment:Seg pointer:adr	
 [opcode.load_mem]
 side-effects   = false
 is-const =       false
 is-pure =        true
 template-count = 1
-types =          ["@type.none", "@type.pointer"]
-templates =      [1,            0]
-names =          ["",           "pointer"]
+types =          ["@type.none", "@type.segment", "@type.pointer"]
+templates =      [1,            0,               0]
+names =          ["",           "segment",       "pointer"]
+constexprs =     [1]
 
-#void store_mem<T> uptr:adr	T:value
+#void store_mem<T> segment:Seg pointer:adr	T:value
 [opcode.store_mem]
 side-effects   = true
 is-const =       false
 template-count = 1
-types =          ["@type.none", "@type.pointer", "@type.none"]
-templates =      [0,            0,             1]
-names =          ["",           "pointer",     "value"]
+types =          ["@type.none", "@type.segment", "@type.pointer", "@type.none"]
+templates =      [0,            0,               0,             1]
+names =          ["",           "segment",       "pointer",     "value"]
+constexprs =     [1]
 
 #T    undef<T>
 [opcode.undef]

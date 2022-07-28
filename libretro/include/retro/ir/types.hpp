@@ -8,15 +8,12 @@
 //
 namespace retro::ir {
 	enum pointer : u64 {};
+	enum segment : u32 {
+		NO_SEGMENT = 0
+	};
 	struct value_pack_t {
 		std::string to_string() const { return "(...)"; }
 	};
-};
-
-// Define the formatters.
-//
-namespace std {
-	inline std::string to_string(retro::ir::pointer p) { return fmt::str("0x%p", (uptr) p); }
 };
 
 // Finally declare the type interface.
@@ -61,7 +58,7 @@ namespace retro::ir {
 	using type_t = typename builtin_to_type<Id>::type;
 	template<typename T>
 	constexpr type type_v = type_to_builtin<T>::value;
-	
+
 	// Define constant type.
 	//
 	struct constant {
@@ -112,6 +109,44 @@ namespace retro::ir {
 		//
 		constant(const std::string& str) : constant(std::string_view{str}) {}
 		constant(const char* str) : constant(std::string_view{str}) {}
+
+		// Typed construction.
+		//
+		template<typename T>
+		constant(type t, T value) : constant(i64(value)) {
+			// todo: i128, vector types.
+			type_id = (u64) t;
+			switch (t) {
+				case type::i1:
+					std::construct_at((bool*) &data, (value != 0));
+					data_length = 1;
+					break;
+				case type::i8:
+					data_length = 1;
+					break;
+				case type::i16:
+					data_length = 2;
+					break;
+				case type::i32:
+					data_length = 4;
+					break;
+				case type::pointer:
+				case type::i64:
+					data_length = 8;
+					break;
+				case type::f32:
+					data_length = 4;
+					std::construct_at((f32*) &data, f32(value));
+					break;
+				case type::f64:
+					data_length = 8;
+					std::construct_at((f64*) &data, f64(value));
+					break;
+				default:
+					fmt::abort("invalid constant cast");
+					break;
+			}
+		}
 
 		// Copy construction and assignment.
 		//
