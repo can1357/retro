@@ -4,7 +4,8 @@
 #include <retro/diag.hpp>
 
 namespace retro::ir {
-	RC_DEF_ERR(insn_type_mismatch, "expected operand #% to be of type '%', got '%' instead: %")
+	RC_DEF_ERR(insn_operand_type_mismatch, "expected operand #% to be of type '%', got '%' instead: %")
+	RC_DEF_ERR(insn_constexpr_mismatch, "expected operand #% to be constexpr got '%' instead: %")
 
 	// Fake IP value.
 	//
@@ -136,7 +137,11 @@ namespace retro::ir {
 					result = fmt::str(RC_YELLOW "%%%x" RC_RESET " = ", name);
 				}
 
-				result += RC_RED;
+				if (info.side_effects)
+					result += RC_RED;
+				else
+					result += RC_TEAL;
+
 				result += info.name;
 				for (size_t i = 0; i != info.template_count; i++) {
 					result += ".";
@@ -145,6 +150,8 @@ namespace retro::ir {
 				result += " " RC_RESET;
 
 				for (auto& op : operands()) {
+					if (op.is_const())
+						result += RC_GREEN;
 					result += op.to_string(fmt_style::concise);
 					result += RC_RESET ", ";
 				}
@@ -181,7 +188,15 @@ namespace retro::ir {
 					}
 				}
 				if (treal != texpc) {
-					return err::insn_type_mismatch(i - 1, texpc, treal, to_string());
+					return err::insn_operand_type_mismatch(i - 1, texpc, treal, to_string());
+				}
+			}
+
+			// Validate constexpr requirements.
+			//
+			for (u8 cxpr : info.constexprs) {
+				if (!operands()[cxpr - 1].is_const()) {
+					return err::insn_constexpr_mismatch(cxpr - 1, operands()[cxpr - 1].to_string(fmt_style::concise), to_string());
 				}
 			}
 			return diag::ok;

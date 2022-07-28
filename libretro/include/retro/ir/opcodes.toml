@@ -85,7 +85,7 @@ for k,v in insns.items():
 	oprhan_ctor = oprhan_ctor.write("make_" + k)
 
 	bb_ctor = func.clone()
-	bb_ctor.return_type = "list::iterator<insn>"
+	bb_ctor.return_type = "insn*"
 	bb_ctor.post_stmts.append("return this->push_back(std::move(r))")
 	bb_ctor = bb_ctor.write("push_" + k)
 
@@ -104,6 +104,7 @@ template-count = 1
 types =          ["@type.none", "@type.reg"]
 templates =      [1,            0]
 names =          ["",           "regid"]
+constexprs =     [1]
 
 #void write_reg<T> reg:id	T:value
 [opcode.write_reg]
@@ -113,6 +114,7 @@ template-count = 1
 types =          ["@type.none", "@type.reg", "@type.none"]
 templates =      [0,            0,           1]
 names =          ["",           "regid",     "value"]
+constexprs =     [1]
 
 #T    load_mem<T>  uptr:adr	
 [opcode.load_mem]

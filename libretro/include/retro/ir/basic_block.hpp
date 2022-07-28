@@ -117,9 +117,16 @@ namespace retro::ir {
 			if (s == fmt_style::concise) {
 				return fmt::str(RC_CYAN "$%x" RC_RESET, name);
 			} else {
-				std::string result = fmt::str(RC_CYAN "$%x:" RC_RESET, name);
+				std::string result	  = fmt::str(RC_CYAN "$%x:" RC_RESET, name);
+				auto			last_label = NO_LABEL;
 				for (insn* i : *this) {
-					result += "\n\t" + i->to_string();
+					auto str = i->to_string();
+					if (i->ip != NO_LABEL && i->ip != last_label) {
+						last_label = i->ip;
+						fmt::ljust(str, 36);
+						str += fmt::str(RC_PURPLE " ; %p", i->ip);
+					}
+					result += "\n\t" + str;
 				}
 				result += RC_RESET;
 				return result;

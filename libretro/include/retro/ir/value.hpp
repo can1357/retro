@@ -9,22 +9,134 @@
 // Automatic cross-reference tracking system, similar to LLVM's.
 //
 namespace retro::ir {
+	struct value;
+
 	// String formatting style.
 	//
 	enum class fmt_style : u8 { full, concise };
+	
+	// Common type for initializing operands.
+	//
+	struct variant {
+		// Since value is aligned by 8, if misaligned (eg check bit 0 == 1), we can use it as a thombstone.
+		//
+		union {
+			weak<value> value_ref;
+			constant		const_val;
+		};
+
+		// Default constructor creates type::none.
+		//
+		variant() : const_val{} {}
+		variant(std::nullopt_t) : const_val{} {}
+
+		// Constructed by either possible type.
+		//
+		variant(value* val) : value_ref(val) {}
+		variant(weak<value> val) : value_ref(std::move(val)) {}
+		variant(constant val) : const_val(std::move(val)) {}
+		template<BuiltinType T>
+		variant(T val) : const_val(val) {}
+
+		// Copy construction and assignment.
+		//
+		variant(const variant& o) {
+			if (o.is_const()) {
+				std::construct_at(&const_val, o.get_const());
+			} else {
+				std::construct_at(&value_ref, o.get_value());
+			}
+		}
+		variant& operator=(const variant& o) {
+			variant clone{o};
+			swap(clone);
+			return *this;
+		}
+
+		// Move construction and assignment via swap.
+		//
+		variant(variant&& o) noexcept { swap(o); }
+		variant& operator=(variant&& o) noexcept {
+			swap(o);
+			return *this;
+		}
+
+		// Trivially relocatable.
+		//
+		void swap(variant& o) {
+			using bytes = std::array<u8, sizeof(variant)>;
+			std::swap((bytes&) *this, (bytes&) o);
+		}
+
+		// Observers.
+		//
+		bool			is_const() const { return const_val.__rsvd == 1; }
+		std::string to_string(fmt_style s = {}) const;
+		type			get_type() const;
+
+		constant&& get_const() && {
+			RC_ASSERT(is_const());
+			return std::move(const_val);
+		}
+		constant& get_const() & {
+			RC_ASSERT(is_const());
+			return const_val;
+		}
+		const constant& get_const() const& {
+			RC_ASSERT(is_const());
+			return const_val;
+		}
+		weak<value>&& get_value() && {
+			RC_ASSERT(!is_const());
+			return std::move(value_ref);
+		}
+		weak<value>& get_value() & {
+			RC_ASSERT(!is_const());
+			return value_ref;
+		}
+		const weak<value>& get_value() const& {
+			RC_ASSERT(!is_const());
+			return value_ref;
+		}
+
+		// Equality comparison.
+		//
+		bool equals(const variant& other) const {
+			bool isc = is_const();
+			if (other.is_const() != isc)
+				return false;
+
+			if (isc) {
+				return const_val == other.const_val;
+			} else {
+				return value_ref == other.value_ref;
+			}
+		}
+		bool operator==(const variant& other) const { return equals(other); }
+		bool operator!=(const variant& other) const { return !equals(other); }
+
+		// Reset on destruction.
+		//
+		~variant() {
+			if (is_const()) {
+				const_val.reset();
+			} else {
+				value_ref.reset();
+			}
+		}
+	};
 
 	// Use instance.
 	//
-	struct value;
-	struct alignas(8) operand : pinned {
-		// Since operand is aligned by 8, operand.prev will also be aligned by 8.
-		// - If misaligned (eg check bit 0 == 1), we can use it as a thombstone.
+	struct operand : pinned {
+		// Since value is aligned by 8, if misaligned (eg check bit 0 == 1), we can use it as a thombstone.
 		//
 		union {
+			variant variant_val = {};
 			struct {
-				operand*		  prev;
-				operand*		  next;
-				weak<value>   value_ref;
+				weak<value> value_ref;
+				operand*		prev;
+				operand*		next;
 			};
 			constant const_val;
 		};
@@ -33,9 +145,9 @@ namespace retro::ir {
 		//
 		value* const user;
 
-		// Constructed by reference to user, creates a constant of type::none.
+		// Constructed by reference to user.
 		//
-		operand(value* user) : user(user), const_val{} {}
+		operand(value* user) : user(user) {}
 
 		// Assignment.
 		//
@@ -50,7 +162,7 @@ namespace retro::ir {
 		}
 		template<typename T>
 		void reset(T&& val) {
-			if constexpr (std::is_same_v<std::decay_t<T>, operand>) {
+			if constexpr (std::is_same_v<std::decay_t<T>, variant> || std::is_same_v<std::decay_t<T>, operand>) {
 				if (val.is_const()) {
 					return reset(val.get_const());
 				} else {
@@ -58,17 +170,15 @@ namespace retro::ir {
 				}
 			} else {
 				reset();
-				if constexpr (std::is_convertible_v<T, const value*>) {
+				if constexpr (std::is_convertible_v<T, weak<value>>) {
 					if (val) {
 						prev = this;
 						next = this;
 						list::link_before(val->use_list.entry(), this);
-						std::construct_at(&value_ref, (value*) val);
-						RC_ASSERT(!is_const());
+						std::construct_at(&value_ref, std::forward<T>(val));
 					}
 				} else {
 					std::construct_at(&const_val, std::forward<T>(val));
-					RC_ASSERT(is_const());
 				}
 			}
 		}
@@ -98,34 +208,22 @@ namespace retro::ir {
 			RC_ASSERT(!is_const());
 			return value_ref.get();
 		}
-		std::string to_string(fmt_style s = {}) const;
-		type			get_type() const;
 
-		// Equality comparison.
+		// Redirect utilities to variant.
 		//
-		bool equals(const operand& other) const {
-			bool isc = is_const();
-			if (other.is_const() != isc)
-				return false;
-
-			if (isc) {
-				return const_val == other.const_val;
-			} else {
-				return value_ref == other.value_ref;
-			}
-		}
-		bool operator==(const operand& other) const { return equals(other); }
-		bool operator!=(const operand& other) const { return !equals(other); }
+		std::string to_string(fmt_style s = {}) const { return variant_val.to_string(s); }
+		type			get_type() const { return variant_val.get_type(); }
+		bool			operator==(const operand& other) const { return variant_val.equals(other.variant_val); }
+		bool			operator!=(const operand& other) const { return !variant_val.equals(other.variant_val); }
 
 		// Reset on destruction.
 		//
 		~operand() { reset(); }
 	};
 
-	
 	// Value type.
 	//
-	struct value : dyn<value>, pinned {
+	struct alignas(8) value : dyn<value>, pinned {
 	  private:
 		// Circular linked list for the uses.
 		//
@@ -160,6 +258,6 @@ namespace retro::ir {
 
 	// Forwards.
 	//
-	inline std::string operand::to_string(fmt_style s) const { return is_const() ? get_const().to_string() : get_value()->to_string(s); }
-	inline type			 operand::get_type() const { return is_const() ? get_const().get_type() : get_value()->get_type(); }
+	inline std::string variant::to_string(fmt_style s) const { return is_const() ? get_const().to_string() : get_value()->to_string(s); }
+	inline type			 variant::get_type() const { return is_const() ? get_const().get_type() : get_value()->get_type(); }
 };
