@@ -12,22 +12,6 @@ using namespace retro;
 #include <retro/ir/insn.hpp>
 #include <retro/ir/routine.hpp>
 
-namespace retro::doc {
-	// Image type.
-	//
-	struct image {
-		// TODO: ??
-		//
-	};
-
-	// Workspace type.
-	//
-	struct workspace {
-		// TODO: ??
-		//
-	};
-};
-
 namespace retro::debug {
 	static void print_insn_list() {
 		std::string_view tmp_types[] = {"T", "Ty"};
@@ -382,20 +366,6 @@ namespace retro::x86::sema {
 #include <filesystem>
 #include <fstream>
 
-// TODO: retro::fs
-static std::optional<std::vector<u8>> read_file(const std::filesystem::path& path) {
-	std::optional<std::vector<u8>> buffer;
-	std::ifstream file(path, std::ios::binary);
-	if (!file.good())
-		return buffer;
-
-	file.seekg(0, std::ios_base::end);
-	buffer.emplace().resize(file.tellg());
-	file.seekg(0, std::ios_base::beg);
-	file.read((char*)buffer->data(), buffer->size());
-	return buffer;
-}
-
 #include <retro/robin_hood.hpp>
 
 /*
@@ -483,9 +453,41 @@ stosd -> 1 0.004731%
 out -> 1 0.004731%
 */
 
+
+
+#include <retro/loader/interface.hpp>
+#include <retro/doc/image.hpp>
+
+
+namespace retro::ldr {
+
+	struct pe_image : instance {
+		static constexpr std::string_view extensions[] = {
+			 ".exe",
+			 ".dll",
+			 ".sys",
+		};
+
+		std::span<const std::string_view> get_extensions() { return extensions; }
+
+		bool validate(std::span<const u8> data) { return true; }
+
+		diag::expected<ref<doc::image>> load(std::span<const u8> data) { return diag::lazy{diag::error}; }
+	};
+	RC_REGISTER_INTERFACE("Portable Executable", pe_image);
+};
+
+
 int main(int argv, const char** args) {
 	platform::setup_ansi_escapes();
 
+
+	ldr::instance::for_each([](auto&& ldr) {
+		fmt::println(*ldr);
+	});
+
+	auto file = platform::map_file(args[0]);
+	fmt::println((void*)file.base_address, "->", file.length);
 
 	// 1400072C0 ; std::string *__fastcall std::string::assign
 

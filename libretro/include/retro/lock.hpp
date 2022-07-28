@@ -3,6 +3,7 @@
 #include <retro/platform.hpp>
 #include <atomic>
 #include <mutex>
+#include <shared_mutex>
 
 // Defines the fast locks that behaves like a mutex only on long pauses.
 //

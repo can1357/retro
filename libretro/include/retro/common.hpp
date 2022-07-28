@@ -304,6 +304,7 @@ namespace retro {
 	#define RC_COLD		  __attribute__((cold, noinline, disable_tail_calls))
 	#define RC_INLINE		  __attribute__((always_inline))
 	#define RC_NOINLINE	  __attribute__((noinline))
+	#define RC_USED    	  __attribute__((used))
 	#define RC_ALIGN(x)	  __attribute__((aligned(x)))
 	#define RC_TRIVIAL_ABI __attribute__((trivial_abi))
 	#define RC_DBGBREAK	  __builtin_trap
@@ -311,6 +312,7 @@ namespace retro {
 	#define RC_PURE
 	#define RC_CONST
 	#define RC_FLATTEN
+	#define RC_USED
 	#define RC_INLINE	  [[msvc::forceinline]]
 	#define RC_NOINLINE __declspec(noinline)
 	#define RC_COLD	  RC_NOINLINE
@@ -525,6 +527,25 @@ namespace retro {
 		constexpr size_t size() const { return length; }
 		constexpr const T& operator[](size_t n) const { return data[n]; }
 	};
+
+	// Initialization helpers.
+	//
+	template<typename T>
+	inline T static_instance = {};
+
+#if RC_GNU || RC_CLANG
+	#define RC_INITIALIZER __attribute__((constructor)) static void RC_STRCAT(__initializer, __COUNTER__)()
+#else
+	namespace detail {
+		struct init_hook {
+			template<typename F>
+			init_hook(F&& f) {
+				f();
+			}
+		};
+	};
+	#define RC_INITIALIZER RC_USED static retro::detail::init_hook RC_STRCAT(__initializer, __COUNTER__) = []()
+#endif
 };
 
 // String conversion.

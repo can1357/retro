@@ -43,8 +43,6 @@ namespace retro {
 				this->size			  = sizeof(Self);
 			}
 		};
-		template<typename T>
-		inline constexpr T dyn_instance = {};
 #pragma pack(pop)
 
 		// Base class implementing the interface.
@@ -88,12 +86,12 @@ namespace retro {
 				// If final emit pointer comparison.
 				//
 				else if constexpr (std::is_final_v<X>) {
-					return info == &dyn_instance<typename X::Info>;
+					return info == &static_instance<typename X::Info>;
 				}
 				// Otherwise, check the hierarchy.
 				//
 				else {
-					constexpr auto& target_info = dyn_instance<typename X::Info>;
+					constexpr auto& target_info = static_instance<typename X::Info>;
 					return info->class_index >= target_info.class_index && info->bases().data()[target_info.class_index] == ctti::of<X>;
 				}
 			}
@@ -143,7 +141,7 @@ namespace retro {
 
 			// Set the info on construction.
 			//
-			RC_INLINE constexpr dyn_tag() { this->info = &dyn_instance<Info>; }
+			RC_INLINE constexpr dyn_tag() { this->info = &static_instance<Info>; }
 			constexpr dyn_tag(dyn_tag&&) noexcept				 = default;
 			constexpr dyn_tag(const dyn_tag&)					 = default;
 			constexpr dyn_tag& operator=(dyn_tag&&) noexcept = default;
