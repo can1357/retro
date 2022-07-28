@@ -2,6 +2,7 @@
 #include <cstdint>
 #include <thread>
 #include <random>
+#include <filesystem>
 #include <retro/common.hpp>
 #include <retro/intrin.hpp>
 
@@ -56,4 +57,20 @@ namespace retro::platform {
 	[[nodiscard]] void* mem_alloc(size_t page_count, u8 prot);
 	[[nodiscard]] bool  mem_protect(void* pointer, size_t page_count, u8 prot);
 	[[nodiscard]] bool  mem_free(void* pointer, size_t page_count);
+
+	// Basic read/write.
+	//
+	bool				 write_file(const std::filesystem::path& path, std::span<const u8> data);
+	bool				 read_file(const std::filesystem::path& path, std::span<const u8> data);
+	std::vector<u8> read_file(const std::filesystem::path& path, bool& ok);
+
+	// File mapping.
+	//
+	struct file_mapping_handle {
+		const void* base_address = nullptr;
+		size_t		length		 = 0;
+		void*			reserved[2]	 = {nullptr};
+	};
+	file_mapping_handle map_file(const std::filesystem::path& path, size_t length = 0);
+	void					  unmap_file(file_mapping_handle&);
 };

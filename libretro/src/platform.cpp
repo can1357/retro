@@ -1,4 +1,6 @@
 #include <array>
+#include <filesystem>
+#include <fstream>
 #include <retro/format.hpp>
 #include <retro/platform.hpp>
 
@@ -17,10 +19,65 @@ __declspec(dllimport) int32_t __stdcall NtFreeVirtualMemory(HANDLE ProcessHandle
 
 #else
 	#include <sys/mman.h>
+	#include <sys/stat.h>
+	#include <fcntl.h>
+	#include <unistd.h>
 #endif
 
 #include <random>
 namespace retro::platform {
+	// Simple functions, not specialized by any platform for now.
+	//
+	bool write_file(const std::filesystem::path& path, std::span<const u8> data) {
+		std::ofstream file(path, std::ios::binary);
+		if (!file.good())
+			return false;
+
+		// Write the data and return.
+		//
+		file.write((char*) data.data(), data.size());
+		return true;
+	}
+	bool read_file(const std::filesystem::path& path, std::span<const u8> data) {
+		std::ifstream file(path, std::ios::binary);
+		if (!file.good())
+			return false;
+
+		// Determine file size.
+		//
+		file.seekg(0, std::ios_base::end);
+		size_t file_size = file.tellg();
+		file.seekg(0, std::ios_base::beg);
+
+		// Fail if requesting more bytes than there is.
+		//
+		if (data.size() > file_size) {
+			return false;
+		}
+
+		file.read((char*) data.data(), data.size());
+		return true;
+	}
+	std::vector<u8> read_file(const std::filesystem::path& path, bool& ok) {
+		ok = false;
+		std::ifstream file(path, std::ios::binary);
+		if (!file.good())
+			return {};
+
+		// Determine file size.
+		//
+		file.seekg(0, std::ios_base::end);
+		size_t file_size = file.tellg();
+		file.seekg(0, std::ios_base::beg);
+
+		// Read and return.
+		//
+		std::vector<u8> buffer(file_size);
+		file.read((char*) buffer.data(), buffer.size());
+		ok = true;
+		return buffer;
+	}
+
 #if RC_WINDOWS
 	static constexpr ULONG protection_map[] = {PAGE_READONLY, PAGE_READWRITE, PAGE_EXECUTE_READ, PAGE_EXECUTE_READWRITE};
 
@@ -41,6 +98,51 @@ namespace retro::platform {
 		return NtFreeVirtualMemory(HANDLE(-1), &pointer, &region_size, MEM_RELEASE) >= 0;
 	}
 
+	file_mapping_handle map_file(const std::filesystem::path& path, size_t length_req) {
+		file_mapping_handle result			  = {};
+		auto&					  file_handle	  = result.reserved[0];
+		auto&					  mapping_handle = result.reserved[1];
+
+		// Determine file path if not specified.
+		//
+		if (length_req == 0) {
+			std::error_code ec;
+			result.length = std::filesystem::file_size(path, ec);
+			if (ec)
+				return result;
+		} else {
+			result.length = length_req;
+		}
+
+		// Create the file.
+		//
+		file_handle = CreateFileW(path.native().c_str(), GENERIC_READ, FILE_SHARE_READ | FILE_SHARE_WRITE | FILE_SHARE_DELETE, nullptr, OPEN_EXISTING, 0, nullptr);
+		if (!file_handle || file_handle == INVALID_HANDLE_VALUE)
+			return result;
+
+		// Map the file.
+		//
+		mapping_handle = CreateFileMappingFromApp(file_handle, nullptr, PAGE_READONLY, 0, nullptr);
+		if (mapping_handle && mapping_handle != INVALID_HANDLE_VALUE) {
+			result.base_address = MapViewOfFileFromApp(mapping_handle, SECTION_MAP_READ, 0, result.length);
+		}
+		return result;
+	}
+	void unmap_file(file_mapping_handle& _h) {
+		file_mapping_handle h				  = std::exchange(_h, file_mapping_handle{});
+		auto&					  file_handle	  = h.reserved[0];
+		auto&					  mapping_handle = h.reserved[1];
+		if (file_handle && file_handle != INVALID_HANDLE_VALUE) {
+			if (mapping_handle && mapping_handle != INVALID_HANDLE_VALUE) {
+				if (h.base_address) {
+					UnmapViewOfFile(h.base_address);
+				}
+				CloseHandle(mapping_handle);
+			}
+			CloseHandle(file_handle);
+		}
+	}
+
 	void setup_ansi_escapes() {
 	#if !RC_NO_ANSI
 		auto	console_handle = GetStdHandle(STD_OUTPUT_HANDLE);
@@ -59,5 +161,42 @@ namespace retro::platform {
 	[[nodiscard]] bool  mem_free(void* pointer, size_t page_count) { return munmap(pointer, RC_FROM_PFN(page_count)) >= 0; }
 
 	void setup_ansi_escapes() {}
+
+	file_mapping_handle map_file(const std::filesystem::path& path, size_t length_req) {
+		file_mapping_handle result = {};
+		auto&					  fd		= (int&) result.reserved[0];
+
+		// Determine file path if not specified.
+		//
+		if (length_req == 0) {
+			std::error_code ec;
+			result.length = std::filesystem::file_size(path, ec);
+			if (ec)
+				return result;
+		} else {
+			result.length = length_req;
+		}
+
+		// Create the file.
+		//
+		fd = open(path.string().c_str(), 0 /*O_RDONLY*/);
+		if (fd != -1)
+			return result;
+
+		// Map the file.
+		//
+		result.base_address = mmap(nullptr, result.length, 1 /*PROT_READ*/, 1 /*MAP_SHARED*/, fd, 0);
+		return result;
+	}
+	void unmap_file(file_mapping_handle& _h) {
+		file_mapping_handle h = std::exchange(_h, file_mapping_handle{});
+		auto&					  fd = (int&) h.reserved[0];
+		if (fd != -1) {
+			if (h.base_address) {
+				munmap((void*) h.base_address, h.length);
+			}
+			close(fd);
+		}
+	}
 #endif
 };
