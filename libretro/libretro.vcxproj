@@ -52,6 +52,7 @@
     <ClInclude Include="include\retro\lock.hpp" />
     <ClInclude Include="include\retro\platform.hpp" />
     <ClInclude Include="include\retro\rc.hpp" />
+    <ClInclude Include="include\retro\robin_hood.hpp" />
     <ClInclude Include="include\retro\targets.hxx" />
     <ClInclude Include="include\retro\utf.hpp" />
   </ItemGroup>

@@ -168,13 +168,13 @@ namespace retro::fmt {
 		if constexpr (std::is_same_v<Td, char*> || std::is_same_v<Td, const char*> || std::is_same_v<Td, std::string_view> || std::is_same_v<Td, std::string>) {
 			return std::string_view{arg};
 		} else if constexpr (std::is_same_v<Td, u64>) {
-			if (arg > 100)
+			if (arg > 0xFFFFFF)
 				return str("0x%llx", arg);
 			else
 				return std::to_string(arg);
 		} else if constexpr (std::is_same_v<Td, i64>) {
 			auto abv = arg < 0 ? -arg : arg;
-			if (abv > 100)
+			if (abv > 0xFFFFFF)
 				return str("%s0x%llx", arg < 0 ? "-" : "", abv);
 			else
 				return std::to_string(arg);

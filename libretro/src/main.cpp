@@ -369,8 +369,59 @@ namespace retro::x86::sema {
 
 #include <nt/image.hpp>
 
+#include <filesystem>
+#include <fstream>
+
+// TODO: retro::fs
+static std::optional<std::vector<u8>> read_file(const std::filesystem::path& path) {
+	std::optional<std::vector<u8>> buffer;
+	std::ifstream file(path, std::ios::binary);
+	if (!file.good())
+		return buffer;
+
+	file.seekg(0, std::ios_base::end);
+	buffer.emplace().resize(file.tellg());
+	file.seekg(0, std::ios_base::beg);
+	file.read((char*)buffer->data(), buffer->size());
+	return buffer;
+}
+
+#include <retro/robin_hood.hpp>
+
 int main(int argv, const char** args) {
 	platform::setup_ansi_escapes();
+
+
+	{
+		size_t												total = 0;
+		robin_hood::unordered_flat_map<ZydisMnemonic, size_t> ins_map;
+
+		auto sample_file = [&](std::filesystem::path path) {
+			auto					buffer = read_file(path);
+			if (buffer) {
+				win::image_x64_t* img = (win::image_x64_t*) buffer->data();
+				auto							 exentry = img->get_directory(win::directory_entry_exception);
+				win::exception_directory exdir(img->rva_to_ptr(exentry->rva), exentry->size);
+				for (auto& f : exdir) {
+					std::span<const u8> data{img->rva_to_ptr<u8>(f.rva_begin), f.rva_end - f.rva_begin};
+					while (auto i = zydis::decode(data)) {
+						if (i->ins.attributes & (ZYDIS_ATTRIB_HAS_VEX | ZYDIS_ATTRIB_HAS_EVEX | ZYDIS_ATTRIB_IS_PRIVILEGED))
+							continue;
+						total++;
+						ins_map[i->ins.mnemonic]++;
+					}
+				}
+			}
+		};
+		sample_file(args[0]);
+
+		std::vector<robin_hood::pair<ZydisMnemonic, size_t>> list(ins_map.begin(), ins_map.end());
+		range::sort(list, [](auto& a, auto& b) { return a.second >= b.second; });
+
+		for (auto& [m, c] : list) {
+			fmt::println(ZydisMnemonicGetString(m), " -> ", c, " ", float(100 * c) / float(total), "%");
+		}
+	}
 
 	auto	proc = make_rc<ir::procedure>();
 	auto* bb	  = proc->add_block();
