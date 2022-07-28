@@ -238,6 +238,9 @@ namespace retro::ir {
 		// String conversion.
 		//
 		std::string to_string() const {
+			if (get_type() == type::str) {
+				return fmt::concat(RC_ORANGE "'", get<std::string_view>(), "'" RC_RESET);
+			}
 			switch (get_type()) {
 #define FMT_TY(A, B)                                \
 	case type::A: {                                  \

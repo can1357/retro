@@ -152,11 +152,6 @@ namespace retro::x86::sema {
 				return ir::type::i16;
 		}
 	}
-	static ir::segment map_seg(u16 seg) {
-		// gsbase/fsbase requires fs:|gs: instead of value, so this will always map to uniform memory under x86_64.
-		//
-		return ir::NO_SEGMENT;
-	}
 	static ir::segment map_seg(ZydisRegister seg) {
 		if (seg == ZYDIS_REGISTER_GS) {
 			return ir::segment(1);
@@ -178,11 +173,21 @@ namespace retro::x86::sema {
 		RC_ASSERT(rt != ir::type::none);
 		return bb->push_read_reg(rt, ri);
 	}
-	static ir::insn* write_reg(ir::basic_block* bb, ZydisRegister r, ir::variant&& value) {
+	static ir::insn* write_reg(ir::basic_block* bb, ZydisRegister r, ir::variant&& value, bool zeroupper = true) {
 		RC_ASSERT(r != ZYDIS_REGISTER_NONE);
 		RC_ASSERT(r != ZYDIS_REGISTER_RIP && r != ZYDIS_REGISTER_EIP && r != ZYDIS_REGISTER_IP);
 
-		reg		ri = reg(r);
+		reg	ri	 = reg(r);
+		if (zeroupper) {
+			auto& inf = enum_reflect(ri);
+			if (inf.alias != reg::none) {
+				RC_ASSERT(inf.offset == 0);
+				RC_ASSERT(value.get_type() == int_type(inf.width));
+				auto new_size = enum_reflect(inf.alias).width;
+				return bb->push_write_reg(inf.alias, bb->push_cast(int_type(new_size), std::move(value)));
+			}
+		}
+
 		return bb->push_write_reg(ri, std::move(value));
 	}
 
@@ -193,7 +198,7 @@ namespace retro::x86::sema {
 		auto	pty = ptr_type(dec);
 
 		if (op.type == ZYDIS_OPERAND_TYPE_POINTER) {
-			return {ir::constant(as_ptr ? ir::type::pointer : pty, op.ptr.offset), map_seg(op.ptr.segment)};
+			return {ir::constant(as_ptr ? ir::type::pointer : pty, op.ptr.offset), ir::NO_SEGMENT};
 		}
 		RC_ASSERT(op.type == ZYDIS_OPERAND_TYPE_MEMORY);
 		auto m = op.mem;
@@ -229,6 +234,8 @@ namespace retro::x86::sema {
 
 		// [...+disp]
 		if (!result) {
+			// gsbase/fsbase requires fs:|gs: instead of value, so this will always map to uniform memory under x86_64.
+			//
 			return {ir::constant(as_ptr ? ir::type::pointer : pty, m.disp.has_displacement ? m.disp.value : 0), map_seg(m.segment)};
 		} else if (m.disp.has_displacement) {
 			result = bb->push_binop(ir::op::add, result, ir::constant(pty, m.disp.value));
@@ -283,10 +290,10 @@ namespace retro::x86::sema {
 				return nullptr;
 		}
 	}
-	static ir::insn* write(ir::basic_block* bb, const zydis::decoded_ins& dec, u64 ip, size_t idx, ir::variant&& value) {
+	static ir::insn* write(ir::basic_block* bb, const zydis::decoded_ins& dec, u64 ip, size_t idx, ir::variant&& value, bool zeroupper = true) {
 		switch (dec.ops[idx].type) {
 			case ZYDIS_OPERAND_TYPE_REGISTER: {
-				return write_reg(bb, dec.ops[idx].reg.value, std::move(value));
+				return write_reg(bb, dec.ops[idx].reg.value, std::move(value), zeroupper);
 			}
 			case ZYDIS_OPERAND_TYPE_POINTER:
 			case ZYDIS_OPERAND_TYPE_MEMORY: {
@@ -320,12 +327,13 @@ namespace retro::x86::sema {
 		auto result = bb->push_binop(ir::op::add, lhs, rhs);
 		write(bb, dec, ip, 0, result);
 
-		//  TODO: The OF, CF flags are set according to the result.
 		set_sf(bb, result);
 		set_zf(bb, result);
 		set_pf(bb, result);
 		set_af(bb, lhs, rhs, result);
-
+		//TODO:
+		bb->push_write_reg(reg::flag_of, bb->push_poison(ir::type::i1, "Overflow flag NYI"));
+		bb->push_write_reg(reg::flag_cf, bb->push_poison(ir::type::i1, "Carry flag NYI"));
 		return diag::ok;
 	}
 
@@ -389,7 +397,7 @@ int main(int argv, const char** args) {
 
 	fmt::println(proc->to_string());*/
 
-	u8 test[] = {0x48, 0x8D, 0x04, 0x0A, 0x48, 0x8D, 0x0D, 0x01, 0x00, 0x00, 0x00, 0x48, 0x8D, 0x1C, 0x88, 0x48, 0x01, 0x0B, 0x48, 0xC7, 0xC1, 0x02, 0x00, 0x00, 0x00};
+	u8 test[] = {0x48, 0x8D, 0x04, 0x0A, 0x48, 0x8D, 0x0D, 0x01, 0x00, 0x00, 0x00, 0x48, 0x8D, 0x1C, 0x88, 0x48, 0x01, 0x0B, 0x48, 0x01, 0x0B, 0xB9, 0x02, 0x00, 0x00, 0x00};
 	std::span<const u8> data	= test;
 
 	while (true) {

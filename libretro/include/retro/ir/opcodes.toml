@@ -159,17 +159,8 @@ templates =      [1,            0]
 names =          ["",           "Reason"]
 constexprs =     [1]
 
-#Ty   uext<Tx,Ty>  Tx:value
-[opcode.uext]
-side-effects   = false
-is-const =       true
-is-pure =        true
-template-count = 2
-types =          ["@type.none", "@type.none"]
-templates =      [2,            1]
-names =          ["",           "value"]
-#Ty   iext<Tx,Ty>  Tx:value
-[opcode.iext]
+#Ty   sign_extend<Tx,Ty>  Tx:value
+[opcode.sign_extend]
 side-effects   = false
 is-const =       true
 is-pure =        true
