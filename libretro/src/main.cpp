@@ -120,24 +120,6 @@ namespace retro::x86::sema {
 
 	// Integral/Pointer size helper.
 	//
-	static ir::type int_type(size_t n) {
-		switch (n) {
-			case 1:
-				return ir::type::i1;
-			case 8:
-				return ir::type::i8;
-			case 16:
-				return ir::type::i16;
-			case 32:
-				return ir::type::i32;
-			case 64:
-				return ir::type::i64;
-			case 128:
-				return ir::type::i128;
-			default:
-				return ir::type::none;
-		}
-	}
 	static ir::type ptr_type(const zydis::decoded_ins& dec) {
 		switch (dec.ins.machine_mode) {
 			default:
@@ -169,25 +151,28 @@ namespace retro::x86::sema {
 		RC_ASSERT(r != ZYDIS_REGISTER_RIP && r != ZYDIS_REGISTER_EIP && r != ZYDIS_REGISTER_IP);
 
 		reg		ri = reg(r);
-		ir::type rt = int_type(enum_reflect(ri).width);
+		ir::type rt = ir::make_int(enum_reflect(ri).width);
 		RC_ASSERT(rt != ir::type::none);
 		return bb->push_read_reg(rt, ri);
 	}
-	static ir::insn* write_reg(ir::basic_block* bb, ZydisRegister r, ir::variant&& value, bool zeroupper = true) {
+	static ir::insn* write_reg(ir::basic_block* bb, const zydis::decoded_ins& dec, ZydisRegister r, ir::variant&& value, bool no_zeroupper = false) {
 		RC_ASSERT(r != ZYDIS_REGISTER_NONE);
 		RC_ASSERT(r != ZYDIS_REGISTER_RIP && r != ZYDIS_REGISTER_EIP && r != ZYDIS_REGISTER_IP);
 
-		reg	ri	 = reg(r);
-		if (zeroupper) {
+		reg ri = reg(r);
+		if (!no_zeroupper) {
 			auto& inf = enum_reflect(ri);
 			if (inf.alias != reg::none) {
-				RC_ASSERT(inf.offset == 0);
-				RC_ASSERT(value.get_type() == int_type(inf.width));
-				auto new_size = enum_reflect(inf.alias).width;
-				return bb->push_write_reg(inf.alias, bb->push_cast(int_type(new_size), std::move(value)));
+				bool gpr_ext = inf.kind == reg_kind::general && inf.width == 32 && dec.ins.machine_mode == ZYDIS_MACHINE_MODE_LONG_64;
+				bool vex_ext = inf.kind == reg_kind::vector && (dec.ins.attributes & (ZYDIS_ATTRIB_HAS_EVEX | ZYDIS_ATTRIB_HAS_VEX));
+				if (gpr_ext || vex_ext) {
+					RC_ASSERT(inf.offset == 0);
+					RC_ASSERT(value.get_type() == ir::make_int(inf.width));
+					auto new_size = enum_reflect(inf.alias).width;
+					return bb->push_write_reg(inf.alias, bb->push_cast(ir::make_int(new_size), std::move(value)));
+				}
 			}
 		}
-
 		return bb->push_write_reg(ri, std::move(value));
 	}
 
@@ -290,10 +275,10 @@ namespace retro::x86::sema {
 				return nullptr;
 		}
 	}
-	static ir::insn* write(ir::basic_block* bb, const zydis::decoded_ins& dec, u64 ip, size_t idx, ir::variant&& value, bool zeroupper = true) {
+	static ir::insn* write(ir::basic_block* bb, const zydis::decoded_ins& dec, u64 ip, size_t idx, ir::variant&& value) {
 		switch (dec.ops[idx].type) {
 			case ZYDIS_OPERAND_TYPE_REGISTER: {
-				return write_reg(bb, dec.ops[idx].reg.value, std::move(value), zeroupper);
+				return write_reg(bb, dec, dec.ops[idx].reg.value, std::move(value));
 			}
 			case ZYDIS_OPERAND_TYPE_POINTER:
 			case ZYDIS_OPERAND_TYPE_MEMORY: {
@@ -310,17 +295,17 @@ namespace retro::x86::sema {
 	// Instruction handlers.
 	//
 	static diag::lazy lift_mov(ir::basic_block* bb, const zydis::decoded_ins& dec, u64 ip) {
-		auto ty = int_type(dec.ins.operand_width);
+		auto ty = ir::make_int(dec.ins.operand_width);
 		write(bb, dec, ip, 0, read(bb, dec, ip, 1, ty));
 		return diag::ok;
 	}
 	static diag::lazy lift_lea(ir::basic_block* bb, const zydis::decoded_ins& dec, u64 ip) {
 		auto [ptr, seg] = agen(bb, dec, ip, 1, false);
-		write_reg(bb, dec.ops[0].reg.value, std::move(ptr));
+		write_reg(bb, dec, dec.ops[0].reg.value, std::move(ptr));
 		return diag::ok;
 	}
 	static diag::lazy lift_add(ir::basic_block* bb, const zydis::decoded_ins& dec, u64 ip) {
-		auto ty = int_type(dec.ins.operand_width);
+		auto ty = ir::make_int(dec.ins.operand_width);
 
 		auto rhs = read(bb, dec, ip, 1, ty);
 
@@ -353,6 +338,8 @@ namespace retro::x86::sema {
 		//
 		auto prev = std::prev(bb->end(), bb->empty() ? 0 : 1).at;
 		switch (dec.ins.mnemonic) {
+			case ZYDIS_MNEMONIC_NOP:
+				return diag::ok;
 			case ZYDIS_MNEMONIC_MOV:
 				if (auto err = lift_mov(bb, dec, ip))
 					return err;
@@ -380,17 +367,6 @@ namespace retro::x86::sema {
 	}
 };
 
-/*
-test rcx, rcx
-jz   x
-  lea rax, [rdx+rcx]
-  ret
-x:
-  lea rax, [rdx+r8]
-  ret
-*/
-constexpr const char lift_example[] = "\x48\x85\xC9\x74\x05\x48\x8D\x04\x0A\xC3\x4A\x8D\x04\x02\xC3";
-
 #include <nt/image.hpp>
 
 int main(int argv, const char** args) {
@@ -399,17 +375,10 @@ int main(int argv, const char** args) {
 	auto	proc = make_rc<ir::procedure>();
 	auto* bb	  = proc->add_block();
 
-	/*auto i0 = bb->push_binop(ir::op::add, 2, 3);
-	auto i1 = bb->push_binop(ir::op::add, 3, i0);
-	auto i2 = bb->push_cast(ir::type::i16, i1);
-	x86::sema::set_pf(bb, i2);
-	x86::sema::set_zf(bb, i2);
-	x86::sema::set_sf(bb, i2);
+	u8 test[] = {0x90, 0x48, 0x8D, 0x04, 0x0A, 0x48, 0x8D, 0x0D, 0x01, 0x00, 0x00, 0x00, 0x48, 0x8D, 0x1C, 0x88, 0x48, 0x01, 0x0B, 0xF0, 0x48, 0x01, 0x0B, 0xB9, 0x02, 0x00, 0x00, 0x00};
 
-	fmt::println(proc->to_string());*/
 
-	u8 test[] = {0x48, 0x8D, 0x04, 0x0A, 0x48, 0x8D, 0x0D, 0x01, 0x00, 0x00, 0x00, 0x48, 0x8D, 0x1C, 0x88, 0x48, 0x01, 0x0B, 0xF0, 0x48, 0x01, 0x0B, 0xB9, 0x02, 0x00, 0x00, 0x00};
-	std::span<const u8> data	= test;
+	// TODO: BB splitting
 
 	/*
 	add, sub, and, or, xor, shl, shr...
@@ -422,7 +391,7 @@ int main(int argv, const char** args) {
 	call jmp ret
 	*/
 
-
+	std::span<const u8> data = test;
 	while (true) {
 		auto i = zydis::decode(data);
 		if (!i) {
