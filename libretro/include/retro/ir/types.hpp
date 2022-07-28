@@ -59,6 +59,37 @@ namespace retro::ir {
 	template<typename T>
 	constexpr type type_v = type_to_builtin<T>::value;
 
+	// Helpers for creating arithmetic types.
+	//
+	// clang-format off
+	inline constexpr type make_int(size_t n) {
+		switch (n) {
+			case 1:   return type::i1;
+			case 8:   return type::i8;
+			case 16:  return type::i16;
+			case 32:  return type::i32;
+			case 64:  return type::i64;
+			case 128: return type::i128;
+			default:  return type::none;
+		}
+	}
+	inline constexpr type make_fp(size_t n) {
+		switch (n) {
+			case 32:  return type::f32;
+			case 64:  return type::f64;
+			default:  return type::none;
+		}
+	}
+	// clang-format on
+	inline constexpr type make_vec(type t, size_t n) {
+		for (auto& td : type_desc::list()) {
+			if (td.lane_width == n && td.underlying == t) {
+				return td.id();
+			}
+		}
+		return type::none;
+	}
+
 	// Define constant type.
 	//
 	struct constant {

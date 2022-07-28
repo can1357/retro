@@ -375,8 +375,6 @@ alias =  "@reg.rflags"
 [reg.rflags]
 kind  =  "@reg_kind.flag"
 width =  64
-mask-1 = 0x2
-mask-0 = 0xFFFFFFFFFFC08028
 
 # instruction-pointer registers
 [reg.ip]

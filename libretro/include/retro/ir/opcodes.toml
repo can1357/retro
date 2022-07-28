@@ -180,7 +180,6 @@ types =          ["@type.none", "@type.none"]
 templates =      [2,            1]
 names =          ["",           "value"]
 
-
 #T    binop<T>     Op:Operator  T:lhs  T:rhs
 [opcode.binop]
 is-const =       true
