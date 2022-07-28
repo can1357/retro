@@ -339,7 +339,8 @@ namespace retro::x86::sema {
 		//  xor  eax,  eax
 		//  pxor xmm0, xmm0
 		//  lock or [rsp], 0
-		//
+		//  mov eax, eax
+		//  lea eax, [eax]
 		//
 		//
 
@@ -485,6 +486,9 @@ out -> 1 0.004731%
 int main(int argv, const char** args) {
 	platform::setup_ansi_escapes();
 
+
+	// 1400072C0 ; std::string *__fastcall std::string::assign
+
 	/*
 	*
 	* TODO TMW:
@@ -578,8 +582,6 @@ int main(int argv, const char** args) {
 		if (!i) {
 			break;
 		}
-
-
 
 		u64 rip = 0x140000000 + (data.data() - test);
 		fmt::println((void*)(rip - i->ins.length), ": ", i->to_string(rip - i->ins.length));

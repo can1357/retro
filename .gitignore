@@ -1,11 +1,32 @@
+# Auto generated files
+#
+**/retro/**/*.hxx
+
+# Build files
+#
 build/
+build-*/
+
+# Dev files
+#
+scripts/.ipynb_checkpoints/
 *.vcxproj.filters
 *.vcxproj.user
+.vs/
+*.i64
+*.id0
+*.id1
+*.id2
+*.idb
+*.nam
+*.til
+
+# Binaries
+#
+*.sh
 *.bat
 *.exe
-.vs/
-*.ipynb
-**/retro/**/*.hxx
-build-vscmake/
-
-*.i64
+*.pdb
+*.lib
+*.dll
+*.a
