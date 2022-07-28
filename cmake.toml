@@ -12,7 +12,7 @@ x86_64 = "CMAKE_SYSTEM_PROCESSOR MATCHES \"(amd64)|(AMD64)|(x86_64)\""
 type = "static"
 link-libraries = ["Zydis", "linux-pe"]
 include-directories = ["libretro/include"]
-compile-features = ["cxx_std_20"]
+compile-features = ["cxx_std_23"]
 sources = [
     "libretro/src/**.cpp",
     "libretro/src/**.hpp",
@@ -24,6 +24,7 @@ sources = [
 [target.retro]
 type = "executable"
 link-libraries = ["libretro"]
+sources = ["libretro/src/main.cpp"]
 
 [[install]]
 targets = ["retro"]

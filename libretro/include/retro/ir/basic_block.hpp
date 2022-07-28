@@ -9,15 +9,15 @@
 namespace retro::ir {
 	// Basic block type.
 	//
-	struct procedure;
+	struct routine;
 	namespace detail {
-		static u32 next_name(const procedure*);
+		static u32 next_name(const routine*);
 	};
 
 	struct basic_block final : dyn<basic_block, value>, list::head<insn> {
-		// Owning procedure.
+		// Owning routine.
 		//
-		procedure* proc = nullptr;
+		routine* rtn = nullptr;
 
 		// Name and Label IP.
 		//
@@ -47,7 +47,7 @@ namespace retro::ir {
 		list::iterator<insn> insert(list::iterator<insn> position, ref<insn> v) {
 			RC_ASSERT(v->is_orphan());
 			v->block = this;
-			v->name	= detail::next_name(proc);
+			v->name	= detail::next_name(rtn);
 			list::link_before(position.at, v.get());
 			return {v.release()};
 		}

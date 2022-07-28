@@ -32,18 +32,26 @@ project(retro
 		CXX
 )
 
-if(CMAKE_SYSTEM_PROCESSOR MATCHES "(amd64)|(AMD64)|(x86_64)") # x86_64
-	# zydis
-	set(CMKR_CMAKE_FOLDER ${CMAKE_FOLDER})
-	if(CMAKE_FOLDER)
-		set(CMAKE_FOLDER "${CMAKE_FOLDER}/zydis")
-	else()
-		set(CMAKE_FOLDER zydis)
-	endif()
-	add_subdirectory(zydis)
-	set(CMAKE_FOLDER ${CMKR_CMAKE_FOLDER})
-
+# zydis
+set(CMKR_CMAKE_FOLDER ${CMAKE_FOLDER})
+if(CMAKE_FOLDER)
+	set(CMAKE_FOLDER "${CMAKE_FOLDER}/zydis")
+else()
+	set(CMAKE_FOLDER zydis)
 endif()
+add_subdirectory(zydis)
+set(CMAKE_FOLDER ${CMKR_CMAKE_FOLDER})
+
+# linux-pe
+set(CMKR_CMAKE_FOLDER ${CMAKE_FOLDER})
+if(CMAKE_FOLDER)
+	set(CMAKE_FOLDER "${CMAKE_FOLDER}/linux-pe")
+else()
+	set(CMAKE_FOLDER linux-pe)
+endif()
+add_subdirectory(linux-pe)
+set(CMAKE_FOLDER ${CMKR_CMAKE_FOLDER})
+
 # Target libretro
 set(CMKR_TARGET libretro)
 set(libretro_SOURCES "")
@@ -66,13 +74,14 @@ list(APPEND libretro_SOURCES
 	"libretro/include/retro/intrin.hpp"
 	"libretro/include/retro/ir/basic_block.hpp"
 	"libretro/include/retro/ir/insn.hpp"
-	"libretro/include/retro/ir/procedure.hpp"
+	"libretro/include/retro/ir/routine.hpp"
 	"libretro/include/retro/ir/types.hpp"
 	"libretro/include/retro/ir/value.hpp"
 	"libretro/include/retro/list.hpp"
 	"libretro/include/retro/lock.hpp"
 	"libretro/include/retro/platform.hpp"
 	"libretro/include/retro/rc.hpp"
+	"libretro/include/retro/robin_hood.hpp"
 	"libretro/include/retro/utf.hpp"
 	"libretro/include/retro/ir/builtin_types.hxx"
 	"libretro/include/retro/ir/opcodes.hxx"
@@ -94,18 +103,17 @@ endif()
 source_group(TREE ${CMAKE_CURRENT_SOURCE_DIR} FILES ${libretro_SOURCES})
 
 target_compile_features(libretro PUBLIC
-	cxx_std_20
+	cxx_std_23
 )
 
 target_include_directories(libretro PUBLIC
 	"libretro/include"
 )
 
-if(CMAKE_SYSTEM_PROCESSOR MATCHES "(amd64)|(AMD64)|(x86_64)") # x86_64
-	target_link_libraries(libretro PUBLIC
-		Zydis
-	)
-endif()
+target_link_libraries(libretro PUBLIC
+	Zydis
+	linux-pe
+)
 
 unset(CMKR_TARGET)
 unset(CMKR_SOURCES)
@@ -113,6 +121,10 @@ unset(CMKR_SOURCES)
 # Target retro
 set(CMKR_TARGET retro)
 set(retro_SOURCES "")
+
+list(APPEND retro_SOURCES
+	"libretro/src/main.cpp"
+)
 
 list(APPEND retro_SOURCES
 	cmake.toml
@@ -129,6 +141,8 @@ get_directory_property(CMKR_VS_STARTUP_PROJECT DIRECTORY ${PROJECT_SOURCE_DIR} D
 if(NOT CMKR_VS_STARTUP_PROJECT)
 	set_property(DIRECTORY ${PROJECT_SOURCE_DIR} PROPERTY VS_STARTUP_PROJECT retro)
 endif()
+
+source_group(TREE ${CMAKE_CURRENT_SOURCE_DIR} FILES ${retro_SOURCES})
 
 target_link_libraries(retro PRIVATE
 	libretro

@@ -10,7 +10,7 @@ using namespace retro;
 #include <retro/arch/x86/zydis.hpp>
 
 #include <retro/ir/insn.hpp>
-#include <retro/ir/procedure.hpp>
+#include <retro/ir/routine.hpp>
 
 namespace retro::doc {
 	// Image type.
@@ -334,6 +334,15 @@ namespace retro::x86::sema {
 	// Common lifter switch.
 	//
 	diag::lazy lift(ir::basic_block* bb, const zydis::decoded_ins& dec, u64 ip) {
+
+		// TODO: Special handling:
+		//  xor  eax,  eax
+		//  pxor xmm0, xmm0
+		//  lock or [rsp], 0
+		//
+		//
+		//
+
 		// Switch based on the mnemonic:
 		//
 		auto prev = std::prev(bb->end(), bb->empty() ? 0 : 1).at;
@@ -388,56 +397,165 @@ static std::optional<std::vector<u8>> read_file(const std::filesystem::path& pat
 
 #include <retro/robin_hood.hpp>
 
+/*
+mov -> 7439 35.195873%
+jz -> 2855 13.507759%
+lea -> 1473 6.969152%
+cmp -> 1405 6.647426%
+call -> 1170 5.535579%
+add -> 949 4.489970%
+movzx -> 834 3.945874%
+test -> 750 3.548448%
+sub -> 579 2.739402%
+pop -> 571 2.701552%
+push -> 489 2.313588%
+xor -> 332 1.570780%
+ret -> 299 1.414648%
+and -> 251 1.187547%
+movups -> 231 1.092922%
+nop -> 221 1.045609%
+inc -> 154 0.728615%
+int3 -> 112 0.529902%
+shr -> 111 0.525170%
+dec -> 94 0.444739%
+movsd -> 85 0.402157%
+or -> 71 0.335920%
+cmovb -> 67 0.316995%
+movsxd -> 57 0.269682%
+xadd -> 46 0.217638%
+shl -> 43 0.203444%
+setz -> 42 0.198713%
+movaps -> 34 0.160863%
+bts -> 28 0.132475%
+xorps -> 24 0.113550%
+sar -> 21 0.099357%
+cmovnb -> 21 0.099357%
+cmovnz -> 20 0.094625%
+imul -> 19 0.089894%
+cmovz -> 19 0.089894%
+bt -> 15 0.070969%
+movq -> 14 0.066238%
+movsx -> 13 0.061506%
+cdqe -> 13 0.061506%
+not -> 13 0.061506%
+rol -> 13 0.061506%
+movdqa -> 11 0.052044%
+neg -> 10 0.047313%
+mul -> 10 0.047313%
+clc -> 10 0.047313%
+movss -> 9 0.042581%
+cqo -> 8 0.037850%
+cvtsi2ss -> 6 0.028388%
+psrldq -> 6 0.028388%
+sbb -> 5 0.023656%
+movdqu -> 5 0.023656%
+movd -> 5 0.023656%
+xchg -> 4 0.018925%
+cvtsi2sd -> 4 0.018925%
+in -> 4 0.018925%
+cmovs -> 4 0.018925%
+cpuid -> 3 0.014194%
+stosw -> 3 0.014194%
+adc -> 3 0.014194%
+cvtdq2pd -> 2 0.009463%
+cvtdq2ps -> 2 0.009463%
+cvtps2pd -> 2 0.009463%
+leave -> 2 0.009463%
+int -> 2 0.009463%
+cmovbe -> 2 0.009463%
+loopne -> 1 0.004731%
+lodsb -> 1 0.004731%
+addsd -> 1 0.004731%
+cmovns -> 1 0.004731%
+cmovnbe -> 1 0.004731%
+addss -> 1 0.004731%
+popfq -> 1 0.004731%
+scasd -> 1 0.004731%
+ror -> 1 0.004731%
+xgetbv -> 1 0.004731%
+divss -> 1 0.004731%
+cmpxchg -> 1 0.004731%
+div -> 1 0.004731%
+cmovl -> 1 0.004731%
+outsb -> 1 0.004731%
+stosd -> 1 0.004731%
+out -> 1 0.004731%
+*/
+
 int main(int argv, const char** args) {
 	platform::setup_ansi_escapes();
 
+	/*
+	*
+	* TODO TMW:
+		figure out the arch bullshit
+		basic! image loader
+		properly design the lifter func, cfg exploration
 
-	{
-		u32				 total	 = 0;
-		std::unique_ptr ins_freq = std::make_unique<u32[]>(ZYDIS_MNEMONIC_MAX_VALUE);
+		Conversion to actual SSA format:
+	-> move propagate + phi gen where possible and no aliasing (pass #1)
+	-> lower to move into super-reg, aka all write_regs are full size  (pass #2)
+	-> run pass #1 again to finally get rid of all read_regs besides args / retval
 
-		auto sample_file = [&](const std::filesystem::path& path) {
-			if (auto buffer = read_file(path)) {
-				auto* img	= (win::image_x64_t*) buffer->data();
-				auto	exdir = img->get_directory(win::directory_entry_exception);
-				for (auto& f : win::exception_directory(img->rva_to_ptr(exdir->rva), exdir->size)) {
-					std::span data{img->rva_to_ptr<const u8>(f.rva_begin), f.rva_end - f.rva_begin};
-					while (auto i = zydis::decode(data)) {
-						if (i->ins.attributes & (ZYDIS_ATTRIB_HAS_VEX | ZYDIS_ATTRIB_HAS_EVEX | ZYDIS_ATTRIB_IS_PRIVILEGED))
-							continue;
-						if (i->ins.meta.category == ZYDIS_CATEGORY_X87_ALU || i->ins.meta.isa_ext == ZYDIS_ISA_EXT_X87)
-							continue;
+		convert write_reg to stacksave and read_reg to stackrestore
 
-						if (ZYDIS_MNEMONIC_JB <= i->ins.mnemonic && i->ins.mnemonic <= ZYDIS_MNEMONIC_JZ)
-							i->ins.mnemonic = ZYDIS_MNEMONIC_JZ;
-						if (ZYDIS_MNEMONIC_SETB <= i->ins.mnemonic && i->ins.mnemonic <= ZYDIS_MNEMONIC_SETZ)
-							i->ins.mnemonic = ZYDIS_MNEMONIC_SETZ;
+		Include z3 for:
+		 - constraint solving while cfg opt
+		 - range resolution for jump table:
+		https://stackoverflow.com/a/63374651
+		 - simplification while in aggressive mode
 
-						total++;
-						ins_freq[i->ins.mnemonic]++;
-					}
-				}
-			}
-		};
-		sample_file(args[0]);
+		For all else:
+		 - implement inst combine like thing for basic pattern matching: (x==-x -> x==0) and so on
 
+	*/
 
-		
-		std::vector<std::pair<ZydisMnemonic, u32>> ins_present;
-		for (auto i = 0; i != ZYDIS_MNEMONIC_MAX_VALUE; i++) {
-			if (u32 n = ins_freq[i]) {
-				ins_present.emplace_back(ZydisMnemonic(i), n);
-			}
-		}
-		range::sort(ins_present, [](auto& a, auto& b) { return a.second >= b.second; });
+	//{
+	//	u32				 total	 = 0;
+	//	std::unique_ptr ins_freq = std::make_unique<u32[]>(ZYDIS_MNEMONIC_MAX_VALUE);
+	//
+	//	auto sample_file = [&](const std::filesystem::path& path) {
+	//		if (auto buffer = read_file(path)) {
+	//			auto* img	= (win::image_x64_t*) buffer->data();
+	//			auto	exdir = img->get_directory(win::directory_entry_exception);
+	//			for (auto& f : win::exception_directory(img->rva_to_ptr(exdir->rva), exdir->size)) {
+	//				std::span data{img->rva_to_ptr<const u8>(f.rva_begin), f.rva_end - f.rva_begin};
+	//				while (auto i = zydis::decode(data)) {
+	//					if (i->ins.attributes & (ZYDIS_ATTRIB_HAS_VEX | ZYDIS_ATTRIB_HAS_EVEX | ZYDIS_ATTRIB_IS_PRIVILEGED))
+	//						continue;
+	//					if (i->ins.meta.category == ZYDIS_CATEGORY_X87_ALU || i->ins.meta.isa_ext == ZYDIS_ISA_EXT_X87)
+	//						continue;
+	//
+	//					if (ZYDIS_MNEMONIC_JB <= i->ins.mnemonic && i->ins.mnemonic <= ZYDIS_MNEMONIC_JZ)
+	//						i->ins.mnemonic = ZYDIS_MNEMONIC_JZ;
+	//					if (ZYDIS_MNEMONIC_SETB <= i->ins.mnemonic && i->ins.mnemonic <= ZYDIS_MNEMONIC_SETZ)
+	//						i->ins.mnemonic = ZYDIS_MNEMONIC_SETZ;
+	//
+	//					total++;
+	//					ins_freq[i->ins.mnemonic]++;
+	//				}
+	//			}
+	//		}
+	//	};
+	//	sample_file(args[0]);
+	//
+	//	
+	//	std::vector<std::pair<ZydisMnemonic, u32>> ins_present;
+	//	for (auto i = 0; i != ZYDIS_MNEMONIC_MAX_VALUE; i++) {
+	//		if (u32 n = ins_freq[i]) {
+	//			ins_present.emplace_back(ZydisMnemonic(i), n);
+	//		}
+	//	}
+	//	range::sort(ins_present, [](auto& a, auto& b) { return a.second >= b.second; });
+	//
+	//	for (auto& [m, n] : ins_present) {
+	//		fmt::println(ZydisMnemonicGetString(m), " -> ", n, " ", float(100 * n) / float(total), "%");
+	//	}
+	//}
 
-		for (auto& [m, n] : ins_present) {
-			fmt::println(ZydisMnemonicGetString(m), " -> ", n, " ", float(100 * n) / float(total), "%");
-		}
-	}
-
-	auto	proc = make_rc<ir::procedure>();
-	auto* bb	  = proc->add_block();
+	auto	rtn	 = make_rc<ir::routine>();
+	rtn->start_ip = 0x140000000;
+	auto* bb		 = rtn->add_block();
 	u8 test[] = {0x90, 0x48, 0x8D, 0x04, 0x0A, 0x48, 0x8D, 0x0D, 0x01, 0x00, 0x00, 0x00, 0x48, 0x8D, 0x1C, 0x88, 0x48, 0x01, 0x0B, 0xF0, 0x48, 0x01, 0x0B, 0xB9, 0x02, 0x00, 0x00, 0x00};
 
 
@@ -473,5 +591,5 @@ int main(int argv, const char** args) {
 	bb->erase_if([](ir::insn* i) { return !i->uses() && !i->desc().side_effect; });
 
 
-	fmt::println(bb->to_string());
+	fmt::println(rtn->to_string());
 }

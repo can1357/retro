@@ -8,9 +8,9 @@
 #include <vector>
 
 namespace retro::ir {
-	// Procedure type.
+	// Routine type.
 	//
-	struct procedure : range::view_base {
+	struct routine : range::view_base {
 		using container		= std::vector<ref<basic_block>>;
 		using iterator			= typename container::iterator;
 		using const_iterator = typename container::const_iterator;
@@ -45,7 +45,7 @@ namespace retro::ir {
 		//
 		basic_block* add_block() {
 			auto* blk = blocks.emplace_back(make_rc<basic_block>()).get();
-			blk->proc = this;
+			blk->rtn = this;
 			blk->name = next_blk_name++;
 			return blk;
 		}
@@ -103,10 +103,13 @@ namespace retro::ir {
 		// String conversion.
 		//
 		std::string to_string(fmt_style s = {}) const {
-			std::string result = fmt::str(RC_ORANGE "proc-%llx" RC_RESET, this);
+			std::string result;
 			if (start_ip != NO_LABEL) {
-				result += fmt::str("[%p]", start_ip);
+				result = fmt::str(RC_ORANGE "sub_%llx " RC_RESET " [%p]", start_ip, this);
+			} else {
+				result = fmt::str(RC_ORANGE "sub_# " RC_RESET " [%p]", this);
 			}
+
 			if (s == fmt_style::concise) {
 				return result;
 			} else {
@@ -120,6 +123,6 @@ namespace retro::ir {
 	};
 
 	namespace detail {
-		static u32 next_name(const procedure* p) { return p->next_ins_name++; }
+		static u32 next_name(const routine* p) { return p->next_ins_name++; }
 	};
 };
