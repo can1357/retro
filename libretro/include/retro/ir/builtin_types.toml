@@ -4,11 +4,11 @@ Includes = [
 ]
 
 type_kind = [
-	"integral",
 	"memory",
-	"floating-point",
-	"simd-int",
-	"simd-fp",
+	"scalar-int",
+	"scalar-fp",
+	"vector-int",
+	"vector-fp",
 ]
 
 # Generate SIMD types.
@@ -23,7 +23,7 @@ for l in SIMD_WIDTHS:
 		lane_width = l // k
 		vty = "{0}x{1}".format(ty, lane_width)
 		desc = {
-			"kind":        "@type_kind.simd-int",
+			"kind":        "@type_kind.vector-int",
 			"underlying":  "@type." + ty,
 			"lane_width":  lane_width,
 			"bit_size":    l,
@@ -37,7 +37,7 @@ for l in SIMD_WIDTHS:
 		lane_width = l // k
 		vty = "{0}x{1}".format(ty, lane_width)
 		desc = {
-			"kind":        "@type_kind.simd-fp",
+			"kind":        "@type_kind.vector-fp",
 			"underlying":  "@type." + ty,
 			"lane_width":  lane_width,
 			"bit_size":    l,
@@ -61,41 +61,41 @@ VisitorArgs = ["basic_block*"]
 [type.str]
 VisitorArgs = ["std::string_view"]
 
-# Integral types.
+# Integer types.
 #
 [type.i1]
-kind     =    "@type_kind.integral"
+kind     =    "@type_kind.scalar-int"
 bit_size =    1
 VisitorArgs = ["bool"]
 [type.i8]
-kind     =    "@type_kind.integral"
+kind     =    "@type_kind.scalar-int"
 bit_size =    8
 VisitorArgs = ["i8"]
 [type.i16]
-kind     =    "@type_kind.integral"
+kind     =    "@type_kind.scalar-int"
 bit_size =    16
 VisitorArgs = ["i16"]
 [type.i32]
-kind     =    "@type_kind.integral"
+kind     =    "@type_kind.scalar-int"
 bit_size =    32
 VisitorArgs = ["i32"]
 [type.i64]
-kind     =    "@type_kind.integral"
+kind     =    "@type_kind.scalar-int"
 bit_size =    64
 VisitorArgs = ["i64"]
 [type.i128]
-kind     =    "@type_kind.integral"
+kind     =    "@type_kind.scalar-int"
 bit_size =    128
 VisitorArgs = ["i128"]
 
 # Floating point types.
 #
 [type.f32]
-kind     =    "@type_kind.floating-point"
+kind     =    "@type_kind.scalar-fp"
 bit_size =    32
 VisitorArgs = ["f32"]
 [type.f64]
-kind     =    "@type_kind.floating-point"
+kind     =    "@type_kind.scalar-fp"
 bit_size =    64
 VisitorArgs = ["f64"]
 

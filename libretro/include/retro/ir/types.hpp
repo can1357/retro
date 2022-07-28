@@ -61,28 +61,30 @@ namespace retro::ir {
 
 	// Helpers for creating arithmetic types.
 	//
-	// clang-format off
-	inline constexpr type make_int(size_t n) {
-		switch (n) {
-			case 1:   return type::i1;
-			case 8:   return type::i8;
-			case 16:  return type::i16;
-			case 32:  return type::i32;
-			case 64:  return type::i64;
-			case 128: return type::i128;
-			default:  return type::none;
-		}
-	}
-	inline constexpr type make_fp(size_t n) {
-		switch (n) {
-			case 32:  return type::f32;
-			case 64:  return type::f64;
-			default:  return type::none;
-		}
-	}
-	// clang-format on
-	inline constexpr type make_vec(type t, size_t n) {
+	inline constexpr type int_type(size_t n) {
 		for (auto& td : type_desc::list()) {
+			if (td.kind != type_kind::scalar_int)
+				continue;
+			if (td.bit_size == n) {
+				return td.id();
+			}
+		}
+		return type::none;
+	}
+	inline constexpr type fp_type(size_t n) {
+		for (auto& td : type_desc::list()) {
+			if (td.kind != type_kind::scalar_fp)
+				continue;
+			if (td.bit_size == n) {
+				return td.id();
+			}
+		}
+		return type::none;
+	}
+	inline constexpr type vec_type(type t, size_t n) {
+		for (auto& td : type_desc::list()) {
+			if (td.kind != type_kind::vector_fp && td.kind != type_kind::vector_int)
+				continue;
 			if (td.lane_width == n && td.underlying == t) {
 				return td.id();
 			}

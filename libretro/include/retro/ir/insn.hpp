@@ -137,7 +137,7 @@ namespace retro::ir {
 					result = fmt::str(RC_YELLOW "%%%x" RC_RESET " = ", name);
 				}
 
-				if (info.side_effects)
+				if (info.side_effect)
 					result += RC_RED;
 				else
 					result += RC_TEAL;

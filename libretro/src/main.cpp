@@ -118,7 +118,7 @@ namespace retro::x86::sema {
 	// TODO: set_cf
 	// TODO: set_of
 
-	// Integral/Pointer size helper.
+	// Pointer helpers.
 	//
 	static ir::type ptr_type(const zydis::decoded_ins& dec) {
 		switch (dec.ins.machine_mode) {
@@ -151,7 +151,7 @@ namespace retro::x86::sema {
 		RC_ASSERT(r != ZYDIS_REGISTER_RIP && r != ZYDIS_REGISTER_EIP && r != ZYDIS_REGISTER_IP);
 
 		reg		ri = reg(r);
-		ir::type rt = ir::make_int(enum_reflect(ri).width);
+		ir::type rt = ir::int_type(enum_reflect(ri).width);
 		RC_ASSERT(rt != ir::type::none);
 		return bb->push_read_reg(rt, ri);
 	}
@@ -167,9 +167,9 @@ namespace retro::x86::sema {
 				bool vex_ext = inf.kind == reg_kind::vector && (dec.ins.attributes & (ZYDIS_ATTRIB_HAS_EVEX | ZYDIS_ATTRIB_HAS_VEX));
 				if (gpr_ext || vex_ext) {
 					RC_ASSERT(inf.offset == 0);
-					RC_ASSERT(value.get_type() == ir::make_int(inf.width));
+					RC_ASSERT(value.get_type() == ir::int_type(inf.width));
 					auto new_size = enum_reflect(inf.alias).width;
-					return bb->push_write_reg(inf.alias, bb->push_cast(ir::make_int(new_size), std::move(value)));
+					return bb->push_write_reg(inf.alias, bb->push_cast(ir::int_type(new_size), std::move(value)));
 				}
 			}
 		}
@@ -295,7 +295,7 @@ namespace retro::x86::sema {
 	// Instruction handlers.
 	//
 	static diag::lazy lift_mov(ir::basic_block* bb, const zydis::decoded_ins& dec, u64 ip) {
-		auto ty = ir::make_int(dec.ins.operand_width);
+		auto ty = ir::int_type(dec.ins.operand_width);
 		write(bb, dec, ip, 0, read(bb, dec, ip, 1, ty));
 		return diag::ok;
 	}
@@ -305,7 +305,7 @@ namespace retro::x86::sema {
 		return diag::ok;
 	}
 	static diag::lazy lift_add(ir::basic_block* bb, const zydis::decoded_ins& dec, u64 ip) {
-		auto ty = ir::make_int(dec.ins.operand_width);
+		auto ty = ir::int_type(dec.ins.operand_width);
 
 		auto rhs = read(bb, dec, ip, 1, ty);
 
@@ -393,39 +393,51 @@ int main(int argv, const char** args) {
 
 
 	{
-		size_t												total = 0;
-		robin_hood::unordered_flat_map<ZydisMnemonic, size_t> ins_map;
+		u32				 total	 = 0;
+		std::unique_ptr ins_freq = std::make_unique<u32[]>(ZYDIS_MNEMONIC_MAX_VALUE);
 
-		auto sample_file = [&](std::filesystem::path path) {
-			auto					buffer = read_file(path);
-			if (buffer) {
-				win::image_x64_t* img = (win::image_x64_t*) buffer->data();
-				auto							 exentry = img->get_directory(win::directory_entry_exception);
-				win::exception_directory exdir(img->rva_to_ptr(exentry->rva), exentry->size);
-				for (auto& f : exdir) {
-					std::span<const u8> data{img->rva_to_ptr<u8>(f.rva_begin), f.rva_end - f.rva_begin};
+		auto sample_file = [&](const std::filesystem::path& path) {
+			if (auto buffer = read_file(path)) {
+				auto* img	= (win::image_x64_t*) buffer->data();
+				auto	exdir = img->get_directory(win::directory_entry_exception);
+				for (auto& f : win::exception_directory(img->rva_to_ptr(exdir->rva), exdir->size)) {
+					std::span data{img->rva_to_ptr<const u8>(f.rva_begin), f.rva_end - f.rva_begin};
 					while (auto i = zydis::decode(data)) {
 						if (i->ins.attributes & (ZYDIS_ATTRIB_HAS_VEX | ZYDIS_ATTRIB_HAS_EVEX | ZYDIS_ATTRIB_IS_PRIVILEGED))
 							continue;
+						if (i->ins.meta.category == ZYDIS_CATEGORY_X87_ALU || i->ins.meta.isa_ext == ZYDIS_ISA_EXT_X87)
+							continue;
+
+						if (ZYDIS_MNEMONIC_JB <= i->ins.mnemonic && i->ins.mnemonic <= ZYDIS_MNEMONIC_JZ)
+							i->ins.mnemonic = ZYDIS_MNEMONIC_JZ;
+						if (ZYDIS_MNEMONIC_SETB <= i->ins.mnemonic && i->ins.mnemonic <= ZYDIS_MNEMONIC_SETZ)
+							i->ins.mnemonic = ZYDIS_MNEMONIC_SETZ;
+
 						total++;
-						ins_map[i->ins.mnemonic]++;
+						ins_freq[i->ins.mnemonic]++;
 					}
 				}
 			}
 		};
 		sample_file(args[0]);
 
-		std::vector<std::pair<ZydisMnemonic, size_t>> list(ins_map.begin(), ins_map.end());
-		range::sort(list, [](auto& a, auto& b) { return a.second >= b.second; });
 
-		for (auto& [m, c] : list) {
-			fmt::println(ZydisMnemonicGetString(m), " -> ", c, " ", float(100 * c) / float(total), "%");
+		
+		std::vector<std::pair<ZydisMnemonic, u32>> ins_present;
+		for (auto i = 0; i != ZYDIS_MNEMONIC_MAX_VALUE; i++) {
+			if (u32 n = ins_freq[i]) {
+				ins_present.emplace_back(ZydisMnemonic(i), n);
+			}
+		}
+		range::sort(ins_present, [](auto& a, auto& b) { return a.second >= b.second; });
+
+		for (auto& [m, n] : ins_present) {
+			fmt::println(ZydisMnemonicGetString(m), " -> ", n, " ", float(100 * n) / float(total), "%");
 		}
 	}
 
 	auto	proc = make_rc<ir::procedure>();
 	auto* bb	  = proc->add_block();
-
 	u8 test[] = {0x90, 0x48, 0x8D, 0x04, 0x0A, 0x48, 0x8D, 0x0D, 0x01, 0x00, 0x00, 0x00, 0x48, 0x8D, 0x1C, 0x88, 0x48, 0x01, 0x0B, 0xF0, 0x48, 0x01, 0x0B, 0xB9, 0x02, 0x00, 0x00, 0x00};
 
 
@@ -458,7 +470,7 @@ int main(int argv, const char** args) {
 
 
 	// DCE
-	bb->erase_if([](ir::insn* i) { return !i->uses() && !i->desc().side_effects; });
+	bb->erase_if([](ir::insn* i) { return !i->uses() && !i->desc().side_effect; });
 
 
 	fmt::println(bb->to_string());
