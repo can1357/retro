@@ -38,13 +38,34 @@ int main(int argv, const char** args) {
 	
 	// Map the file.
 	//
-	auto res = load_image(args[0]);
+	auto res = load_image("../build/libretro/x64/release/libretro.exe");
 	if (!res) {
 		res.error().raise();
 	}
 
+	// Print file details.
+	//
+	ref  img		 = std::move(res).value();
+	auto machine = arch::instance::find(img->arch_hash);
+	auto loader	 = ldr::instance::find(img->ldr_hash);
+	RC_ASSERT(loader && machine);
+	fmt::println(" -> loader:  ", loader->get_name());
+	fmt::println(" -> machine: ", machine->get_name());
+
 	// Stuff!
 	//
-	ref img = std::move(res).value();
-	fmt::println(" -> identified as: ", ldr::instance::find(img->ldr_hash)->get_name());
+	u64					  ip	 = 0x1400072C0;
+	std::span<const u8> data = img->slice(ip - img->base_address);
+	for (size_t i = 0; i < 16 && !data.empty(); i++) {
+		arch::minsn ins = {};
+		if (!machine->disasm(data, &ins)) {
+			fmt::println("failed to disasm\n");
+			break;
+		}
+
+		data = data.subspan(ins.length);
+		fmt::println(ip, ": ", ins.to_string(ip));
+		ip += ins.length;
+	}
+	return 0;
 }

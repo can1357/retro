@@ -112,5 +112,15 @@ namespace retro::ldr {
 		// - Unordered, first entry should be main() or equivalent.
 		//
 		std::vector<u64> entry_points = {};
+
+		// Gets a slice given an RVA.
+		// - Allowed to be out of boundaries, will return empty span.
+		//
+		std::span<const u8> slice(u64 rva) const {
+			if (rva > raw_data.size()) {
+				return {};
+			}
+			return std::span{raw_data}.subspan(rva);
+		}
 	};
 };

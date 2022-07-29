@@ -18,14 +18,9 @@ namespace retro::ldr {
 		return uptr(std::next(ptr)) <= uptr(input.data() + input.size());
 	}
 
-	// TODO: Place holder for dev reasons, template the one below.
-	RC_DEF_ERR(image_is_very_stupid, "expected smart image got dumbass one instead")
-	static diag::lazy load_pe(image& out, const win::image_t<false>* in, std::span<const u8> data) { return err::image_is_very_stupid(); }
-	
 	// Templated loader handling both 32-bit and 64-bit formats.
 	//
-	// template<bool x64>
-	constexpr bool		x64 = true;
+	template<bool x64>
 	static diag::lazy load_pe(image& out, const win::image_t<x64>* img, std::span<const u8> data) {
 		auto* nt = img->get_nt_headers();
 

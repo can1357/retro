@@ -32,7 +32,7 @@ namespace retro::arch {
 	//
 	std::string imm::to_string(u64 address) const {
 		if (address && is_relative) {
-			return fmt::to_str((void*)(address + s));
+			return fmt::str("%llx", address + s);
 		}
 		if (is_signed || is_relative) {
 			return fmt::to_str(s);
