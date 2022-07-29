@@ -41,7 +41,7 @@ int main(int argv, const char** args) {
 	
 	// Map the file.
 	//
-	auto res = load_image("../build/libretro/x64/release/libretro.exe");
+	auto res = load_image("../tests/libretro.exe");
 	if (!res) {
 		res.error().raise();
 	}
@@ -64,7 +64,7 @@ int main(int argv, const char** args) {
 	bb->ip		  = ip;
 
 	std::span<const u8> data = img->slice(ip - img->base_address);
-	for (size_t i = 0; i < 16 && !data.empty(); i++) {
+	for (size_t i = 0; i < 64 && !data.empty(); i++) {
 		// Disasm the instruction and print it.
 		//
 		arch::minsn ins = {};

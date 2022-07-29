@@ -14,7 +14,7 @@ namespace retro::arch::x86 {
 	// - Macro instead of a struct to not be slown down horribly under MSABI.
 	//
 	#define sema_context() mach, bb, ins, ip
-	#define SemaContext    x86arch* mach, ir::basic_block* bb, const minsn& ins, u64 ip
+	#define SemaContext    arch::x86arch* mach, ir::basic_block * bb, const arch::minsn& ins, u64 ip
 
 	// Lifter table.
 	//
@@ -24,9 +24,9 @@ namespace retro::arch::x86 {
 // Lifter declaration.
 //
 #define DECL_SEMA(mnemonic)                                                                                               \
-	static diag::lazy RC_CONCAT(lift_, mnemonic)(arch::x86arch* mach, ir::basic_block * bb, const arch::minsn& ins, u64 ip); \
+	static diag::lazy RC_CONCAT(lift_, mnemonic)(SemaContext); \
 	RC_INITIALIZER { arch::x86::lifter_table[u32(RC_CONCAT(ZYDIS_MNEMONIC_, mnemonic))] = &RC_CONCAT(lift_, mnemonic); };  \
-	static diag::lazy RC_CONCAT(lift_, mnemonic)(arch::x86arch* mach, ir::basic_block * bb, const arch::minsn& ins, u64 ip)
+	static diag::lazy RC_CONCAT(lift_, mnemonic)(SemaContext)
 
 	// Common helpers for parity, sign, zero and auxiliary carry flags.
 	//
@@ -44,6 +44,13 @@ namespace retro::arch::x86 {
 		auto is_zero = bb->push_cmp(ir::op::eq, result, ir::constant(result->get_type(), 0));
 		bb->push_write_reg(reg::flag_zf, is_zero);
 	}
+	template<typename Rhs>
+	inline void set_af(ir::basic_block* bb, Rhs&& rhs, ir::insn* result) {
+		auto tmp		= bb->push_binop(ir::op::bit_xor, result, std::forward<Rhs>(rhs));
+		tmp			= bb->push_binop(ir::op::bit_and, tmp, ir::constant(tmp->get_type(), 0x10));
+		auto is_set = bb->push_cmp(ir::op::ne, tmp, ir::constant(tmp->get_type(), 0));
+		bb->push_write_reg(reg::flag_af, is_set);
+	}
 	template<typename Lhs, typename Rhs>
 	inline void set_af(ir::basic_block* bb, Lhs&& lhs, Rhs&& rhs, ir::insn* result) {
 		auto tmp		= bb->push_binop(ir::op::bit_xor, std::forward<Lhs>(lhs), std::forward<Rhs>(rhs));
@@ -59,6 +66,17 @@ namespace retro::arch::x86 {
 	}
 	// TODO: set_cf
 	// TODO: set_of
+
+	// Sets logical flags.
+	// - The OF and CF flags are cleared; the SF, ZF, and PF flags are set according to the result. The state of the AF flag is undefined.
+	static void set_flags_logical(ir::basic_block* bb, ir::insn* result) {
+		set_sf(bb, result);
+		set_zf(bb, result);
+		set_pf(bb, result);
+		bb->push_write_reg(reg::flag_of, false);
+		bb->push_write_reg(reg::flag_cf, false);
+		bb->push_write_reg(reg::flag_af, false); // Runtime behaviour.
+	}
 
 	// Segment/Register mappings.
 	//
@@ -216,7 +234,6 @@ namespace retro::arch::x86 {
 				if (i.is_relative) {
 					i.u += ip;
 				}
-
 				if (i.is_signed) {
 					return ir::constant(ty, i.s);
 				} else {

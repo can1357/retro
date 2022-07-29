@@ -175,17 +175,6 @@ namespace retro::fmt {
 
 		if constexpr (std::is_same_v<Td, char*> || std::is_same_v<Td, const char*> || std::is_same_v<Td, std::string_view> || std::is_same_v<Td, std::string>) {
 			return std::string_view{arg};
-		} else if constexpr (std::is_same_v<Td, u64>) {
-			if (arg > 0xFFFFFF)
-				return str("0x%llx", arg);
-			else
-				return std::to_string(arg);
-		} else if constexpr (std::is_same_v<Td, i64>) {
-			auto abv = arg < 0 ? -arg : arg;
-			if (abv > 0xFFFFFF)
-				return str("%s0x%llx", arg < 0 ? "-" : "", abv);
-			else
-				return std::to_string(arg);
 		} else if constexpr (is_tn_specialization_v<std::array, Td>) {
 			std::string result = "{";
 			for (auto& entry : arg) {
@@ -202,6 +191,19 @@ namespace retro::fmt {
 			return arg.string();
 		} else if constexpr (StructuredEnum<Td>) {
 			return retro::enum_name<Td>(arg);
+		} else if constexpr (std::is_same_v<Td, u64>) {
+			if (arg > 0xFFFFFF)
+				return str("0x%llx", arg);
+			else
+				return std::to_string(arg);
+		} else if constexpr (std::is_same_v<Td, i64>) {
+			auto abv = arg < 0 ? -arg : arg;
+			if (abv > 0xFFFFFF)
+				return str("%s0x%llx", arg < 0 ? "-" : "", abv);
+			else
+				return std::to_string(arg);
+		} else if constexpr (std::is_enum_v<Td>) {
+			return to_str((std::underlying_type_t<Td>)arg);
 		} else if constexpr (detail::StlFormattable<Td>) {
 			if constexpr (std::is_same_v<Td, char>) {
 				if (isprint((int) arg)) {
