@@ -18,7 +18,6 @@ namespace retro::ldr {
 		virtual bool match(std::span<const u8> data) = 0;
 
 		// Loads the binary blob into an image.
-		// - Implementation may assume match returns true.
 		//
 		virtual diag::expected<ref<image>> load(std::span<const u8> data) = 0;
 	};

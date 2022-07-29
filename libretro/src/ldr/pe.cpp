@@ -3,9 +3,71 @@
 #include <nt/image.hpp>
 
 namespace retro::ldr {
-	// Loader errors.
+	// Errors.
 	//
-	RC_DEF_ERR(image_is_very_stupid, "expected smart image got dumbass % bytes instead")
+	RC_DEF_ERR(invalid_pe_header,  "invalid PE header")
+	RC_DEF_ERR(invalid_opt_header, "invalid optional header magic")
+
+	// Range check utility.
+	//
+	template<typename T>
+	static bool ok(const T* ptr, std::span<const u8> input) {
+		return uptr(std::next(ptr)) <= uptr(input.data() + input.size());
+	}
+
+
+
+
+
+
+	
+	// TODO: Place holder for dev reasons, template the one below.
+	RC_DEF_ERR(image_is_very_stupid, "expected smart image got dumbass one instead")
+	static diag::lazy load_pe(pe::image& out, const win::image_t<false>* in, std::span<const u8> data) { return err::image_is_very_stupid(); }
+	// template<bool x64>
+	constexpr bool x64 = true;
+
+	// Templated loader handling both 32-bit and 64-bit formats.
+	//
+	static diag::lazy load_pe(pe::image& out, const win::image_t<x64>* in, std::span<const u8> data) {
+
+		return diag::ok;
+	}
+
+	// Loader entry point.
+	//
+	diag::expected<ref<image>> pe_loader::load(std::span<const u8> data) {
+		// First pass the data through basic checks.
+		//
+		if (!match(data)) {
+			return err::invalid_pe_header();
+		}
+
+		// Create the image.
+		//
+		ref out		  = make_rc<pe::image>();
+		out->ldr_hash = get_hash();
+
+		// Visit based on optional header magic.
+		//
+		auto* img = (const win::image_x64_t*) data.data();
+		auto* nt	 = img->get_nt_headers();
+		if (nt->optional_header.magic == win::OPT_HDR32_MAGIC) {
+			if (auto err = load_pe(*out, (const win::image_x86_t*)img, data)) {
+				return {std::move(err)};
+			}
+		} else if (nt->optional_header.magic == win::OPT_HDR64_MAGIC) {
+			if (auto err = load_pe(*out, (const win::image_x64_t*) img, data)) {
+				return {std::move(err)};
+			}
+		} else {
+			return err::invalid_opt_header();
+		}
+
+		// Return the result.
+		//
+		return {std::move(out)};
+	}
 
 	// Extension list.
 	//
@@ -24,36 +86,6 @@ namespace retro::ldr {
 		 "tsp",
 	};
 	std::span<const std::string_view> pe_loader::get_extensions() { return extension_list; }
-
-	// Range check utility.
-	//
-	template<typename T>
-	static bool ok(const T* ptr, std::span<const u8> input) {
-		return uptr(std::next(ptr)) <= uptr(input.data() + input.size());
-	}
-
-
-
-
-	
-	// Loader entry point.
-	//
-	diag::expected<ref<image>> pe_loader::load(std::span<const u8> data) {
-		// Create an image.
-		//
-		ref img = make_rc<pe::image>();
-		img->ldr_hash = get_hash();
-
-
-		// TODO: stuff.
-
-
-		if (true) {
-			return err::image_is_very_stupid(data.size());
-		} else {
-			return {std::move(img)};
-		}
-	}
 
 	// Lossy match via the magic.
 	//
@@ -80,19 +112,7 @@ namespace retro::ldr {
 
 		// Check if the magic matches.
 		//
-		if (nt->signature != win::NT_HDR_MAGIC) {
-			return false;
-		}
-
-		// Check optional header magic and size.
-		//
-		if (nt->optional_header.magic == win::OPT_HDR32_MAGIC) {
-			return ok((win::nt_headers_x64_t*) nt, data);
-		} else if (nt->optional_header.magic == win::OPT_HDR64_MAGIC) {
-			return ok((win::nt_headers_x86_t*) nt, data);
-		} else {
-			return false;
-		}
+		return nt->signature == win::NT_HDR_MAGIC;
 	}
 
 	// Create the instances.
