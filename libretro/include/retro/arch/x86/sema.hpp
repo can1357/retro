@@ -60,7 +60,7 @@ namespace retro::arch::x86 {
 	// TODO: set_cf
 	// TODO: set_of
 
-	// Segment mappings.
+	// Segment/Register mappings.
 	//
 	static ir::segment map_seg(mreg seg) {
 		if (seg.id == (u32) reg::gs) {
@@ -69,6 +69,24 @@ namespace retro::arch::x86 {
 			return ir::segment(2);
 		}
 		return ir::NO_SEGMENT;
+	}
+	static mreg reg_ip(x86arch* mach) {
+		if (mach->is_64()) {
+			return reg::rip;
+		} else if (mach->is_32()) {
+			return reg::eip;
+		} else {
+			return reg::ip;
+		}
+	}
+	static mreg reg_sp(x86arch* mach) {
+		if (mach->is_64()) {
+			return reg::rsp;
+		} else if (mach->is_32()) {
+			return reg::esp;
+		} else {
+			return reg::sp;
+		}
 	}
 
 	// Register read/write helper.

@@ -58,6 +58,40 @@ DECL_SEMA(LEA) {
 	write_reg(sema_context(), ins.op[0].r, std::move(ptr));
 	return diag::ok;
 }
+DECL_SEMA(PUSH) {
+	auto r_sp	 = reg_sp(mach);
+	auto pty		 = mach->ptr_type();
+	auto ty		 = ir::int_type(ins.effective_width);	// TODO: Test
+	i32  dif		 = ins.effective_width == 2 ? 2 : mach->ptr_width / 8;
+	auto prev_sp = read_reg(sema_context(), r_sp, pty);
+
+	// Update SP.
+	auto value	 = read(sema_context(), 0, ty);
+	auto new_sp	 = bb->push_binop(ir::op::sub, prev_sp, ir::constant(pty, dif));
+	write_reg(sema_context(), r_sp, new_sp);
+
+	// Write the value.
+	bb->push_store_mem(ir::NO_SEGMENT, bb->push_cast(ir::type::pointer, new_sp), std::move(value));
+	return diag::ok;
+}
+DECL_SEMA(POP) {
+	auto r_sp	 = reg_sp(mach);
+	auto pty		 = mach->ptr_type();
+	auto ty		 = ir::int_type(ins.effective_width);	// TODO: Test
+	i32  dif		 = ins.effective_width == 2 ? 2 : mach->ptr_width / 8;
+	auto prev_sp = read_reg(sema_context(), r_sp, pty);
+
+	// Read the value.
+	auto value = bb->push_load_mem(ty, ir::NO_SEGMENT, bb->push_cast(ir::type::pointer, prev_sp));
+	
+	// Update SP.
+	auto new_sp = bb->push_binop(ir::op::add, prev_sp, ir::constant(pty, dif));
+	write_reg(sema_context(), r_sp, new_sp);
+
+	// Store the operand.
+	write(sema_context(), 0, value);
+	return diag::ok;
+}
 
 #if 0
 	static ir::insn* write_reg(ir::basic_block* bb, const zydis::decoded_ins& dec, ZydisRegister r, ir::variant&& value, bool no_zeroupper = false) {

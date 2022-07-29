@@ -82,10 +82,8 @@ int main(int argv, const char** args) {
 		}
 		if (!bb->empty()) {
 			auto it = std::prev(bb->end());
-			while (it != bb->begin()) {
-				if (it->prev->ip == ip) {
-					--it;
-				}
+			while (it != bb->begin() && it->prev->ip == ip) {
+				--it;
 			}
 			while (it != bb->end()) {
 				fmt::println("          -> ", it->to_string());
