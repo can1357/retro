@@ -1,7 +1,7 @@
 #!/usr/bin/env python
 # coding: utf-8
 
-# In[17]:
+# In[18]:
 
 
 #!conda install --yes toml
@@ -20,10 +20,10 @@ CXX_PACK_INTEGERS = True
 CXX_STD_INTEGERS =  [8, 16, 32, 64]
 CXX_HELP_FWD_FMT =  """
 	using value_type = {0};
-	static constexpr std::span<const {0}_desc> list();
-	RC_INLINE constexpr const {0} id() const {{ return {0}(this - list().data()); }}
+	static constexpr std::span<const {0}_desc> all();
+	RC_INLINE constexpr const {0} id() const {{ return {0}(this - all().data()); }}
 """
-CXX_HELP_DCL_FMT =  """RC_INLINE constexpr std::span<const {0}_desc> {0}_desc::list() {{ return {0}s; }}"""
+CXX_HELP_DCL_FMT =  """RC_INLINE constexpr std::span<const {0}_desc> {0}_desc::all() {{ return {0}s; }}"""
 CXX_ARR_DCL_FMT =   "\ninline constexpr {0} {1}s[] = {{\n"
 CXX_DESC_SUFFIX =   "_desc"
 CXX_NS_SUFFIX_PER_ENUM = """namespace retro {{ template<> struct descriptor<{0}::{1}> {{ using type = {0}::{1}_desc; }}; }};

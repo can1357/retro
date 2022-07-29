@@ -499,7 +499,7 @@ namespace retro {
 	//
 	template<StructuredEnum T>
 	inline constexpr const reflect<T>& enum_reflect(T value) {
-		return reflect<T>::list()[uptr(value)];
+		return reflect<T>::all()[uptr(value)];
 	}
 	template<StructuredEnum T>
 	inline constexpr std::string_view enum_name(T value) {

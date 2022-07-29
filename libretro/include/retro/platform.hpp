@@ -66,11 +66,49 @@ namespace retro::platform {
 
 	// File mapping.
 	//
-	struct file_mapping_handle {
+	struct file_mapping {
+		using iterator = const u8*;
+
 		const void* base_address = nullptr;
 		size_t		length		 = 0;
-		void*			reserved[2]	 = {nullptr};
+		iptr			handle		 = -1;
+		iptr			reserved		 = 0;
+
+		// Default constructed, no copy.
+		//
+		file_mapping()											= default;
+		file_mapping(const file_mapping&)				= delete;
+		file_mapping& operator=(const file_mapping&) = delete;
+
+		// Trivially relocatable.
+		//
+		file_mapping(file_mapping&& o) noexcept { swap(o); }
+		file_mapping& operator=(file_mapping&& o) noexcept {
+			swap(o);
+			return *this;
+		}
+		void swap(file_mapping& o) {
+			using as_bytes = std::array<u8, sizeof(file_mapping)>;
+			std::swap(*(as_bytes*) this, (as_bytes&) o);
+		}
+
+		// Implement a container.
+		//
+		const u8* data() const { return (const u8*) base_address; }
+		iterator	 begin() const { return (iterator) base_address; }
+		iterator	 end() const { return begin() + size(); }
+		size_t	 size() const { return length; }
+		bool		 empty() const { return length == 0; }
+		const u8& operator[](size_t n) const { return begin()[n]; }
+
+		// Validity check.
+		//
+		bool ok() const { return handle != -1; }
+		explicit operator bool() const { return ok(); }
+
+		// Unmaps the file.
+		//
+		void reset();
 	};
-	file_mapping_handle map_file(const std::filesystem::path& path, size_t length = 0);
-	void					  unmap_file(file_mapping_handle&);
+	file_mapping map_file(const std::filesystem::path& path, size_t length = 0);
 };

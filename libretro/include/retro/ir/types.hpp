@@ -65,7 +65,7 @@ namespace retro::ir {
 	// Helpers for creating arithmetic types.
 	//
 	inline constexpr type int_type(size_t n) {
-		for (auto& td : type_desc::list()) {
+		for (auto& td : type_desc::all()) {
 			if (td.kind != type_kind::scalar_int)
 				continue;
 			if (td.bit_size == n) {
@@ -75,7 +75,7 @@ namespace retro::ir {
 		return type::none;
 	}
 	inline constexpr type fp_type(size_t n) {
-		for (auto& td : type_desc::list()) {
+		for (auto& td : type_desc::all()) {
 			if (td.kind != type_kind::scalar_fp)
 				continue;
 			if (td.bit_size == n) {
@@ -85,7 +85,7 @@ namespace retro::ir {
 		return type::none;
 	}
 	inline constexpr type vec_type(type t, size_t n) {
-		for (auto& td : type_desc::list()) {
+		for (auto& td : type_desc::all()) {
 			if (td.kind != type_kind::vector_fp && td.kind != type_kind::vector_int)
 				continue;
 			if (td.lane_width == n && td.underlying == t) {

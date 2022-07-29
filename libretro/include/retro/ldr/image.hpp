@@ -87,6 +87,12 @@ namespace retro::ldr {
 		//
 		image_kind kind = image_kind::unknown;
 
+		// Identified loader and architecture.
+		//
+		interface::hash ldr_hash  = 0;
+		interface::hash arch_hash = 0;
+		// TODO: env_hash / abi_hash
+
 		// Image name if known.
 		//
 		std::string image_name = {};

@@ -98,10 +98,10 @@ namespace retro::platform {
 		return NtFreeVirtualMemory(HANDLE(-1), &pointer, &region_size, MEM_RELEASE) >= 0;
 	}
 
-	file_mapping_handle map_file(const std::filesystem::path& path, size_t length_req) {
-		file_mapping_handle result			  = {};
-		auto&					  file_handle	  = result.reserved[0];
-		auto&					  mapping_handle = result.reserved[1];
+	file_mapping map_file(const std::filesystem::path& path, size_t length_req) {
+		file_mapping result			 = {};
+		auto&			 file_handle	 = (void*&) result.handle;
+		auto&			 mapping_handle = (void*&) result.reserved;
 
 		// Determine file path if not specified.
 		//
@@ -109,7 +109,7 @@ namespace retro::platform {
 			std::error_code ec;
 			result.length = std::filesystem::file_size(path, ec);
 			if (ec)
-				return result;
+				return {};
 		} else {
 			result.length = length_req;
 		}
@@ -118,28 +118,34 @@ namespace retro::platform {
 		//
 		file_handle = CreateFileW(path.native().c_str(), GENERIC_READ, FILE_SHARE_READ | FILE_SHARE_WRITE | FILE_SHARE_DELETE, nullptr, OPEN_EXISTING, 0, nullptr);
 		if (!file_handle || file_handle == INVALID_HANDLE_VALUE)
-			return result;
+			return {};
 
-		// Map the file.
+		// Map the file if its not empty:
 		//
-		mapping_handle = CreateFileMappingFromApp(file_handle, nullptr, PAGE_READONLY, 0, nullptr);
-		if (mapping_handle && mapping_handle != INVALID_HANDLE_VALUE) {
+		if (result.length != 0) {
+			mapping_handle = CreateFileMappingFromApp(file_handle, nullptr, PAGE_READONLY, 0, nullptr);
+			if (!mapping_handle || mapping_handle == INVALID_HANDLE_VALUE) {
+				return {};
+			}
 			result.base_address = MapViewOfFileFromApp(mapping_handle, SECTION_MAP_READ, 0, result.length);
+			if (!result.base_address) {
+				return {};
+			}
 		}
 		return result;
 	}
-	void unmap_file(file_mapping_handle& _h) {
-		file_mapping_handle h				  = std::exchange(_h, file_mapping_handle{});
-		auto&					  file_handle	  = h.reserved[0];
-		auto&					  mapping_handle = h.reserved[1];
-		if (file_handle && file_handle != INVALID_HANDLE_VALUE) {
+	void file_mapping::reset() {
+		if (handle != -1) {
+			auto& file_handle		= (void*&) handle;
+			auto& mapping_handle = (void*&) reserved;
 			if (mapping_handle && mapping_handle != INVALID_HANDLE_VALUE) {
-				if (h.base_address) {
-					UnmapViewOfFile(h.base_address);
+				if (base_address) {
+					UnmapViewOfFile(std::exchange(base_address, nullptr));
+					length = 0;
 				}
-				CloseHandle(mapping_handle);
+				CloseHandle(std::exchange(mapping_handle, nullptr));
 			}
-			CloseHandle(file_handle);
+			CloseHandle(std::exchange(file_handle, nullptr));
 		}
 	}
 
@@ -162,9 +168,9 @@ namespace retro::platform {
 
 	void setup_ansi_escapes() {}
 
-	file_mapping_handle map_file(const std::filesystem::path& path, size_t length_req) {
-		file_mapping_handle result = {};
-		auto&					  fd		= (int&) result.reserved[0];
+	file_mapping map_file(const std::filesystem::path& path, size_t length_req) {
+		file_mapping result = {};
+		auto&			 fd	  = (int&) result.handle;
 
 		// Determine file path if not specified.
 		//
@@ -172,7 +178,7 @@ namespace retro::platform {
 			std::error_code ec;
 			result.length = std::filesystem::file_size(path, ec);
 			if (ec)
-				return result;
+				return {};
 		} else {
 			result.length = length_req;
 		}
@@ -180,22 +186,26 @@ namespace retro::platform {
 		// Create the file.
 		//
 		fd = open(path.string().c_str(), 0 /*O_RDONLY*/);
-		if (fd != -1)
-			return result;
+		if (fd == -1)
+			return {};
 
-		// Map the file.
+		// Map the file if its not empty:
 		//
-		result.base_address = mmap(nullptr, result.length, 1 /*PROT_READ*/, 1 /*MAP_SHARED*/, fd, 0);
+		if (result.length != 0) {
+			result.base_address = mmap(nullptr, result.length, 1 /*PROT_READ*/, 1 /*MAP_SHARED*/, fd, 0);
+			if (!result.base_address) {
+				return {};
+			}
+		}
 		return result;
 	}
-	void unmap_file(file_mapping_handle& _h) {
-		file_mapping_handle h = std::exchange(_h, file_mapping_handle{});
-		auto&					  fd = (int&) h.reserved[0];
+	void file_mapping::reset() {
+		auto& fd = (int&) handle;
 		if (fd != -1) {
-			if (h.base_address) {
-				munmap((void*) h.base_address, h.length);
+			if (base_address) {
+				munmap((void*) std::exchange(base_address, nullptr), std::exchange(length, 0));
 			}
-			close(fd);
+			close(std::exchange(fd, -1));
 		}
 	}
 #endif

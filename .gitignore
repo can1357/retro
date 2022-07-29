@@ -13,6 +13,7 @@ scripts/.ipynb_checkpoints/
 *.vcxproj.filters
 *.vcxproj.user
 .vs/
+todo.txt
 *.i64
 *.id0
 *.id1

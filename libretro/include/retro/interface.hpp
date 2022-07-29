@@ -8,16 +8,18 @@
 #include <atomic>
 
 namespace retro::interface {
+
 	// Maximum number of instances implemented for an interface.
 	//
 	static constexpr size_t max_instances = 1024;
 
 	// Given a string hashes it according to the interface manager rules.
 	//
-	inline constexpr u32 make_hash(std::string_view data) {
+	using hash = u32;
+	inline constexpr hash make_hash(std::string_view data) {
 		// -- Must match tablegen.py
 		//
-		u32 hash = 0xd0b06e5e;
+		hash hash = 0xd0b06e5e;
 		for (size_t i = 0; i != data.size(); i++) {
 			hash ^= 0x20 | data[i];
 			hash *= 0x01000193;
@@ -94,22 +96,22 @@ namespace retro::interface {
 	  private:
 		// Instance map.
 		//
-		inline static ref<T>				 list[max_instances] = {}; // Padded with null to avoid branch for 0 case.
-		inline static basic_lock		 list_lock				  = {};
-		inline static std::atomic<u32> list_last_handle		  = 0;
+		inline static ref<T>				 list[max_instances] = {};	 // Padded with null to avoid branch for 0 case.
+		inline static basic_lock		 list_lock				= {};
+		inline static std::atomic<u32> list_last_handle		= 0;
 
 		// Private identification.
 		//
 		std::string name;
-		u32			hash = 0;
-		handle		hnd = std::nullopt;
+		hash			name_hash = 0;
+		handle		hnd		 = std::nullopt;
 
 	  public:
 		// Getters.
 		//
 		RC_CONST std::string_view get_name() const { return name; }
 		RC_CONST handle			  get_handle() const { return hnd; }
-		RC_CONST u32				  get_hash() const { return hash; }
+		RC_CONST hash				  get_hash() const { return name_hash; }
 
 		// String conversion for formatting.
 		//
@@ -136,14 +138,14 @@ namespace retro::interface {
 
 			// Set the name.
 			//
-			instance->hash = make_hash(name);
-			instance->name = std::move(name);
+			instance->name_hash = make_hash(name);
+			instance->name		  = std::move(name);
 
 			// Acquire the lock and make sure there's no other entry colliding.
 			//
 			std::unique_lock _g{list_lock};
 			for (auto& e : all()) {
-				if (e->hash == instance->hash) {
+				if (e->name_hash == instance->name_hash) {
 					if (e->name == instance->name)
 						fmt::abort("interface name collision %s", name.c_str());
 					else
@@ -153,9 +155,9 @@ namespace retro::interface {
 
 			// Write to the list and return the handle.
 			//
-			u32 idx					= ++list_last_handle;
-			instance->hnd.value	= idx;
-			list[idx]				= std::move(instance);
+			u32 idx				  = ++list_last_handle;
+			instance->hnd.value = idx;
+			list[idx]			  = std::move(instance);
 			return handle(idx);
 		}
 		template<typename Ty, typename... Tx>
@@ -166,12 +168,6 @@ namespace retro::interface {
 
 		// Instance enumeration.
 		//
-		template<typename F>
-		static void for_each(F&& fn) {
-			for (auto& e : all()) {
-				fn(e);
-			}
-		}
 		static std::span<const ref<T>> all() { return {&list[1], list_last_handle.load(std::memory_order::relaxed)}; }
 
 		// Instance search.
@@ -185,10 +181,10 @@ namespace retro::interface {
 			}
 			return std::nullopt;
 		}
-		static handle find(u32 hash) {
+		static handle find(hash name_hash) {
 			// TODO: Optimize later.
 			for (auto& e : all()) {
-				if (e->hash == hash) {
+				if (e->name_hash == name_hash) {
 					return handle(u32(&e - &list[0]));
 				}
 			}
@@ -214,5 +210,5 @@ namespace retro::interface {
 namespace retro {
 	// User literal for interface hashes.
 	//
-	RC_INLINE consteval u32 operator""_ihash(const char* n, size_t i) { return interface::make_hash({n, i}); }
+	RC_INLINE consteval interface::hash operator""_ihash(const char* n, size_t i) { return interface::make_hash({n, i}); }
 };

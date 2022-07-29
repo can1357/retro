@@ -58,6 +58,8 @@
     <ClInclude Include="include\retro\ir\value.hpp" />
     <ClInclude Include="include\retro\ldr\image.hpp" />
     <ClInclude Include="include\retro\ldr\interface.hpp" />
+    <ClInclude Include="include\retro\ldr\pe.hpp" />
+    <ClInclude Include="include\retro\ldr\pe\image.hpp" />
     <ClInclude Include="include\retro\list.hpp" />
     <ClInclude Include="include\retro\lock.hpp" />
     <ClInclude Include="include\retro\platform.hpp" />
@@ -75,7 +77,8 @@
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="src\arch\minsn.cpp" />
-    <ClCompile Include="src\arch\x86\interface.cpp" />
+    <ClCompile Include="src\arch\x86\x86.cpp" />
+    <ClCompile Include="src\ldr\pe.cpp" />
     <ClCompile Include="src\main.cpp" />
     <ClCompile Include="src\platform.cpp" />
   </ItemGroup>

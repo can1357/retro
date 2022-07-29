@@ -12,7 +12,7 @@ namespace retro::debug {
 	static void print_insn_list() {
 		std::string_view tmp_types[] = {"T", "Ty"};
 
-		for (auto& ins : ir::opcode_desc::list()) {
+		for (auto& ins : ir::opcode_desc::all()) {
 			if (ins.id() == ir::opcode::none)
 				continue;
 
@@ -457,84 +457,46 @@ out -> 1 0.004731%
 
 #include <retro/common.hpp>
 #include <retro/arch/interface.hpp>
-#include <Zycore/LibC.h>
-#include <Zydis/Zydis.h>
-
-
-namespace retro::ldr {
-
-	//
-	// includes/retro/ldr/pe.hpp
-	//
-	
-	// PE image instance.
-	//
-	struct pe_image final : dyn<pe_image, image> {
-		// Extensions!!!
-		//
-	};
-
-	//
-	// src/ldr/pe.cpp
-	//
-	RC_DEF_ERR(image_is_very_stupid, "expected smart image got dumbass % bytes instead")
-
-
-	// PE loader.
-	//
-	struct pe_loader final : instance {
-		// Extension list.
-		//
-		static constexpr std::string_view extensions[] = {
-			 ".exe",
-			 ".dll",
-			 ".sys",
-		};
-		std::span<const std::string_view> get_extensions() { return extensions; }
-
-		// Returns true if the given binary blob's magic matches this format.
-		//
-		bool match(std::span<const u8> data) {
-			// TODO: check magic.
-			return true;
-		}
-
-		// Loads the binary blob into an image.
-		//
-		diag::expected<ref<image>> load(std::span<const u8> data) {
-			ref img = make_rc<pe_image>();
-
-			// stuff...
-			//
-			bool error = false;
-			if (error) {
-				return err::image_is_very_stupid(data.size());
-			} else {
-				return {std::move(img)};
-			}
-		}
-	};
-	RC_ADD_INTERFACE("win-pe", pe_loader);
-};
-
 #include <retro/arch/x86.hpp>
+
+RC_DEF_ERR(file_read_err, "failed to read file '%'")
+RC_DEF_ERR(no_matching_loader, "failed to identify the image loader")
+
+
+// Loads an image from memory.
+//
+static diag::expected<ref<ldr::image>> load_image(std::span<const u8> data) {
+	auto loader = ldr::instance::find_if([&](auto& l) { return l->match(data); });
+	if (!loader) {
+		return err::no_matching_loader();
+	}
+	return loader->load(data);
+}
+
+// Loads an image from filesystem.
+//
+static diag::expected<ref<ldr::image>> load_image(const std::filesystem::path& path) {
+	auto view = platform::map_file(path);
+	if (!view) {
+		return err::file_read_err(path);
+	}
+	return load_image(view);
+}
 
 int main(int argv, const char** args) {
 	platform::setup_ansi_escapes();
 	
-	auto i  = ldr::instance::find("win-pe");
-	auto i2 = ldr::instance::find("win-pe"_ihash);
-	fmt::println(i);
-	fmt::println(*i->get_handle());
-	fmt::println(i2);
-	fmt::println(*i2->get_handle());
+	// Map the file.
+	//
+	auto img = load_image(args[0]);
+	if (!img) {
+		img.error().print();
+	}
 
-	ldr::instance::for_each([](auto&& ldr) {
-		fmt::println(*ldr);
-	});
+	//fmt::println(" -> identified as: ", loader->get_name());
 
-	auto file = platform::map_file(args[0]);
-	fmt::println((void*)file.base_address, "->", file.length);
+
+
 
 	// 1400072C0 ; std::string *__fastcall std::string::assign
 
@@ -606,51 +568,51 @@ int main(int argv, const char** args) {
 	//	}
 	//}
 
-	auto	rtn	 = make_rc<ir::routine>();
-	rtn->start_ip = 0x140000000;
-	auto* bb		 = rtn->add_block();
-	u8 test[] = {0x90, 0x48, 0x8D, 0x04, 0x0A, 0x48, 0x8D, 0x0D, 0x01, 0x00, 0x00, 0x00, 0x48, 0x8D, 0x1C, 0x88, 0x48, 0x01, 0x0B, 0xF0, 0x48, 0x01, 0x0B, 0xB9, 0x02, 0x00, 0x00, 0x00,
-		0x0F, 0xB6, 0x00, 0x0F, 0xB7, 0x00
-	};
+	//auto	rtn	 = make_rc<ir::routine>();
+	//rtn->start_ip = 0x140000000;
+	//auto* bb		 = rtn->add_block();
+	//u8 test[] = {0x90, 0x48, 0x8D, 0x04, 0x0A, 0x48, 0x8D, 0x0D, 0x01, 0x00, 0x00, 0x00, 0x48, 0x8D, 0x1C, 0x88, 0x48, 0x01, 0x0B, 0xF0, 0x48, 0x01, 0x0B, 0xB9, 0x02, 0x00, 0x00, 0x00,
+	//	0x0F, 0xB6, 0x00, 0x0F, 0xB7, 0x00
+	//};
 
 
-	auto machine = arch::instance::find(arch::x86_64);
-	RC_ASSERT(machine);
-
-	{
-		u64					  ip	 = 0x140000000;
-		std::span<const u8> data = test;
-		while (!data.empty()) {
-			arch::minsn					 ins	= {};
-
-			if (!machine->disasm(data, &ins)) {
-				fmt::println("failed to disasm\n");
-				break;
-			}
-
-			data = data.subspan(ins.length);
-			fmt::println(ip, ": ", ins.to_string(ip));
-			ip += ins.length;
-		}
-	}
-
-	fmt::print("\n");
-	{
-		u64					  ip	 = 0x140000000;
-		std::span<const u8> data = test;
-		while (!data.empty()) {
-			arch::x86insn nins = {};
-
-			if (!machine.get_if<arch::x86arch>()->disasm(data, &nins)) {
-				fmt::println("failed to disasm\n");
-				break;
-			}
-
-			data = data.subspan(nins.ins.length);
-			fmt::println(ip, ": ", nins.to_string(ip));
-			ip += nins.ins.length;
-		}
-	}
+	//auto machine = arch::instance::find(arch::x86_64);
+	//RC_ASSERT(machine);
+	//
+	//{
+	//	u64					  ip	 = 0x140000000;
+	//	std::span<const u8> data = test;
+	//	while (!data.empty()) {
+	//		arch::minsn					 ins	= {};
+	//
+	//		if (!machine->disasm(data, &ins)) {
+	//			fmt::println("failed to disasm\n");
+	//			break;
+	//		}
+	//
+	//		data = data.subspan(ins.length);
+	//		fmt::println(ip, ": ", ins.to_string(ip));
+	//		ip += ins.length;
+	//	}
+	//}
+	//
+	//fmt::print("\n");
+	//{
+	//	u64					  ip	 = 0x140000000;
+	//	std::span<const u8> data = test;
+	//	while (!data.empty()) {
+	//		arch::x86insn nins = {};
+	//
+	//		if (!machine.get_if<arch::x86arch>()->disasm(data, &nins)) {
+	//			fmt::println("failed to disasm\n");
+	//			break;
+	//		}
+	//
+	//		data = data.subspan(nins.ins.length);
+	//		fmt::println(ip, ": ", nins.to_string(ip));
+	//		ip += nins.ins.length;
+	//	}
+	//}
 
 
 
@@ -684,8 +646,8 @@ int main(int argv, const char** args) {
 
 
 	// DCE
-	bb->erase_if([](ir::insn* i) { return !i->uses() && !i->desc().side_effect; });
+	//bb->erase_if([](ir::insn* i) { return !i->uses() && !i->desc().side_effect; });
 
 
-	fmt::println(rtn->to_string());
+	// fmt::println(rtn->to_string());
 }
