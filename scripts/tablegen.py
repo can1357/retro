@@ -522,12 +522,15 @@ class Enum(Decl):
 
         # Write the enum.
         #
-        out =  "\nenum class {0} : {1} /*:{2}*/ {{\n".format(to_cname(self.name), ctype.name, self.get_width())
+        width = self.get_width()
+        out =  "\nenum class {0} : {1} /*:{2}*/ {{\n".format(to_cname(self.name), ctype.name, width)
         nextval = 0
         for k in choices:
             out +=     "\t{0} = {1},\n".format(k.ljust(name_width), nextval)
             nextval += 1
+        out +=     "\t// PSEUDO\n"
         out +=     "\t{0} = {1},\n".format("last".ljust(name_width), nextval-1)
+        out +=     "\t{0} = {1},\n".format("bit_width".ljust(name_width), width)
         out += "};"
         
         # Write the visitor.
