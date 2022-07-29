@@ -2,15 +2,19 @@
 #include <retro/common.hpp>
 #include <retro/lock.hpp>
 #include <retro/rc.hpp>
-#include <retro/hash.hpp>
 #include <retro/dyn.hpp>
 #include <string>
 #include <vector>
+#include <atomic>
 
 namespace retro::interface {
+	// Maximum number of instances implemented for an interface.
+	//
+	static constexpr size_t max_instances = 1024;
+
 	// Given a string hashes it according to the interface manager rules.
 	//
-	inline constexpr u32 hash(std::string_view data) {
+	inline constexpr u32 make_hash(std::string_view data) {
 		// -- Must match tablegen.py
 		//
 		u32 hash = 0xd0b06e5e;
@@ -21,72 +25,91 @@ namespace retro::interface {
 		return (hash ? hash : 1);
 	}
 
+	// Define the handle type.
+	//
+	template<typename T>
+	struct RC_TRIVIAL_ABI handle {
+		u32 value = 0;
+
+		// Default copy move construct.
+		//
+		constexpr handle()									  = default;
+		constexpr handle(handle&&) noexcept				  = default;
+		constexpr handle(const handle&)					  = default;
+		constexpr handle& operator=(handle&&) noexcept = default;
+		constexpr handle& operator=(const handle&)	  = default;
+
+		// Construction by value.
+		//
+		constexpr handle(u32 v) : value(v) {}
+		constexpr handle(std::nullopt_t) : value(0) {}
+
+		// Default comparison.
+		//
+		constexpr auto operator<=>(const handle& o) const = default;
+
+		// Conversion to native value.
+		//
+		explicit constexpr operator u32() const { return value; }
+
+		// Behave like a pointer.
+		//
+		T*						 get() const { return T::resolve(*this); }
+		T&						 operator*() const { return *get(); }
+		T*						 operator->() const { return get(); }
+		explicit constexpr operator bool() const { return value != 0; }
+		constexpr			 operator T*() const { return get(); }
+
+		// Dynamic cast.
+		//
+		template<typename X>
+		bool is() const {
+			return get() && get()->template is<X>();
+		}
+		template<typename X>
+		X* get_if() const {
+			if (T* ptr = get()) {
+				return ptr->template get_if<X>();
+			}
+			return nullptr;
+		}
+
+		// String conversion.
+		//
+		std::string_view to_string() const {
+			if (T* ptr = get()) {
+				return ptr->get_name();
+			} else {
+				return "[null-instance]";
+			}
+		}
+	};
+
 	// Base class.
 	//
 	template<typename T>
 	struct base : dyn<T> {
-		// Create a new identifier type for this instance.
-		//
-		struct RC_TRIVIAL_ABI id {
-			u32 value = 0;
-
-			// Default copy move construct.
-			//
-			constexpr id()									= default;
-			constexpr id(id&&) noexcept				= default;
-			constexpr id(const id&)						= default;
-			constexpr id& operator=(id&&) noexcept = default;
-			constexpr id& operator=(const id&)		= default;
-
-			// Construction by value.
-			//
-			constexpr id(u32 v) : value(v) {}
-			constexpr id(std::nullopt_t) : value(0) {}
-
-			// Default comparison.
-			//
-			constexpr auto operator<=>(const id& o) const = default;
-
-			// Conversion to native value.
-			//
-			explicit constexpr operator u32() const { return value; }
-
-			// String conversion.
-			//
-			std::string_view to_string() const {
-				if (auto r = T::find(*this)) {
-					return r->get_name();
-				} else if (value) {
-					return "[expired-instance]";
-				} else {
-					return "[null-instance]";
-				}
-			}
-		};
-
-		// Define the handle type.
-		//
-		using handle = ref<T>;
+		using handle = handle<T>;
 
 	  private:
 		// Instance map.
 		//
-		inline static rw_lock				 list_lock = {};
-		inline static std::vector<ref<T>> list		  = {};
+		inline static ref<T>				 list[max_instances] = {}; // Padded with null to avoid branch for 0 case.
+		inline static basic_lock		 list_lock				  = {};
+		inline static std::atomic<u32> list_last_handle		  = 0;
 
 		// Private identification.
 		//
 		std::string name;
-		id				identifier = std::nullopt;
-	  public:
+		u32			hash = 0;
+		handle		hnd = std::nullopt;
 
-		// Gets the name.
+	  public:
+		// Getters.
 		//
 		RC_CONST std::string_view get_name() const { return name; }
-
-		// Gets the ID.
-		//
-		RC_CONST id get_id() const { return identifier; }
+		RC_CONST handle			  get_handle() const { return hnd; }
+		RC_CONST u32				  get_hash() const { return hash; }
 
 		// String conversion for formatting.
 		//
@@ -94,11 +117,11 @@ namespace retro::interface {
 
 		// Returns whether or not this register is already registered.
 		//
-		bool is_registered() const { return identifier != std::nullopt; }
+		bool is_registered() const { return (bool) hnd; }
 
 		// Registers an instance of the interface.
 		//
-		RC_NOINLINE static bool register_as(std::string name, ref<T> instance) {
+		RC_NOINLINE static handle register_as(std::string name, ref<T> instance) {
 			// Make sure name is not empty.
 			//
 			if (name.empty()) {
@@ -108,111 +131,78 @@ namespace retro::interface {
 			// Skip if already registered.
 			//
 			if (instance->is_registered()) {
-				return true;
+				return instance->hnd;
 			}
 
-			// Set the registration details.
+			// Set the name.
 			//
-			instance->name			= std::move(name);
-			instance->identifier = (id) hash(instance->name);
+			instance->hash = make_hash(name);
+			instance->name = std::move(name);
 
-			// Acquire the lock and find the position.
+			// Acquire the lock and make sure there's no other entry colliding.
 			//
 			std::unique_lock _g{list_lock};
-			auto				  it = range::lower_bound(list, instance, [](auto& a, auto& b) { return a->identifier < b->identifier; });
-
-			// If we found an equal match:
-			//
-			if (it != list.end() && it->get()->identifier == instance->identifier) {
-				// If name is mismatching, hash collision, abort.
-				//
-				auto& e = *it;
-				if (e->name != name) {
-					fmt::abort("interface hash collision between %s and %s", e->name.c_str(), name.c_str());
+			for (auto& e : all()) {
+				if (e->hash == instance->hash) {
+					if (e->name == instance->name)
+						fmt::abort("interface name collision %s", name.c_str());
+					else
+						fmt::abort("interface hash collision %s vs %s", e->name.c_str(), instance->name.c_str());
 				}
-
-				// Otherwise fail.
-				// - TODO: Log duplicate register attempt
-				//
-				return false;
 			}
 
-			// Insert the entry, return success.
+			// Write to the list and return the handle.
 			//
-			list.insert(it, std::move(instance));
-			return true;
+			u32 idx					= ++list_last_handle;
+			instance->hnd.value	= idx;
+			list[idx]				= std::move(instance);
+			return handle(idx);
 		}
 		template<typename Ty, typename... Tx>
-		static ref<T> register_as(std::string name, Tx&&... args) {
+		static handle register_as(std::string name, Tx&&... args) {
 			auto instance = make_rc<Ty>(std::forward<Tx>(args)...);
-			if (register_as(std::move(name), instance)) {
-				return instance;
-			} else {
-				return nullptr;
-			}
-		}
-
-		// Deregisters an interface.
-		// - Fails if being used unless force is set.
-		//
-		RC_NOINLINE static bool deregister(std::string_view name, bool force = false) {
-			std::unique_lock _g {list_lock};
-
-			auto it = std::lower_bound(list.begin(), list.end(), id(hash(name)), [](ref<T>& a, id b) { return a->identifier < b; });
-			if (it != list.end() && it->get()->name == name) {
-				if (force || it->unique()) {
-					list.erase(it);
-					return true;
-				}
-				// TODO: log
-			}
-			return false;
+			return register_as(std::move(name), std::move(instance));
 		}
 
 		// Instance enumeration.
 		//
 		template<typename F>
-		static ref<T> find_if(F&& fn) {
-			std::shared_lock _g{list_lock};
-			for (auto& e : list) {
-				if (fn(e)) {
-					return e;
-				}
-			}
-			return {};
-		}
-		template<typename F>
 		static void for_each(F&& fn) {
-			std::shared_lock _g{list_lock};
-			for (auto& e : list) {
+			for (auto& e : all()) {
 				fn(e);
 			}
 		}
-		static std::vector<ref<T>> all() {
-			list_lock.lock_shared();
-			std::vector<ref<T>> copy = list;
-			list_lock.unlock_shared();
-			return copy;
-		}
+		static std::span<const ref<T>> all() { return {&list[1], list_last_handle.load(std::memory_order::relaxed)}; }
 
 		// Instance search.
 		//
-		static ref<T> find(id i) {
-			std::shared_lock _g{list_lock};
-			auto				  it = std::lower_bound(list.begin(), list.end(), i, [](ref<T>& a, id b) { return a->identifier < b; });
-			if (it != list.end() && it->get()->identifier == i) {
-				return *it;
+		template<typename F>
+		static handle find_if(F&& fn) {
+			for (auto& e : all()) {
+				if (fn(e)) {
+					return handle(u32(&e - &list[0]));
+				}
 			}
-			return {};
+			return std::nullopt;
 		}
-		static ref<T> find(std::string_view name) {
-			std::shared_lock _g{list_lock};
-			auto				  it = std::lower_bound(list.begin(), list.end(), id(hash(name)), [](ref<T>& a, id b) { return a->identifier < b; });
-			if (it != list.end() && it->get()->name == name) {
-				return *it;
+		static handle find(u32 hash) {
+			// TODO: Optimize later.
+			for (auto& e : all()) {
+				if (e->hash == hash) {
+					return handle(u32(&e - &list[0]));
+				}
 			}
-			return {};
+			return std::nullopt;
 		}
+		static handle find(std::string_view name) {
+			for (auto& e : all()) {
+				if (e->name == name) {
+					return handle(u32(&e - &list[0]));
+				}
+			}
+			return std::nullopt;
+		}
+		static T* resolve(handle h) { return list[h.value].get(); }
 
 		// Virtual destructor for user instances.
 		//
@@ -222,9 +212,7 @@ namespace retro::interface {
 };
 
 namespace retro {
-	// User literal for interface ids.
+	// User literal for interface hashes.
 	//
-	RC_INLINE consteval u32 operator""_if(const char* n, size_t i) {
-		return interface::hash({n,i});
-	}
+	RC_INLINE consteval u32 operator""_ihash(const char* n, size_t i) { return interface::make_hash({n, i}); }
 };

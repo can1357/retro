@@ -21,6 +21,5 @@ namespace retro::ldr {
 		//
 		virtual diag::expected<ref<image>> load(std::span<const u8> data) = 0;
 	};
-	using id     = instance::id;
 	using handle = instance::handle;
 };

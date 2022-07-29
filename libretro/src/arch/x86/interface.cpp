@@ -1,0 +1,102 @@
+#include <retro/arch/x86.hpp>
+#include <retro/arch/x86/zy2rc.hpp>
+
+namespace retro::arch {
+	static_assert(ZYDIS_MAX_OPERAND_COUNT_VISIBLE <= arch::max_mop_count, "Update constants.");
+
+	// Write the arch mode details on construction.
+	//
+	x86arch::x86arch(ZydisMachineMode mode) {
+		machine_mode = mode;
+		switch (machine_mode) {
+			case ZYDIS_MACHINE_MODE_LONG_64:
+				stack_width	  = ZYDIS_STACK_WIDTH_64;
+				ptr_width	  = 64;
+				ptr_width_eff = 48;
+				break;
+			case ZYDIS_MACHINE_MODE_LONG_COMPAT_32:
+			case ZYDIS_MACHINE_MODE_LEGACY_32:
+				stack_width	  = ZYDIS_STACK_WIDTH_32;
+				ptr_width	  = 32;
+				ptr_width_eff = 32;
+				break;
+			case ZYDIS_MACHINE_MODE_LONG_COMPAT_16:
+			case ZYDIS_MACHINE_MODE_LEGACY_16:
+			case ZYDIS_MACHINE_MODE_REAL_16:
+				stack_width	  = ZYDIS_STACK_WIDTH_16;
+				ptr_width	  = 16;
+				ptr_width_eff = 16;
+				break;
+			default:
+				RC_UNREACHABLE();
+		}
+
+		// Initialize the decoder.
+		//
+		ZydisDecoderInit(&decoder, machine_mode, stack_width);
+	}
+
+	// Disassembly.
+	//
+	bool x86arch::disasm(std::span<const u8> data, x86insn* out) {
+		return ZYAN_SUCCESS(ZydisDecoderDecodeFull(&decoder, data.data(), data.size(), &out->ins, out->ops, (u8) std::size(out->ops), ZYDIS_DFLAG_VISIBLE_OPERANDS_ONLY));
+	}
+	bool x86arch::disasm(std::span<const u8> data, minsn* out) {
+		x86insn nat;
+		if (disasm(data, &nat)) {
+			out->arch				= (u32) get_handle();
+			out->mnemonic			= nat.ins.mnemonic;
+			out->modifiers			= nat.ins.attributes;
+			out->effective_width = nat.ins.operand_width;
+			out->length				= nat.ins.length;
+			out->operand_count	= nat.ins.operand_count_visible;
+			out->is_privileged	= bool(nat.ins.attributes & ZYDIS_ATTRIB_IS_PRIVILEGED);
+			for (size_t n = 0; n != nat.ins.operand_count_visible; n++) {
+				out->operand_array[n] = x86::to_mop(nat.ops[n], nat.ins.length);
+			}
+			return true;
+		}
+		return false;
+	}
+
+	// Formatting.
+	//
+	std::string x86insn::to_string(u64 address) const {
+		char				buffer[128];
+		ZydisFormatter formatter;
+		ZydisFormatterInit(&formatter, ZYDIS_FORMATTER_STYLE_INTEL);
+		if (ZYAN_FAILED(ZydisFormatterFormatInstruction(&formatter, &ins, ops, ins.operand_count_visible, buffer, sizeof(buffer), address))) {
+			return {};
+		} else {
+			return std::string(&buffer[0]);
+		}
+	}
+	std::string_view x86arch::name_register(mreg r) {
+		return enum_name(x86::reg(r.id));
+	}
+	std::string_view x86arch::name_mnemonic(u32 i) {
+		const char* p = ZydisMnemonicGetString(ZydisMnemonic(i));
+		return p ? std::string_view{p} : std::string_view{};
+	}
+	std::string x86arch::format_minsn_modifiers(const minsn& i) {
+		std::string result = {};
+		if (i.modifiers & ZYDIS_ATTRIB_HAS_LOCK) {
+			result += "lock ";
+		}
+		if (i.modifiers & ZYDIS_ATTRIB_HAS_REP) {
+			result += "rep ";
+		}
+		if (i.modifiers & ZYDIS_ATTRIB_HAS_REPE) {
+			result += "repe ";
+		}
+		if (i.modifiers & ZYDIS_ATTRIB_HAS_REPNE) {
+			result += "repne ";
+		}
+		return result;
+	}
+
+	// Create the instances.
+	//
+	RC_ADD_INTERFACE("x86_32", x86arch, ZYDIS_MACHINE_MODE_LONG_COMPAT_32);
+	RC_ADD_INTERFACE("x86_64", x86arch, ZYDIS_MACHINE_MODE_LONG_64);
+};

@@ -211,6 +211,6 @@ namespace retro::ir {
 	// Create the auto-generated constructors.
 	//
 #define ADD_CTOR(a, oprhan, bb) oprhan
-	RC_VISIT_OPCODE(ADD_CTOR)
+	RC_VISIT_IR_OPCODE(ADD_CTOR)
 #undef ADD_CTOR
 };

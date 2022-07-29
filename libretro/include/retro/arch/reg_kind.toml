@@ -1,0 +1,54 @@
+# General purpose registers.
+#
+[reg_kind.gpr8]
+width = 8
+[reg_kind.gpr16]
+width = 16
+[reg_kind.gpr32]
+width = 32
+[reg_kind.gpr64]
+width = 64
+[reg_kind.gpr128]
+width = 128
+
+# Floating point and SIMD.
+#
+[reg_kind.fp32]
+width = 32
+[reg_kind.fp64]
+width = 64
+[reg_kind.fp80]
+width = 80
+[reg_kind.simd64]
+width = 64
+[reg_kind.simd128]
+width = 128
+[reg_kind.simd256]
+width = 256
+[reg_kind.simd512]
+width = 512
+
+# Pointer registers.
+#
+[reg_kind.stack]
+is_pointer =    true
+[reg_kind.instruction]
+is_pointer =    true
+
+# Flag bits.
+#
+[reg_kind.flag]
+width = 1
+
+# Segment registers.
+#
+[reg_kind.segment]
+width = 16
+
+# Control registers.
+#
+[reg_kind.control]
+
+# Everything else.
+#
+[reg_kind.misc]

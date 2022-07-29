@@ -1,14 +1,13 @@
 #pragma once
 #include <retro/ir/builtin_types.hxx>
 #include <retro/ir/ops.hxx>
-#include <retro/targets.hxx>
 #include <retro/format.hpp>
 
 // Scoped enums to create alternative types for some builtins.
 //
 namespace retro::ir {
 	enum pointer : u64 {};
-	enum segment : u32 {
+	enum segment : u16 {
 		NO_SEGMENT = 0
 	};
 	struct value_pack_t {
@@ -39,7 +38,7 @@ namespace retro::ir {
 
 	// Map all types.
 	//
-	RC_VISIT_TYPE(MAP_VTY)
+	RC_VISIT_IR_TYPE(MAP_VTY)
 
 	// Handle unsigned decay and void type.
 	//
@@ -52,7 +51,11 @@ namespace retro::ir {
 #undef MAP_VTY
 
 	template<typename T>
-	concept BuiltinType = requires { type_to_builtin<T>::value; } && (std::is_arithmetic_v<T> || std::is_enum_v<T> || std::is_same_v<T, std::string_view>);
+	concept BuiltinType = requires { type_to_builtin<T>::value; } && (
+		std::is_arithmetic_v<T> || std::is_enum_v<T> ||
+		std::is_same_v<T, std::string_view> ||
+		std::is_same_v<T, arch::mreg>
+	);
 
 	template<type Id>
 	using type_t = typename builtin_to_type<Id>::type;
@@ -283,7 +286,7 @@ namespace retro::ir {
 			assume_unreachable();                      \
 		}                                             \
 	}
-				RC_VISIT_TYPE(FMT_TY)
+				RC_VISIT_IR_TYPE(FMT_TY)
 #undef FMT_TY
 				default:
 					return "none";

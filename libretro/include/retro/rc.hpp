@@ -2,6 +2,7 @@
 #include <atomic>
 #include <retro/common.hpp>
 #include <retro/format.hpp>
+#include <retro/dyn.hpp>
 
 // Type-specialized ref-counting primitives.
 //
@@ -315,4 +316,28 @@ namespace retro {
 	inline static ref<T> make_rc(Tx&&... args) {
 		return make_overalloc_rc<T, Tx...>(0, std::forward<Tx>(args)...);
 	};
+
+	// Static and dynamic cast for ref/weak.
+	//
+	template<typename Ty, typename T>
+	inline static ref<Ty> static_rc_cast(ref<T> ptr) {
+		ref<Ty> result = {};
+		result.ptr		= (Ty*) ptr.release();
+		return result;
+	}
+	template<typename Ty, typename T>
+	inline static ref<Ty> dynamic_rc_cast(ref<T> ptr) {
+		ref<Ty> result = {};
+		if (ptr && ptr->is<Ty>()) {
+			result.adopt((Ty*) ptr.release());
+		}
+		return result;
+	}
+	template<typename Ty, typename T>
+	inline static ref<Ty> dynamic_rc_cast(const ref<T>& ptr) {
+		if (ptr && ptr->is<Ty>()) {
+			return ref<Ty>((Ty*) ptr.get());
+		}
+		return nullptr;
+	}
 }

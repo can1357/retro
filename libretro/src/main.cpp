@@ -4,10 +4,6 @@
 using namespace retro;
 
 #include <retro/common.hpp>
-#include <retro/targets.hxx>
-
-
-#include <retro/arch/x86/zydis.hpp>
 
 #include <retro/ir/insn.hpp>
 #include <retro/ir/routine.hpp>
@@ -60,11 +56,11 @@ namespace retro::debug {
 	}
 };
 
-#include <retro/arch/x86/zydis.hpp>
 #include <retro/ir/basic_block.hpp>
 #include <retro/ir/insn.hpp>
 #include <retro/diag.hpp>
 
+#if 0
 namespace retro::x86::sema {
 	// Errors.
 	//
@@ -360,6 +356,7 @@ namespace retro::x86::sema {
 		return diag::ok;
 	}
 };
+#endif
 
 #include <nt/image.hpp>
 
@@ -458,6 +455,10 @@ out -> 1 0.004731%
 #include <retro/ldr/interface.hpp>
 #include <retro/ldr/image.hpp>
 
+#include <retro/common.hpp>
+#include <retro/arch/interface.hpp>
+#include <Zycore/LibC.h>
+#include <Zydis/Zydis.h>
 
 
 namespace retro::ldr {
@@ -516,14 +517,17 @@ namespace retro::ldr {
 	RC_ADD_INTERFACE("win-pe", pe_loader);
 };
 
+#include <retro/arch/x86.hpp>
 
 int main(int argv, const char** args) {
 	platform::setup_ansi_escapes();
 	
 	auto i  = ldr::instance::find("win-pe");
-	auto i2 = ldr::instance::find("win-pe"_if);
-	fmt::println(i ? i->get_id() : ldr::id());
-	fmt::println(i2 ? i2->get_id() : ldr::id());
+	auto i2 = ldr::instance::find("win-pe"_ihash);
+	fmt::println(i);
+	fmt::println(*i->get_handle());
+	fmt::println(i2);
+	fmt::println(*i2->get_handle());
 
 	ldr::instance::for_each([](auto&& ldr) {
 		fmt::println(*ldr);
@@ -605,7 +609,50 @@ int main(int argv, const char** args) {
 	auto	rtn	 = make_rc<ir::routine>();
 	rtn->start_ip = 0x140000000;
 	auto* bb		 = rtn->add_block();
-	u8 test[] = {0x90, 0x48, 0x8D, 0x04, 0x0A, 0x48, 0x8D, 0x0D, 0x01, 0x00, 0x00, 0x00, 0x48, 0x8D, 0x1C, 0x88, 0x48, 0x01, 0x0B, 0xF0, 0x48, 0x01, 0x0B, 0xB9, 0x02, 0x00, 0x00, 0x00};
+	u8 test[] = {0x90, 0x48, 0x8D, 0x04, 0x0A, 0x48, 0x8D, 0x0D, 0x01, 0x00, 0x00, 0x00, 0x48, 0x8D, 0x1C, 0x88, 0x48, 0x01, 0x0B, 0xF0, 0x48, 0x01, 0x0B, 0xB9, 0x02, 0x00, 0x00, 0x00,
+		0x0F, 0xB6, 0x00, 0x0F, 0xB7, 0x00
+	};
+
+
+	auto machine = arch::instance::find(arch::x86_64);
+	RC_ASSERT(machine);
+
+	{
+		u64					  ip	 = 0x140000000;
+		std::span<const u8> data = test;
+		while (!data.empty()) {
+			arch::minsn					 ins	= {};
+
+			if (!machine->disasm(data, &ins)) {
+				fmt::println("failed to disasm\n");
+				break;
+			}
+
+			data = data.subspan(ins.length);
+			fmt::println(ip, ": ", ins.to_string(ip));
+			ip += ins.length;
+		}
+	}
+
+	fmt::print("\n");
+	{
+		u64					  ip	 = 0x140000000;
+		std::span<const u8> data = test;
+		while (!data.empty()) {
+			arch::x86insn nins = {};
+
+			if (!machine.get_if<arch::x86arch>()->disasm(data, &nins)) {
+				fmt::println("failed to disasm\n");
+				break;
+			}
+
+			data = data.subspan(nins.ins.length);
+			fmt::println(ip, ": ", nins.to_string(ip));
+			ip += nins.ins.length;
+		}
+	}
+
+
 
 
 	// TODO: BB splitting
@@ -621,6 +668,7 @@ int main(int argv, const char** args) {
 	call jmp ret
 	*/
 
+	#if 0
 	std::span<const u8> data = test;
 	while (true) {
 		auto i = zydis::decode(data);
@@ -632,6 +680,7 @@ int main(int argv, const char** args) {
 		fmt::println((void*)(rip - i->ins.length), ": ", i->to_string(rip - i->ins.length));
 		x86::sema::lift(bb, i.value(), rip).raise();
 	}
+	#endif
 
 
 	// DCE

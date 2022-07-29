@@ -99,23 +99,23 @@ namespace retro {
 			// Implement the getters using it.
 			//
 			template<typename X>
-			RC_INLINE X& as() {
+			RC_INLINE X& get() {
 				RC_ASSERT(is<X>());
 				return *(X*) this;
 			}
 			template<typename X>
-			RC_INLINE const X& as() const {
+			RC_INLINE const X& get() const {
 				RC_ASSERT(is<X>());
 				return *(const X*) this;
 			}
 			template<typename X>
-			RC_INLINE X* opt() {
+			RC_INLINE X* get_if() {
 				if (!is<X>())
 					return nullptr;
 				return (X*) this;
 			}
 			template<typename X>
-			RC_INLINE const X* opt() const {
+			RC_INLINE const X* get_if() const {
 				if (!is<X>())
 					return nullptr;
 				return (const X*) this;

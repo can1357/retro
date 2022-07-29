@@ -1,5 +1,5 @@
 Includes = [
-	"<retro/targets.hxx>",
+	"<retro/arch/mreg.hpp>",
 	"<string>",
 ]
 
@@ -14,13 +14,15 @@ type_kind = [
 # Generate SIMD types.
 #
 Script = """
-SIMD_WIDTHS = [128, 256, 512]
+SIMD_WIDTHS = [64, 128, 256, 512]
 
 for l in SIMD_WIDTHS:
 	# Generate int types.
 	for k in [64, 32, 16, 8]:
 		ty = "i" + str(k)
 		lane_width = l // k
+		if lane_width <= 1:
+			continue
 		vty = "{0}x{1}".format(ty, lane_width)
 		desc = {
 			"kind":        "@type_kind.vector-int",
@@ -35,6 +37,8 @@ for l in SIMD_WIDTHS:
 	for k in [64, 32]:
 		ty = "f" + str(k)
 		lane_width = l // k
+		if lane_width <= 1:
+			continue
 		vty = "{0}x{1}".format(ty, lane_width)
 		desc = {
 			"kind":        "@type_kind.vector-fp",
@@ -51,7 +55,7 @@ for l in SIMD_WIDTHS:
 [type.pack]
 VisitorArgs = ["retro::ir::value_pack_t"]
 [type.reg]
-VisitorArgs = ["retro::reg"]
+VisitorArgs = ["retro::arch::mreg"]
 [type.op]
 VisitorArgs = ["retro::ir::op"]
 [type.intrinsic]
@@ -98,6 +102,10 @@ VisitorArgs = ["f32"]
 kind     =    "@type_kind.scalar-fp"
 bit_size =    64
 VisitorArgs = ["f64"]
+[type.f80]
+kind     =    "@type_kind.scalar-fp"
+bit_size =    80
+VisitorArgs = ["f80"]
 
 # Pointer types.
 #

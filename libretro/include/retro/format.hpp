@@ -114,7 +114,7 @@ namespace retro::fmt {
 		if (str.back() == '\t')
 			str.erase(str.end());
 	}
-	inline std::string shift(std::string&& str, size_t n = 1) {
+	[[nodiscard]] inline std::string shift(std::string&& str, size_t n = 1) {
 		shift(str, n);
 		return std::move(str);
 	}
@@ -133,11 +133,11 @@ namespace retro::fmt {
 			str.insert(0, len-n, c);
 		}
 	}
-	inline std::string ljust(std::string&& str, size_t len, char c = ' ') {
+	[[nodiscard]] inline std::string ljust(std::string&& str, size_t len, char c = ' ') {
 		ljust(str, len, c);
 		return std::move(str);
 	}
-	inline std::string rjust(std::string&& str, size_t len, char c = ' ') {
+	[[nodiscard]] inline std::string rjust(std::string&& str, size_t len, char c = ' ') {
 		rjust(str, len, c);
 		return std::move(str);
 	}

@@ -1,0 +1,500 @@
+Includes = [
+	"<retro/arch/reg_kind.hxx>"
+]
+Forwards = [
+	"reg_kind"
+]
+
+
+Script = """
+
+# Convert into list.
+#
+regs = list(data["reg"].items())
+
+# Duplicate XMM registers.
+#
+i = 0
+while regs[i][0] != "xmm0":
+	i+=1
+for j in range(1,16):
+	c = regs[i][1].copy()
+	c["super"] = "@reg.ymm" + str(j)
+	n = "xmm" + str(j)
+	regs.insert(i+j, (n, c))
+	
+# Duplicate YMM registers.
+#
+i += 16
+for j in range(1,16):
+	c = regs[i][1].copy()
+	n = "ymm" + str(j)
+	regs.insert(i+j, (n, c))
+
+# Convert back to dictionary.
+#
+regs = dict(regs)
+
+# Create alias list.
+#
+for k, v in regs.items():
+	if "super" in v:
+		super_reg = v["super"][5:]
+		assert not ("super" in regs[super_reg])
+		if not("subregs" in regs[super_reg]):
+			regs[super_reg]["subregs"] = ["@reg." + k]
+		else:
+			regs[super_reg]["subregs"].append("@reg." + k)
+
+# Add the zydis enum in the visitor list.
+#
+for k, v in regs.items():
+	if "flag_" in k:
+		v["VisitorArgs"] = ["ZYDIS_REGISTER_NONE"]
+	else:
+		v["VisitorArgs"] = ["ZYDIS_REGISTER_" + k.upper()]
+
+# Add width if skipped based on the type.
+#
+wmap = {
+	"gpr8": 8,
+	"gpr16": 16,
+	"gpr32": 32,
+	"gpr64": 64,
+	"fp32":  32,
+	"fp64":  64,
+	"fp80":  80,
+	"simd64":  64,
+	"simd128": 128,
+	"simd256": 256,
+	"segment": 16,
+	"flag":    1
+}
+for k, v in regs.items():
+	if not ("width" in v):
+		v["width"] = wmap[v["kind"][10:]]
+
+# Save the final list.
+#
+data["reg"] = regs
+"""
+
+# general purpose registers 8-bit
+[reg.al]
+kind  =  "@reg_kind.gpr8"
+super =  "@reg.rax"
+[reg.cl]
+kind  =  "@reg_kind.gpr8"
+super =  "@reg.rcx"
+[reg.dl]
+kind  =  "@reg_kind.gpr8"
+super =  "@reg.rdx"
+[reg.bl]
+kind  =  "@reg_kind.gpr8"
+super =  "@reg.rbx"
+[reg.ah]
+kind  =  "@reg_kind.gpr8"
+super =  "@reg.rax"
+offset = 8
+[reg.ch]
+kind  =  "@reg_kind.gpr8"
+super =  "@reg.rcx"
+offset = 8
+[reg.dh]
+kind  =  "@reg_kind.gpr8"
+super =  "@reg.rdx"
+offset = 8
+[reg.bh]
+kind  =  "@reg_kind.gpr8"
+super =  "@reg.rbx"
+offset = 8
+[reg.spl]
+kind  =  "@reg_kind.stack"
+super =  "@reg.rsp"
+width =  8
+[reg.bpl]
+kind  =  "@reg_kind.gpr8"
+super =  "@reg.rbp"
+[reg.sil]
+kind  =  "@reg_kind.gpr8"
+super =  "@reg.rsi"
+[reg.dil]
+kind  =  "@reg_kind.gpr8"
+super =  "@reg.rdi"
+[reg.r8b]
+kind  =  "@reg_kind.gpr8"
+super =  "@reg.r8"
+[reg.r9b]
+kind  =  "@reg_kind.gpr8"
+super =  "@reg.r9"
+[reg.r10b]
+kind  =  "@reg_kind.gpr8"
+super =  "@reg.r10"
+[reg.r11b]
+kind  =  "@reg_kind.gpr8"
+super =  "@reg.r11"
+[reg.r12b]
+kind  =  "@reg_kind.gpr8"
+super =  "@reg.r12"
+[reg.r13b]
+kind  =  "@reg_kind.gpr8"
+super =  "@reg.r13"
+[reg.r14b]
+kind  =  "@reg_kind.gpr8"
+super =  "@reg.r14"
+[reg.r15b]
+kind  =  "@reg_kind.gpr8"
+super =  "@reg.r15"
+
+# general purpose registers 16-bit
+[reg.ax]
+kind  =  "@reg_kind.gpr16"
+super =  "@reg.rax"
+[reg.cx]
+kind  =  "@reg_kind.gpr16"
+super =  "@reg.rcx"
+[reg.dx]
+kind  =  "@reg_kind.gpr16"
+super =  "@reg.rdx"
+[reg.bx]
+kind  =  "@reg_kind.gpr16"
+super =  "@reg.rbx"
+[reg.sp]
+kind  =  "@reg_kind.stack"
+super =  "@reg.rsp"
+width =  16
+[reg.bp]
+kind  =  "@reg_kind.gpr16"
+super =  "@reg.rbp"
+[reg.si]
+kind  =  "@reg_kind.gpr16"
+super =  "@reg.rsi"
+[reg.di]
+kind  =  "@reg_kind.gpr16"
+super =  "@reg.rdi"
+[reg.r8w]
+kind  =  "@reg_kind.gpr16"
+super =  "@reg.r8"
+[reg.r9w]
+kind  =  "@reg_kind.gpr16"
+super =  "@reg.r9"
+[reg.r10w]
+kind  =  "@reg_kind.gpr16"
+super =  "@reg.r10"
+[reg.r11w]
+kind  =  "@reg_kind.gpr16"
+super =  "@reg.r11"
+[reg.r12w]
+kind  =  "@reg_kind.gpr16"
+super =  "@reg.r12"
+[reg.r13w]
+kind  =  "@reg_kind.gpr16"
+super =  "@reg.r13"
+[reg.r14w]
+kind  =  "@reg_kind.gpr16"
+super =  "@reg.r14"
+[reg.r15w]
+kind  =  "@reg_kind.gpr16"
+super =  "@reg.r15"
+
+# general purpose registers 32-bit
+[reg.eax]
+kind  =  "@reg_kind.gpr32"
+super =  "@reg.rax"
+[reg.ecx]
+kind  =  "@reg_kind.gpr32"
+super =  "@reg.rcx"
+[reg.edx]
+kind  =  "@reg_kind.gpr32"
+super =  "@reg.rdx"
+[reg.ebx]
+kind  =  "@reg_kind.gpr32"
+super =  "@reg.rbx"
+[reg.esp]
+kind  =  "@reg_kind.stack"
+super =  "@reg.rsp"
+width =  32
+[reg.ebp]
+kind  =  "@reg_kind.gpr32"
+super =  "@reg.rbp"
+[reg.esi]
+kind  =  "@reg_kind.gpr32"
+super =  "@reg.rsi"
+[reg.edi]
+kind  =  "@reg_kind.gpr32"
+super =  "@reg.rdi"
+[reg.r8d]
+kind  =  "@reg_kind.gpr32"
+super =  "@reg.r8"
+[reg.r9d]
+kind  =  "@reg_kind.gpr32"
+super =  "@reg.r9"
+[reg.r10d]
+kind  =  "@reg_kind.gpr32"
+super =  "@reg.r10"
+[reg.r11d]
+kind  =  "@reg_kind.gpr32"
+super =  "@reg.r11"
+[reg.r12d]
+kind  =  "@reg_kind.gpr32"
+super =  "@reg.r12"
+[reg.r13d]
+kind  =  "@reg_kind.gpr32"
+super =  "@reg.r13"
+[reg.r14d]
+kind  =  "@reg_kind.gpr32"
+super =  "@reg.r14"
+[reg.r15d]
+kind  =  "@reg_kind.gpr32"
+super =  "@reg.r15"
+
+# general purpose registers 64-bit
+[reg.rax]
+kind  =  "@reg_kind.gpr64"
+[reg.rcx]
+kind  =  "@reg_kind.gpr64"
+[reg.rdx]
+kind  =  "@reg_kind.gpr64"
+[reg.rbx]
+kind  =  "@reg_kind.gpr64"
+[reg.rsp]
+kind  =  "@reg_kind.stack"
+width =  64
+[reg.rbp]
+kind  =  "@reg_kind.gpr64"
+[reg.rsi]
+kind  =  "@reg_kind.gpr64"
+[reg.rdi]
+kind  =  "@reg_kind.gpr64"
+[reg.r8]
+kind  =  "@reg_kind.gpr64"
+[reg.r9]
+kind  =  "@reg_kind.gpr64"
+[reg.r10]
+kind  =  "@reg_kind.gpr64"
+[reg.r11]
+kind  =  "@reg_kind.gpr64"
+[reg.r12]
+kind  =  "@reg_kind.gpr64"
+[reg.r13]
+kind  =  "@reg_kind.gpr64"
+[reg.r14]
+kind  =  "@reg_kind.gpr64"
+[reg.r15]
+kind  =  "@reg_kind.gpr64"
+
+# floating point legacy registers
+[reg.st0]
+kind  =  "@reg_kind.fp80"
+[reg.st1]
+kind  =  "@reg_kind.fp80"
+[reg.st2]
+kind  =  "@reg_kind.fp80"
+[reg.st3]
+kind  =  "@reg_kind.fp80"
+[reg.st4]
+kind  =  "@reg_kind.fp80"
+[reg.st5]
+kind  =  "@reg_kind.fp80"
+[reg.st6]
+kind  =  "@reg_kind.fp80"
+[reg.st7]
+kind  =  "@reg_kind.fp80"
+[reg.mm0]
+kind  =  "@reg_kind.simd64"
+super =  "@reg.st0"
+[reg.mm1]
+kind  =  "@reg_kind.simd64"
+super =  "@reg.st1"
+[reg.mm2]
+kind  =  "@reg_kind.simd64"
+super =  "@reg.st2"
+[reg.mm3]
+kind  =  "@reg_kind.simd64"
+super =  "@reg.st3"
+[reg.mm4]
+kind  =  "@reg_kind.simd64"
+super =  "@reg.st4"
+[reg.mm5]
+kind  =  "@reg_kind.simd64"
+super =  "@reg.st5"
+[reg.mm6]
+kind  =  "@reg_kind.simd64"
+super =  "@reg.st6"
+[reg.mm7]
+kind  =  "@reg_kind.simd64"
+super =  "@reg.st7"
+[reg.x87control]
+kind  =  "@reg_kind.control"
+width =  16
+[reg.x87status]
+kind  =  "@reg_kind.control"
+width =  16
+[reg.x87tag]
+kind  =  "@reg_kind.control"
+width =  16
+
+# floating point vector registers 128-bit
+[reg.xmm0]
+kind  =  "@reg_kind.simd128"
+super =  "@reg.ymm0"
+
+# floating point vector registers 256-bit
+[reg.ymm0]
+kind  =  "@reg_kind.simd256"
+
+# flags registers
+[reg.flags]
+kind  =  "@reg_kind.control"
+super =  "@reg.rflags"
+width =  16
+[reg.eflags]
+kind  =  "@reg_kind.control"
+super =  "@reg.rflags"
+width =  32
+[reg.rflags]
+kind  =  "@reg_kind.control"
+width =  64
+
+# instruction-pointer registers
+[reg.ip]
+kind  =  "@reg_kind.instruction"
+super =  "@reg.rip"
+width =  16
+[reg.eip]
+kind  =  "@reg_kind.instruction"
+super =  "@reg.rip"
+width =  32
+[reg.rip]
+kind  =  "@reg_kind.instruction"
+width =  64
+
+# segment registers
+[reg.es]
+kind  =  "@reg_kind.segment"
+[reg.cs]
+kind  =  "@reg_kind.segment"
+[reg.ss]
+kind  =  "@reg_kind.segment"
+[reg.ds]
+kind  =  "@reg_kind.segment"
+[reg.fs]
+kind  =  "@reg_kind.segment"
+[reg.gs]
+kind  =  "@reg_kind.segment"
+
+# control registers
+[reg.cr0]
+kind  =  "@reg_kind.control"
+width =  32
+[reg.cr2]
+kind  =  "@reg_kind.control"
+width =  64 # TODO: ptr :(
+[reg.cr3]
+kind  =  "@reg_kind.control"
+width =  64 # TODO: ptr :(
+[reg.cr4]
+kind  =  "@reg_kind.control"
+width =  32
+[reg.cr8]
+kind  =  "@reg_kind.control"
+width =  8
+
+# debug registers
+[reg.dr0]
+kind  =  "@reg_kind.control"
+width =  64 # TODO: ptr :(
+[reg.dr1]
+kind  =  "@reg_kind.control"
+width =  64 # TODO: ptr :(
+[reg.dr2]
+kind  =  "@reg_kind.control"
+width =  64 # TODO: ptr :(
+[reg.dr3]
+kind  =  "@reg_kind.control"
+width =  64 # TODO: ptr :(
+[reg.dr4]
+kind  =  "@reg_kind.control"
+#super =  "@reg.dr6"
+width =  32
+[reg.dr5]
+kind  =  "@reg_kind.control"
+#super =  "@reg.dr7"
+width =  32
+[reg.dr6]
+kind  =  "@reg_kind.control"
+width =  32
+[reg.dr7]
+kind  =  "@reg_kind.control"
+width =  32
+
+# + flags
+[reg.flag_cf]
+super =  "@reg.rflags"
+kind  =  "@reg_kind.flag"
+offset = 0
+[reg.flag_pf]
+super =  "@reg.rflags"
+kind  =  "@reg_kind.flag"
+offset = 2
+[reg.flag_af]
+super =  "@reg.rflags"
+kind  =  "@reg_kind.flag"
+offset = 4
+[reg.flag_zf]
+super =  "@reg.rflags"
+kind  =  "@reg_kind.flag"
+offset = 6
+[reg.flag_sf]
+super =  "@reg.rflags"
+kind  =  "@reg_kind.flag"
+offset = 7
+[reg.flag_tf]
+super =  "@reg.rflags"
+kind  =  "@reg_kind.flag"
+offset = 8
+[reg.flag_if]
+super =  "@reg.rflags"
+kind  =  "@reg_kind.flag"
+offset = 9
+[reg.flag_df]
+super =  "@reg.rflags"
+kind  =  "@reg_kind.flag"
+offset = 10
+[reg.flag_of]
+super =  "@reg.rflags"
+kind  =  "@reg_kind.flag"
+offset = 11
+[reg.flag_iopl]
+super =  "@reg.rflags"
+kind  =  "@reg_kind.control"
+offset = 12
+width =  2
+[reg.flag_nt]
+super =  "@reg.rflags"
+kind  =  "@reg_kind.flag"
+offset = 14
+[reg.flag_rf]
+super =  "@reg.rflags"
+kind  =  "@reg_kind.flag"
+offset = 16
+[reg.flag_vm]
+super =  "@reg.rflags"
+kind  =  "@reg_kind.flag"
+offset = 17
+[reg.flag_ac]
+super =  "@reg.rflags"
+kind  =  "@reg_kind.flag"
+offset = 18
+[reg.flag_vif]
+super =  "@reg.rflags"
+kind  =  "@reg_kind.flag"
+offset = 19
+[reg.flag_vip]
+super =  "@reg.rflags"
+kind  =  "@reg_kind.flag"
+offset = 20
+[reg.flag_id]
+super =  "@reg.rflags"
+kind  =  "@reg_kind.flag"
+offset = 21

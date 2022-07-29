@@ -206,8 +206,12 @@ namespace retro {
 	using f32  = float;
 	using f64  = double;
 
+	// Extended floating-point.
+	// - TODO: Implement emulation for ARM.
+	using f80  = long double;
+
 	// Extended integers.
-	//
+	// - TODO: Implement operations.
 	struct i128 {
 		i64 low;
 		i64 high;
@@ -220,23 +224,32 @@ namespace retro {
 	// SIMD types.
 	//
 	using f64x8  = std::array<f64, 8>;	 // Bit-width: 512
-	using f64x2  = std::array<f64, 2>;	 // Bit-width: 128
 	using f64x4  = std::array<f64, 4>;	 // Bit-width: 256
+	using f64x2  = std::array<f64, 2>;	 // Bit-width: 128
+	
 	using i64x8  = std::array<i64, 8>;	 // Bit-width: 512
 	using i64x4  = std::array<i64, 4>;	 // Bit-width: 256
 	using i64x2  = std::array<i64, 2>;	 // Bit-width: 128
+
 	using f32x16 = std::array<f32, 16>;	 // Bit-width: 512
 	using f32x8  = std::array<f32, 8>;	 // Bit-width: 256
 	using f32x4  = std::array<f32, 4>;	 // Bit-width: 128
+	using f32x2  = std::array<f32, 2>;	 // Bit-width: 64
+
 	using i32x16 = std::array<i32, 16>;	 // Bit-width: 512
 	using i32x8  = std::array<i32, 8>;	 // Bit-width: 256
 	using i32x4  = std::array<i32, 4>;	 // Bit-width: 128
+	using i32x2  = std::array<i32, 2>;	 // Bit-width: 64
+
 	using i16x32 = std::array<i16, 32>;	 // Bit-width: 512
 	using i16x16 = std::array<i16, 16>;	 // Bit-width: 256
 	using i16x8  = std::array<i16, 8>;	 // Bit-width: 128
+	using i16x4  = std::array<i16, 4>;	 // Bit-width: 64
+
 	using i8x64  = std::array<i8,  64>;	 // Bit-width: 512
 	using i8x32  = std::array<i8,  32>;	 // Bit-width: 256
 	using i8x16  = std::array<i8,  16>;	 // Bit-width: 128
+	using i8x8   = std::array<i8,  8>;	 // Bit-width: 64
 
 	// Helper to pin types.
 	//
@@ -517,7 +530,7 @@ namespace retro {
 	//
 	template<typename T>
 	struct small_array {
-		T	data[12] = {};
+		T	data[24] = {};
 		u8 length	= 0;
 		constexpr small_array(std::initializer_list<T> init) : length((u8)init.size()) {
 			range::copy(init, data);

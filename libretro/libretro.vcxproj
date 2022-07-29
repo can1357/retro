@@ -27,7 +27,13 @@
     </ProjectConfiguration>
   </ItemGroup>
   <ItemGroup>
-    <ClInclude Include="include\retro\arch\x86\zydis.hpp" />
+    <ClInclude Include="include\retro\arch\minsn.hpp" />
+    <ClInclude Include="include\retro\arch\interface.hpp" />
+    <ClInclude Include="include\retro\arch\mreg.hpp" />
+    <ClInclude Include="include\retro\arch\reg_kind.hxx" />
+    <ClInclude Include="include\retro\arch\x86.hpp" />
+    <ClInclude Include="include\retro\arch\x86\regs.hxx" />
+    <ClInclude Include="include\retro\arch\x86\zy2rc.hpp" />
     <ClInclude Include="include\retro\diag.hpp" />
     <ClInclude Include="include\retro\doc\workspace.hpp" />
     <ClInclude Include="include\retro\graph\naive.hpp" />
@@ -57,17 +63,19 @@
     <ClInclude Include="include\retro\platform.hpp" />
     <ClInclude Include="include\retro\rc.hpp" />
     <ClInclude Include="include\retro\robin_hood.hpp" />
-    <ClInclude Include="include\retro\targets.hxx" />
     <ClInclude Include="include\retro\utf.hpp" />
   </ItemGroup>
   <ItemGroup>
     <None Include="..\.clang-format" />
+    <None Include="include\retro\arch\reg_kind.toml" />
+    <None Include="include\retro\arch\x86\regs.toml" />
     <None Include="include\retro\ir\builtin_types.toml" />
     <None Include="include\retro\ir\opcodes.toml" />
     <None Include="include\retro\ir\ops.toml" />
-    <None Include="include\retro\targets.toml" />
   </ItemGroup>
   <ItemGroup>
+    <ClCompile Include="src\arch\minsn.cpp" />
+    <ClCompile Include="src\arch\x86\interface.cpp" />
     <ClCompile Include="src\main.cpp" />
     <ClCompile Include="src\platform.cpp" />
   </ItemGroup>

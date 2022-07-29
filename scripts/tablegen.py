@@ -1,7 +1,7 @@
 #!/usr/bin/env python
 # coding: utf-8
 
-# In[12]:
+# In[17]:
 
 
 #!conda install --yes toml
@@ -11,6 +11,7 @@ import os
 import sys
 import time
 import ast
+import traceback
 
 # Constants
 #
@@ -26,7 +27,7 @@ CXX_HELP_DCL_FMT =  """RC_INLINE constexpr std::span<const {0}_desc> {0}_desc::l
 CXX_ARR_DCL_FMT =   "\ninline constexpr {0} {1}s[] = {{\n"
 CXX_DESC_SUFFIX =   "_desc"
 CXX_NS_SUFFIX_PER_ENUM = """namespace retro {{ template<> struct descriptor<{0}::{1}> {{ using type = {0}::{1}_desc; }}; }};
-RC_DEFINE_STD_VISITOR_FOR({0}::{1}, RC_VISIT_{2})
+RC_DEFINE_STD_VISITOR_FOR({0}::{1}, {2})
 """ 
 CXX_NULL_ENUM = "none"
 CXX_USE_BOOL = False
@@ -86,18 +87,6 @@ def multiline_eval(expr, context, local_list):
     exec(compile(exec_expr, 'file', 'exec'), context, local_list)
     for eval_expr in eval_exprs:
         exec(compile(ast.Expression((eval_expr)), 'file', 'eval'), context, local_list)
-
-# Interface hash.
-#
-def ihash(s):
-    hash = 0xd0b06e5e
-    for k in s.encode('utf-8'):
-        hash ^= (0x20 | k)
-        hash *= 0x01000193
-        hash &= 0xFFFFFFFF
-    if hash == 0:
-        hash = 1
-    return hash
 
 # Helper for writing C++ functions.
 #
@@ -196,12 +185,6 @@ class CxxInteger(CxxType):
     def write(self, value):
         if value == None:
             return self.default
-        
-        # Handle interface hash.
-        if isinstance(value, str):
-            assert value[0] == '#'
-            return hex(ihash(value[1:]))
-
         if self.bits == 1:
             if CXX_USE_BOOL:
                 return "true" if value else "false"
@@ -355,9 +338,6 @@ def to_cxx_type(value, packed = True, scope = None):
     # Trivial types.
     #
     if isinstance(value, str):
-        # Iface hash
-        if len(value) != 0 and value[0] == "#":
-            return C_UINT32
         # Enum-escape.
         if scope:
             if len(value) != 0 and value[0] == "@":
@@ -458,6 +438,12 @@ class Decl:
     def find(self, name):
         assert self.parent != None
         return self.parent.find(name)
+
+    # Gets the namepace name.
+    #
+    def get_ns(self):
+        assert self.parent != None
+        return self.parent.get_ns()
     
 # Enumeration types.
 #
@@ -480,6 +466,8 @@ class Enum(Decl):
         # Descriptor structure.
         self.desc =       None
         self.desc_init =  None
+        # Visitor name.
+        self.visitor_name = ("RC_VISIT_" + self.get_ns().replace("retro::","").replace("::","_") + "_" + to_cname(self.name)).upper()
     
         for k, v in data.items():
             # Values.
@@ -541,7 +529,7 @@ class Enum(Decl):
                 max_visitor_list_len = max(max_visitor_list_len, 1+len(self.data[i]["VisitorArgs"]))
         visitor_list = [[""]*max_visitor_list_len]*len(self.values)
         
-        out += "\n#define RC_VISIT_{0}(_)".format(to_cname(self.name).upper())
+        out += "\n#define {0}(_)".format(self.visitor_name)
         for i in range(len(self.values)):
             visitor_list[i][0] = to_cname(self.values[i])
             if "VisitorArgs" in self.data[i]:
@@ -675,11 +663,13 @@ class Namespace(Decl):
         out = ""
         for k in self.decls:
             if isinstance(self.decls[k], Enum):
-                ext_suffix += CXX_NS_SUFFIX_PER_ENUM.format(self.name, to_cname(self.decls[k].name), to_cname(self.decls[k].name).upper())
+                print("Generating {}...".format(k))
+                ext_suffix += CXX_NS_SUFFIX_PER_ENUM.format(self.name, to_cname(self.decls[k].name), self.decls[k].visitor_name)
                 out += self.decls[k].write()
         out += "\n\n" + make_box("Descriptors")
         for k in self.decls:
             if not isinstance(self.decls[k], Enum):
+                print("Generating {}...".format(k))
                 out += self.decls[k].write()
         out += "\n\n" + make_box("Tables")
         for k in self.decls:
@@ -701,6 +691,12 @@ class Namespace(Decl):
             return EnumFwd(name)
         else:
             raise Exception("Failed to find declaration '{0}'".format(name))
+            
+    # Gets the namepace name.
+    #
+    def get_ns(self):
+        return self.name
+    
 Decl.Parser["Namespace"] = Namespace
 
 # Struct type.
@@ -783,7 +779,7 @@ def generate_all(root):
             continue
         cache[file] = filedata
         
-        print("-- Generating ", namespace)
+        print("\n[{0}] {1}".format(namespace, os.path.basename(file)))
         out = file.rsplit(".",1)[0] + ".hxx"
         with open(out, "w") as outf:
             ns = Namespace(None, namespace, toml.loads(filedata))
@@ -796,26 +792,30 @@ def generate_all(root):
             
             result += "\n" + ns.write()
             outf.write(result)
-                    
-try:
-    # Interactive shell.
-    get_ipython().__class__.__name__
-    generate_all(os.path.abspath(os.path.curdir + "\\.."))    
-except NameError:
+
+def main():
+    try:
+        # Interactive shell.
+        get_ipython().__class__.__name__
+        generate_all(os.path.abspath(os.path.curdir + "\\.."))
+        return
+    except NameError:
+        pass
     path = os.path.dirname(os.path.realpath(__file__)) + "\\.."
-    
+
     if len(sys.argv) <= 1:
         print("Watching directory {0} for changes.".format(path))
-        
         while True:
             try:
                 generate_all(path)
-            except Exception as e:
-                print("Exception:", e)
-            time.sleep(0.3)
+            except Exception:
+                print("##### Exception #####")
+                traceback.print_exc()
+                time.sleep(0.3)
     elif len(sys.argv) >= 2:
         path = sys.argv[1]
     generate_all(path)
+main()
 
 
 # In[ ]:
