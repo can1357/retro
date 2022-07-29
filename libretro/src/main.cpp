@@ -80,10 +80,17 @@ int main(int argv, const char** args) {
 			fmt::println("-> lifter failed with: ", err);
 			break;
 		}
-		for (auto i : view::reverse(bb->insns())) {
-			if (i->ip != ip)
-				break;
-			fmt::println(i->to_string());
+		if (!bb->empty()) {
+			auto it = std::prev(bb->end());
+			while (it != bb->begin()) {
+				if (it->prev->ip == ip) {
+					--it;
+				}
+			}
+			while (it != bb->end()) {
+				fmt::println("          -> ", it->to_string());
+				++it;
+			}
 		}
 
 		// Skip the bytes and increment IP.
