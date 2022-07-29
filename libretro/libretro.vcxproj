@@ -59,7 +59,6 @@
     <ClInclude Include="include\retro\ldr\image.hpp" />
     <ClInclude Include="include\retro\ldr\interface.hpp" />
     <ClInclude Include="include\retro\ldr\pe.hpp" />
-    <ClInclude Include="include\retro\ldr\pe\image.hpp" />
     <ClInclude Include="include\retro\list.hpp" />
     <ClInclude Include="include\retro\lock.hpp" />
     <ClInclude Include="include\retro\platform.hpp" />

@@ -7,9 +7,16 @@
 #include <retro/arch/minsn.hpp>
 #include <bit>
 
-// Common architecture interface.
-//
 namespace retro::arch {
+	// Hashcodes for each builtin instance defined.
+	//
+	enum {
+		x86_32 = "x86_32"_ihash,
+		x86_64 = "x86_64"_ihash,
+	};
+
+	// Common architecture interface.
+	//
 	struct instance : interface::base<instance> {
 		// TODO: Lifter
 		// TODO: Context for emulation.

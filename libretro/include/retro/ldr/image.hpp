@@ -78,10 +78,18 @@ namespace retro::ldr {
 
 	// Image type.
 	//
-	struct image : dyn<image> {
+	struct image {
 		// Base address.
 		//
 		u64 base_address = 0;
+
+		// Raw data as mapped to memory.
+		//
+		std::vector<u8> raw_data = {};
+
+		// Image name if known.
+		//
+		std::string image_name = {};
 
 		// Kind of image.
 		//
@@ -93,21 +101,15 @@ namespace retro::ldr {
 		interface::hash arch_hash = 0;
 		// TODO: env_hash / abi_hash
 
-		// Image name if known.
-		//
-		std::string image_name = {};
-
-		// Raw data as mapped to memory.
-		//
-		std::vector<u8> raw_data = {};
-
 		// Descriptor tables.
+		// - Sorted by RVA, use insert_into_rva_set for insertion.
 		//
-		std::vector<section> sections = {};	 // Sorted! Use insert_into_rva_set.
-		std::vector<reloc>	relocs	= {};	 // Sorted! Use insert_into_rva_set.
-		std::vector<symbol>	symbols	= {};	 // Sorted! Use insert_into_rva_set.
+		std::vector<section> sections = {};
+		std::vector<reloc>	relocs	= {};
+		std::vector<symbol>	symbols	= {};
 
 		// RVA of the entry points.
+		// - Unordered, first entry should be main() or equivalent.
 		//
 		std::vector<u64> entry_points = {};
 	};

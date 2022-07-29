@@ -559,6 +559,12 @@ namespace retro {
 	};
 	#define RC_INITIALIZER RC_USED static retro::detail::init_hook RC_STRCAT(__initializer, __COUNTER__) = []()
 #endif
+
+	// Useful literals.
+	//
+	inline constexpr size_t operator""_kb(size_t n) { return (size_t) (n * 1024ull); }
+	inline constexpr size_t operator""_mb(size_t n) { return (size_t) (n * 1024ull * 1024ull); }
+	inline constexpr size_t operator""_gb(size_t n) { return (size_t) (n * 1024ull * 1024ull * 1024ull); }
 };
 
 // String conversion.

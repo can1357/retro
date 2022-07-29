@@ -4,9 +4,15 @@
 #include <retro/rc.hpp>
 #include <retro/interface.hpp>
 
-// Common loader interface.
-//
 namespace retro::ldr {
+	// Hashcodes for each builtin instance defined.
+	//
+	enum {
+		coff_pe = "coff-pe"_ihash,
+	};
+
+	// Common loader interface.
+	//
 	struct image;
 	struct instance : interface::base<instance> {
 		// Gets the associated extension list.

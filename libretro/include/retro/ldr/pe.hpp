@@ -3,12 +3,6 @@
 #include <retro/ldr/interface.hpp>
 
 namespace retro::ldr {
-	// Hashcodes for each instance defined.
-	//
-	enum {
-		coff_pe = "coff-pe"_ihash,
-	};
-
 	// Define the instance.
 	//
 	struct pe_loader final : instance {

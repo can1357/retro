@@ -5,13 +5,6 @@
 #include <Zydis/Zydis.h>
 
 namespace retro::arch {
-	// Hashcodes for each instance defined.
-	//
-	enum {
-		x86_32 = "x86_32"_ihash,
-		x86_64 = "x86_64"_ihash,
-	};
-
 	// Native disassembly.
 	//
 	struct x86insn {
