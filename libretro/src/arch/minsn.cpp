@@ -30,9 +30,9 @@ namespace retro::arch {
 
 	// Simple formatters.
 	//
-	std::string imm::to_string(u64 address) const {
-		if (address && is_relative) {
-			return fmt::str("%llx", address + s);
+	std::string imm::to_string(u64 ip) const {
+		if (ip && is_relative) {
+			return fmt::str("%llx", ip + s);
 		}
 		if (is_signed || is_relative) {
 			return fmt::to_str(s);
@@ -40,7 +40,7 @@ namespace retro::arch {
 			return fmt::to_str(u);
 		}
 	}
-	std::string mem::to_string(instance* a, u64 address) const {
+	std::string mem::to_string(instance* a, u64 ip) const {
 		std::string result;
 
 		// TODO: Should probably ask the arch :)
@@ -95,8 +95,8 @@ namespace retro::arch {
 		}
 
 		// [ip+disp] | [ip+index*scale+disp]
-		if (base.get_kind() == reg_kind::instruction && address) {
-			u64 total_disp = disp + address;
+		if (base.get_kind() == reg_kind::instruction && ip) {
+			u64 total_disp = disp + ip;
 			if (index) {
 				result += index.to_string(a);
 				if (scale != 1)
@@ -132,7 +132,7 @@ namespace retro::arch {
 		result += "]";
 		return result;
 	}
-	std::string minsn::to_string(u64 address) const {
+	std::string minsn::to_string(u64 ip) const {
 		auto a = arch::instance::resolve(arch);
 		if (!a) {
 			return {};
@@ -146,7 +146,7 @@ namespace retro::arch {
 			fmt::ljust(result, 12);
 
 			for (auto& op : operands()) {
-				result += op.to_string(a, address);
+				result += op.to_string(a, ip);
 				result += ", ";
 			}
 			result.erase(result.end() - 2, result.end());

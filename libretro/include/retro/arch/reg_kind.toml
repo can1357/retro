@@ -1,24 +1,39 @@
+Includes = [
+	"<retro/ir/builtin_types.hxx>"
+]
+Forwards = [
+	"ir::type"
+]
+
 # General purpose registers.
 #
 [reg_kind.gpr8]
 width = 8
+type  = "@ir::type.i8"
 [reg_kind.gpr16]
 width = 16
+type  = "@ir::type.i16"
 [reg_kind.gpr32]
 width = 32
+type  = "@ir::type.i32"
 [reg_kind.gpr64]
 width = 64
+type  = "@ir::type.i64"
 [reg_kind.gpr128]
 width = 128
+type  = "@ir::type.i128"
 
 # Floating point and SIMD.
 #
 [reg_kind.fp32]
 width = 32
+type  = "@ir::type.f32"
 [reg_kind.fp64]
 width = 64
+type  = "@ir::type.f64"
 [reg_kind.fp80]
 width = 80
+type  = "@ir::type.f80"
 [reg_kind.simd64]
 width = 64
 [reg_kind.simd128]
@@ -32,18 +47,22 @@ width = 512
 #
 [reg_kind.stack]
 is_pointer =    true
+type  =         "@ir::type.pointer"
 [reg_kind.instruction]
 is_pointer =    true
+type  =         "@ir::type.pointer"
 
 # Flag bits.
 #
 [reg_kind.flag]
 width = 1
+type  = "@ir::type.i1"
 
 # Segment registers.
 #
 [reg_kind.segment]
 width = 16
+type  = "@ir::type.segment"
 
 # Control registers.
 #

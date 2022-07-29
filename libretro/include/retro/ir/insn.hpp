@@ -2,6 +2,7 @@
 #include <retro/ir/opcodes.hxx>
 #include <retro/ir/value.hpp>
 #include <retro/diag.hpp>
+#include <retro/arch/interface.hpp>
 
 namespace retro::ir {
 	RC_DEF_ERR(insn_operand_type_mismatch, "expected operand #% to be of type '%', got '%' instead: %")
@@ -24,6 +25,10 @@ namespace retro::ir {
 		// Value name.
 		//
 		u32 name = 0;
+
+		// Architecture handle.
+		//
+		arch::handle arch = {};
 
 		// Opcode and operand count.
 		//
@@ -101,66 +106,11 @@ namespace retro::ir {
 
 		// Erases an operand.
 		//
-		void erase_operand(size_t i) {
-			// Reset the operand, move rest of it.
-			// - Note: this is very unsafe!
-			//
-			operands()[i].reset();
-			if (i != (operand_count - 1)) {
-				memmove(&operands()[i], &operands()[i + 1], (operand_count - i - 1) * sizeof(operand));
+		void erase_operand(size_t i);
 
-				// Fix list entries.
-				//
-				for (; i != (operand_count - 1); ++i) {
-					auto& op = operands()[i];
-					if (!op.is_const()) {
-						auto* p = op.prev;
-						auto* n = op.next;
-						p->next = &op;
-						n->prev = &op;
-					}
-				}
-			}
-			--operand_count;
-		}
-
-		// Declare string conversion and type getter.
+		// String conversion and type getter.
 		//
-		std::string to_string(fmt_style s = {}) const override {
-			if (s == fmt_style::concise) {
-				return fmt::str(RC_YELLOW "%%%x" RC_RESET, name);
-			} else {
-				auto& info = enum_reflect(op);
-
-				std::string result = {};
-				if (get_type() != type::none) {
-					result = fmt::str(RC_YELLOW "%%%x" RC_RESET " = ", name);
-				}
-
-				if (info.side_effect)
-					result += RC_RED;
-				else
-					result += RC_TEAL;
-
-				result += info.name;
-				for (size_t i = 0; i != info.template_count; i++) {
-					result += ".";
-					result += enum_name(template_types[i]);
-				}
-				result += " " RC_RESET;
-
-				for (auto& op : operands()) {
-					if (op.is_const())
-						result += RC_GREEN;
-					result += op.to_string(fmt_style::concise);
-					result += RC_RESET ", ";
-				}
-				if (operand_count) {
-					result.erase(result.end() - 2, result.end());
-				}
-				return result;
-			}
-		}
+		std::string to_string(fmt_style s = {}) const override;
 		type get_type() const override {
 			auto& info = enum_reflect(op);
 			if (info.templates[0] == 0) {
@@ -172,36 +122,7 @@ namespace retro::ir {
 
 		// Basic validation.
 		//
-		diag::lazy validate() const {
-			// Validate the operand types.
-			//
-			auto& info = enum_reflect(op);
-			for (size_t i = 1; i < info.templates.size(); i++) {
-				type treal = operands()[i - 1].get_type();
-				type texpc;
-				if (info.templates[i] != 0) {
-					texpc = template_types[info.templates[i] - 1];
-				} else {
-					texpc = info.types[i];
-					if (texpc == type::pack) {
-						continue;
-					}
-				}
-				if (treal != texpc) {
-					return err::insn_operand_type_mismatch(i - 1, texpc, treal, to_string());
-				}
-			}
-
-			// Validate constexpr requirements.
-			//
-			for (u8 cxpr : info.constexprs) {
-				if (!operands()[cxpr - 1].is_const()) {
-					return err::insn_constexpr_mismatch(cxpr - 1, operands()[cxpr - 1].to_string(fmt_style::concise), to_string());
-				}
-			}
-			return diag::ok;
-		}
-
+		diag::lazy validate() const;
 
 		// Destroy all operands on destruction.
 		//

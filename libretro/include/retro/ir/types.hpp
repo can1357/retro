@@ -1,6 +1,7 @@
 #pragma once
 #include <retro/ir/builtin_types.hxx>
 #include <retro/ir/ops.hxx>
+#include <retro/arch/mreg.hpp>
 #include <retro/format.hpp>
 
 // Scoped enums to create alternative types for some builtins.

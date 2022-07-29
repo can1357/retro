@@ -33,6 +33,9 @@ static diag::expected<ref<ldr::image>> load_image(const std::filesystem::path& p
 	return load_image(view);
 }
 
+#include <retro/ir/routine.hpp>
+#include <retro/arch/x86/regs.hxx>
+
 int main(int argv, const char** args) {
 	platform::setup_ansi_escapes();
 	
@@ -49,22 +52,43 @@ int main(int argv, const char** args) {
 	auto machine = arch::instance::find(img->arch_hash);
 	auto loader	 = ldr::instance::find(img->ldr_hash);
 	RC_ASSERT(loader && machine);
-	fmt::println(" -> loader:  ", loader->get_name());
-	fmt::println(" -> machine: ", machine->get_name());
+	fmt::println("-> loader:  ", loader->get_name());
+	fmt::println("-> machine: ", machine->get_name());
 
-	// Stuff!
+	// Demo.
 	//
-	u64					  ip	 = 0x1400072C0;
+	u64	ip		  = 0x1400072C0;
+	auto	rtn	  = make_rc<ir::routine>();
+	auto* bb		  = rtn->add_block();
+	rtn->ip		  = ip;
+	bb->ip		  = ip;
+
 	std::span<const u8> data = img->slice(ip - img->base_address);
 	for (size_t i = 0; i < 16 && !data.empty(); i++) {
+		// Disasm the instruction and print it.
+		//
 		arch::minsn ins = {};
 		if (!machine->disasm(data, &ins)) {
 			fmt::println("failed to disasm\n");
 			break;
 		}
-
-		data = data.subspan(ins.length);
 		fmt::println(ip, ": ", ins.to_string(ip));
+
+		// Try lifting it and print the result.
+		//
+		if (auto err = machine->lift(bb, ins, ip)) {
+			fmt::println("-> lifter failed with: ", err);
+			break;
+		}
+		for (auto i : view::reverse(bb->insns())) {
+			if (i->ip != ip)
+				break;
+			fmt::println(i->to_string());
+		}
+
+		// Skip the bytes and increment IP.
+		//
+		data = data.subspan(ins.length);
 		ip += ins.length;
 	}
 	return 0;

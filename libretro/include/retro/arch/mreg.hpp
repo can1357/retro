@@ -12,6 +12,24 @@ namespace retro::arch {
 		u32 kind : 8 = 0;	 // Register kind.
 		static_assert(u32(reg_kind::bit_width) <= 8, "Invalid layout.");
 
+		// Default construction and copy.
+		//
+		constexpr mreg()									 = default;
+		constexpr mreg(mreg&&) noexcept				 = default;
+		constexpr mreg& operator=(mreg&&) noexcept = default;
+		constexpr mreg(const mreg&)					 = default;
+		constexpr mreg& operator=(const mreg&)		 = default;
+
+		// Full value construction.
+		//
+		constexpr mreg(u32 id, reg_kind kind) : id(id), kind(u32(kind)) {}
+
+		// Automatic resolution from enum types.
+		//
+		template<typename T>
+			requires std::is_scoped_enum_v<T>
+		constexpr mreg(T id) : id((u32) id), kind((u32) enum_reflect(id).kind) {}
+
 		// Gets the kind in the enum type.
 		//
 		constexpr reg_kind get_kind() const { return reg_kind(kind); }

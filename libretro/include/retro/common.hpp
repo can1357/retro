@@ -157,11 +157,9 @@
 // Common macros.
 //
 #define RC_STRINGIFY_I(x)		  #x
-#define RC_STRCAT_I(x, y)		  x##y
-#define RC_CONCAT_I(x, y)		  x#y
+#define RC_CONCAT_I(x, y)		  x##y
 #define RC_IDENTITY(...)		  __VA_ARGS__
 #define RC_STRINGIFY(x)			  RC_STRINGIFY_I(x)
-#define RC_STRCAT(x, y)			  RC_STRCAT_I(x, y)
 #define RC_CONCAT(x, y)			  RC_CONCAT_I(x, y)
 #define RC_FIRST(x, ...)		  RC_IDENTITY(x)
 #define RC_SECOND(_, x, ...)	  RC_IDENTITY(x)
@@ -547,7 +545,7 @@ namespace retro {
 	inline T static_instance = {};
 
 #if RC_GNU || RC_CLANG
-	#define RC_INITIALIZER __attribute__((constructor)) static void RC_STRCAT(__initializer, __COUNTER__)()
+	#define RC_INITIALIZER __attribute__((constructor)) static void RC_CONCAT(__initializer, __COUNTER__)()
 #else
 	namespace detail {
 		struct init_hook {
@@ -557,7 +555,7 @@ namespace retro {
 			}
 		};
 	};
-	#define RC_INITIALIZER RC_USED static retro::detail::init_hook RC_STRCAT(__initializer, __COUNTER__) = []()
+	#define RC_INITIALIZER RC_USED static retro::detail::init_hook RC_CONCAT(__initializer, __COUNTER__) = []()
 #endif
 
 	// Useful literals.

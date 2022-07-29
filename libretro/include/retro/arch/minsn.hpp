@@ -16,15 +16,15 @@ namespace retro::arch {
 
 		// String conversion.
 		//
-		std::string to_string(instance* a = nullptr, u64 address = 0) const;
+		std::string to_string(instance* a = nullptr, u64 ip = 0) const;
 	};
 
 	// Immediate operand details.
 	//
 	struct imm {
-		u16  width		  = 0;  // Effective size in bits.
-		bool is_signed	  = false;
-		bool is_relative = false;
+		u16  width		  = 0;		// Effective size in bits.
+		bool is_signed	  = false;	// Set if signed.
+		bool is_relative = false;	// Set if relative (from ip prior to execution regardless of arch).
 
 		union {
 			u64 u = 0;
@@ -33,7 +33,7 @@ namespace retro::arch {
 
 		// String conversion.
 		//
-		std::string to_string(u64 address = 0) const;
+		std::string to_string(u64 ip = 0) const;
 	};
 
 	// Common operand type.
@@ -62,14 +62,14 @@ namespace retro::arch {
 
 		// String conversion.
 		//
-		std::string to_string(instance* a = nullptr, u64 address = 0) const {
+		std::string to_string(instance* a = nullptr, u64 ip = 0) const {
 			switch (type) {
 				case mop_type::reg:
 					return r.to_string(a);
 				case mop_type::mem:
-					return m.to_string(a, address);
+					return m.to_string(a, ip);
 				case mop_type::imm:
-					return i.to_string(address);
+					return i.to_string(ip);
 				default:
 					return {};
 			}
@@ -95,7 +95,7 @@ namespace retro::arch {
 
 		// Operand list.
 		//
-		mop operand_array[max_mop_count] = {};
+		mop op[max_mop_count] = {};
 
 		// Gets the name of the instruction.
 		//
@@ -103,11 +103,11 @@ namespace retro::arch {
 
 		// Formats the instruction.
 		//
-		std::string to_string(u64 address = 0) const;
+		std::string to_string(u64 ip = 0) const;
 
 		// Wrapper around operand list.
 		//
-		constexpr std::span<mop>		 operands() { return {operand_array, operand_count}; }
-		constexpr std::span<const mop> operands() const { return {operand_array, operand_count}; }
+		constexpr std::span<mop>		 operands() { return {op, operand_count}; }
+		constexpr std::span<const mop> operands() const { return {op, operand_count}; }
 	};
 };

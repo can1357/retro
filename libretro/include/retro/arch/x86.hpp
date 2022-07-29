@@ -17,7 +17,7 @@ namespace retro::arch {
 
 		// Formatting.
 		//
-		std::string to_string(u64 address = ZYDIS_RUNTIME_ADDRESS_NONE) const;
+		std::string to_string(u64 ip = ZYDIS_RUNTIME_ADDRESS_NONE) const;
 	};
 
 	// Define the instance.
@@ -33,12 +33,22 @@ namespace retro::arch {
 		//
 		x86arch(ZydisMachineMode mode);
 
-		// Disassembly and formatting.
+		// Helpers.
 		//
-		bool				  disasm(std::span<const u8> data, x86insn* out);
-		bool				  disasm(std::span<const u8> data, minsn* out);
+		bool is_64() { return machine_mode == ZYDIS_MACHINE_MODE_LONG_64; }
+		bool is_32() { return machine_mode == ZYDIS_MACHINE_MODE_LONG_COMPAT_32 || machine_mode == ZYDIS_MACHINE_MODE_LEGACY_32; }
+		bool is_16() { return machine_mode == ZYDIS_MACHINE_MODE_LONG_COMPAT_16 || machine_mode == ZYDIS_MACHINE_MODE_LEGACY_16 || machine_mode == ZYDIS_MACHINE_MODE_REAL_16; }
+
+		// Lifting and disassembly.
+		//
+		bool		  disasm(std::span<const u8> data, x86insn* out);
+		bool		  disasm(std::span<const u8> data, minsn* out);
+		diag::lazy lift(ir::basic_block* bb, const minsn& ins, u64 ip);
+
+		// Formatting.
+		//
 		std::string_view name_register(mreg r);
-		std::string_view name_mnemonic(u32 i);
+		std::string_view name_mnemonic(u32 id);
 		std::string		  format_minsn_modifiers(const minsn& i);
 
 		// Architectural details.

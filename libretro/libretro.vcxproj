@@ -33,6 +33,7 @@
     <ClInclude Include="include\retro\arch\reg_kind.hxx" />
     <ClInclude Include="include\retro\arch\x86.hpp" />
     <ClInclude Include="include\retro\arch\x86\regs.hxx" />
+    <ClInclude Include="include\retro\arch\x86\sema.hpp" />
     <ClInclude Include="include\retro\arch\x86\zy2rc.hpp" />
     <ClInclude Include="include\retro\diag.hpp" />
     <ClInclude Include="include\retro\doc\workspace.hpp" />
@@ -78,6 +79,9 @@
     <ClCompile Include="src\arch\minsn.cpp" />
     <ClCompile Include="src\arch\x86\sema.cpp" />
     <ClCompile Include="src\arch\x86\x86.cpp" />
+    <ClCompile Include="src\ir\basic_block.cpp" />
+    <ClCompile Include="src\ir\insn.cpp" />
+    <ClCompile Include="src\ir\routine.cpp" />
     <ClCompile Include="src\ldr\pe.cpp" />
     <ClCompile Include="src\main.cpp" />
     <ClCompile Include="src\platform.cpp" />

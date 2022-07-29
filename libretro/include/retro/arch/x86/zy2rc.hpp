@@ -23,24 +23,19 @@ namespace retro::arch::x86 {
 	//
 	inline constexpr reg to_reg(ZydisRegister reg) { return detail::reg_from_zy[u32(reg)]; }
 
-	// Conversion from ZydisRegister/x86::reg into mreg.
-	//
-	inline constexpr mreg to_mreg(reg reg) { return {(u32) reg, (u32) enum_reflect(reg).kind}; }
-	inline constexpr mreg to_mreg(ZydisRegister reg) { return to_mreg(to_reg(reg)); }
-
 	// Conversion of ZydisDecodedOperand into mop.
 	//
 	inline constexpr mop to_mop(const ZydisDecodedOperand& op, u8 insn_len) {
 		switch (op.type) {
 			case ZYDIS_OPERAND_TYPE_REGISTER: {
-				return to_mreg(op.reg.value);
+				return mreg{to_reg(op.reg.value)};
 			}
 			case ZYDIS_OPERAND_TYPE_MEMORY: {
 				return mem{
 					 .width = op.size,
-					 .segr  = to_mreg(op.mem.segment),
-					 .base  = to_mreg(op.mem.base),
-					 .index = to_mreg(op.mem.index),
+					 .segr  = to_reg(op.mem.segment),
+					 .base  = to_reg(op.mem.base),
+					 .index = to_reg(op.mem.index),
 					 .scale = op.mem.scale,
 					 .disp  = (op.mem.disp.has_displacement ? op.mem.disp.value : 0),
 				};
