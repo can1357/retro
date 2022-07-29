@@ -10,9 +10,12 @@ namespace retro::interface {
 	// Given a string hashes it according to the interface manager rules.
 	//
 	inline constexpr u32 hash(std::string_view data) {
+		// -- Must match tablegen.py
+		//
 		u32 hash = 0xd0b06e5e;
 		for (size_t i = 0; i != data.size(); i++) {
-			hash = fnv1a_32_hash(0x20 | (u8) data[i], hash);
+			hash ^= 0x20 | data[i];
+			hash *= 0x01000193;
 		}
 		return (hash ? hash : 1);
 	}
@@ -21,7 +24,7 @@ namespace retro::interface {
 	//
 	template<typename T>
 	struct base {
-		// Create a new identifier enum for this instance.
+		// Create a new identifier type for this instance.
 		//
 		struct RC_TRIVIAL_ABI id {
 			u32 value = 0;
@@ -56,6 +59,10 @@ namespace retro::interface {
 			}
 		};
 
+		// Define the handle type.
+		//
+		using handle = ref<T>;
+
 	  private:
 		// Instance map.
 		//
@@ -66,7 +73,6 @@ namespace retro::interface {
 		//
 		std::string name;
 		id				identifier = std::nullopt;
-
 	  public:
 
 		// Gets the name.

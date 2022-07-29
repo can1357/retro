@@ -1,7 +1,7 @@
 #!/usr/bin/env python
 # coding: utf-8
 
-# In[19]:
+# In[12]:
 
 
 #!conda install --yes toml
@@ -86,6 +86,18 @@ def multiline_eval(expr, context, local_list):
     exec(compile(exec_expr, 'file', 'exec'), context, local_list)
     for eval_expr in eval_exprs:
         exec(compile(ast.Expression((eval_expr)), 'file', 'eval'), context, local_list)
+
+# Interface hash.
+#
+def ihash(s):
+    hash = 0xd0b06e5e
+    for k in s.encode('utf-8'):
+        hash ^= (0x20 | k)
+        hash *= 0x01000193
+        hash &= 0xFFFFFFFF
+    if hash == 0:
+        hash = 1
+    return hash
 
 # Helper for writing C++ functions.
 #
@@ -184,6 +196,12 @@ class CxxInteger(CxxType):
     def write(self, value):
         if value == None:
             return self.default
+        
+        # Handle interface hash.
+        if isinstance(value, str):
+            assert value[0] == '#'
+            return hex(ihash(value[1:]))
+
         if self.bits == 1:
             if CXX_USE_BOOL:
                 return "true" if value else "false"
@@ -337,6 +355,9 @@ def to_cxx_type(value, packed = True, scope = None):
     # Trivial types.
     #
     if isinstance(value, str):
+        # Iface hash
+        if len(value) != 0 and value[0] == "#":
+            return C_UINT32
         # Enum-escape.
         if scope:
             if len(value) != 0 and value[0] == "@":
@@ -792,12 +813,6 @@ except NameError:
     elif len(sys.argv) >= 2:
         path = sys.argv[1]
     generate_all(path)
-
-
-# In[ ]:
-
-
-
 
 
 # In[ ]:

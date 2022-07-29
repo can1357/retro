@@ -458,6 +458,8 @@ out -> 1 0.004731%
 #include <retro/ldr/interface.hpp>
 #include <retro/ldr/image.hpp>
 
+
+
 namespace retro::ldr {
 
 	//
@@ -517,12 +519,11 @@ namespace retro::ldr {
 
 int main(int argv, const char** args) {
 	platform::setup_ansi_escapes();
-
 	
 	auto i  = ldr::instance::find("win-pe");
 	auto i2 = ldr::instance::find("win-pe"_if);
-	fmt::println(i ? i->get_id() : ldr::instance::id());
-	fmt::println(i2 ? i2->get_id() : ldr::instance::id());
+	fmt::println(i ? i->get_id() : ldr::id());
+	fmt::println(i2 ? i2->get_id() : ldr::id());
 
 	ldr::instance::for_each([](auto&& ldr) {
 		fmt::println(*ldr);
