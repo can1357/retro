@@ -32,7 +32,7 @@
     <ClInclude Include="include\retro\doc\workspace.hpp" />
     <ClInclude Include="include\retro\graph\naive.hpp" />
     <ClInclude Include="include\retro\graph\search.hpp" />
-    <ClInclude Include="include\retro\interface_manager.hpp" />
+    <ClInclude Include="include\retro\interface.hpp" />
     <ClInclude Include="include\retro\intrin.hpp" />
     <ClInclude Include="include\retro\bitset.hpp" />
     <ClInclude Include="include\retro\common.hpp" />
@@ -41,7 +41,7 @@
     <ClInclude Include="include\retro\dyn.hpp" />
     <ClInclude Include="include\retro\format.hpp" />
     <ClInclude Include="include\retro\func.hpp" />
-    <ClInclude Include="include\retro\hashers.hpp" />
+    <ClInclude Include="include\retro\hash.hpp" />
     <ClInclude Include="include\retro\ir\basic_block.hpp" />
     <ClInclude Include="include\retro\ir\builtin_types.hxx" />
     <ClInclude Include="include\retro\ir\insn.hpp" />

@@ -1,6 +1,6 @@
 #pragma once
 #include <retro/common.hpp>
-#include <retro/hashers.hpp>
+#include <retro/hash.hpp>
 
 // Compile-Time type identifiers.
 //

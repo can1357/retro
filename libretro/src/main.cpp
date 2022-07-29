@@ -511,13 +511,18 @@ namespace retro::ldr {
 			}
 		}
 	};
-	RC_REGISTER_INTERFACE("Portable Executable", pe_loader);
+	RC_ADD_INTERFACE("win-pe", pe_loader);
 };
 
 
 int main(int argv, const char** args) {
 	platform::setup_ansi_escapes();
 
+	
+	auto i  = ldr::instance::find("win-pe");
+	auto i2 = ldr::instance::find("win-pe"_if);
+	fmt::println(i ? i->get_id() : ldr::instance::id());
+	fmt::println(i2 ? i2->get_id() : ldr::instance::id());
 
 	ldr::instance::for_each([](auto&& ldr) {
 		fmt::println(*ldr);

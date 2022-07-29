@@ -147,14 +147,22 @@ namespace retro::fmt {
 	template<typename... Tx>
 	static std::string concat(const Tx&... args);
 
+	// Out of line formatter.
+	//
+	template<typename T>
+	struct formatter;
+
 	// Conversion from any type to std::string_view or std::string.
 	//
 	namespace detail {
 		template<typename T>
 		concept CustomFormattable = requires(const T& v) { v.to_string(); };
 		template<typename T>
+		concept CustomFormattableExt = requires(const T& v) { formatter<T>{}(v); };
+		template<typename T>
 		concept StlFormattable = requires(const T& v) { std::to_string(v); };
 	};
+
 	template<typename T>
 	static auto to_str(const T& arg) {
 		if constexpr (std::is_bounded_array_v<T>) {
@@ -188,6 +196,8 @@ namespace retro::fmt {
 			return result;
 		} else if constexpr (detail::CustomFormattable<Td>) {
 			return arg.to_string();
+		} else if constexpr (detail::CustomFormattableExt<Td>) {
+			return formatter<T>{}(arg);
 		} else if constexpr (std::is_same_v<Td, std::filesystem::path>) {
 			return arg.string();
 		} else if constexpr (StructuredEnum<Td>) {

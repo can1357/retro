@@ -2,13 +2,13 @@
 #include <retro/common.hpp>
 #include <retro/diag.hpp>
 #include <retro/rc.hpp>
-#include <retro/interface_manager.hpp>
+#include <retro/interface.hpp>
 
 namespace retro::ldr {
 	// Image loader instance.
 	//
 	struct image;
-	struct instance : interface_manager<instance> {
+	struct instance : interface::base<instance> {
 		// Gets the associated extension list.
 		//
 		virtual std::span<const std::string_view> get_extensions() = 0;

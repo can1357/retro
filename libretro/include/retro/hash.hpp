@@ -60,7 +60,7 @@ namespace retro {
 			static constexpr T offset = Offset;
 			static constexpr T prime  = Prime;
 
-			// Hashers for each size of integral.
+			// hash for each size of integral.
 			//
 			RC_INLINE constexpr T operator()(u8 data, T hash = Offset) const noexcept {
 				hash ^= data;
@@ -86,6 +86,13 @@ namespace retro {
 			RC_INLINE constexpr T operator()(i16 data, T hash = Offset) const noexcept { return operator()(u16(data), hash); }
 			RC_INLINE constexpr T operator()(i32 data, T hash = Offset) const noexcept { return operator()(u32(data), hash); }
 			RC_INLINE constexpr T operator()(i64 data, T hash = Offset) const noexcept { return operator()(u64(data), hash); }
+
+			RC_INLINE constexpr T operator()(std::string_view data, T hash = Offset) const noexcept {
+				for (size_t i = 0; i != data.size(); i++) {
+					hash = operator()((u8) data[i], hash);
+				}
+				return hash;
+			}
 		};
 	};
 	
