@@ -455,26 +455,63 @@ out -> 1 0.004731%
 
 
 
-#include <retro/loader/interface.hpp>
-#include <retro/doc/image.hpp>
-
+#include <retro/ldr/interface.hpp>
+#include <retro/ldr/image.hpp>
 
 namespace retro::ldr {
 
-	struct pe_image : instance {
+	//
+	// includes/retro/ldr/pe.hpp
+	//
+	
+	// PE image instance.
+	//
+	struct pe_image final : dyn<pe_image, image> {
+		// Extensions!!!
+		//
+	};
+
+	//
+	// src/ldr/pe.cpp
+	//
+	RC_DEF_ERR(image_is_very_stupid, "expected smart image got dumbass % bytes instead")
+
+
+	// PE loader.
+	//
+	struct pe_loader final : instance {
+		// Extension list.
+		//
 		static constexpr std::string_view extensions[] = {
 			 ".exe",
 			 ".dll",
 			 ".sys",
 		};
-
 		std::span<const std::string_view> get_extensions() { return extensions; }
 
-		bool validate(std::span<const u8> data) { return true; }
+		// Returns true if the given binary blob's magic matches this format.
+		//
+		bool match(std::span<const u8> data) {
+			// TODO: check magic.
+			return true;
+		}
 
-		diag::expected<ref<doc::image>> load(std::span<const u8> data) { return diag::lazy{diag::error}; }
+		// Loads the binary blob into an image.
+		//
+		diag::expected<ref<image>> load(std::span<const u8> data) {
+			ref img = make_rc<pe_image>();
+
+			// stuff...
+			//
+			bool error = false;
+			if (error) {
+				return err::image_is_very_stupid(data.size());
+			} else {
+				return {std::move(img)};
+			}
+		}
 	};
-	RC_REGISTER_INTERFACE("Portable Executable", pe_image);
+	RC_REGISTER_INTERFACE("Portable Executable", pe_loader);
 };
 
 

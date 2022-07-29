@@ -29,7 +29,6 @@
   <ItemGroup>
     <ClInclude Include="include\retro\arch\x86\zydis.hpp" />
     <ClInclude Include="include\retro\diag.hpp" />
-    <ClInclude Include="include\retro\doc\image.hpp" />
     <ClInclude Include="include\retro\doc\workspace.hpp" />
     <ClInclude Include="include\retro\graph\naive.hpp" />
     <ClInclude Include="include\retro\graph\search.hpp" />
@@ -51,8 +50,9 @@
     <ClInclude Include="include\retro\ir\routine.hpp" />
     <ClInclude Include="include\retro\ir\types.hpp" />
     <ClInclude Include="include\retro\ir\value.hpp" />
+    <ClInclude Include="include\retro\ldr\image.hpp" />
+    <ClInclude Include="include\retro\ldr\interface.hpp" />
     <ClInclude Include="include\retro\list.hpp" />
-    <ClInclude Include="include\retro\loader\interface.hpp" />
     <ClInclude Include="include\retro\lock.hpp" />
     <ClInclude Include="include\retro\platform.hpp" />
     <ClInclude Include="include\retro\rc.hpp" />

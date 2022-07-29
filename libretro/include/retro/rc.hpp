@@ -75,7 +75,7 @@ namespace retro {
 
 	// Define the ref and weak similar to shared_ptr and weak_ptr.
 	//
-	template<typename T = void>
+	template<typename T>
 	struct RC_TRIVIAL_ABI ref {
 		T* ptr = nullptr;
 
@@ -172,7 +172,7 @@ namespace retro {
 		}
 		RC_INLINE constexpr ~ref() { reset(); }
 	};
-	template<typename T = void>
+	template<typename T>
 	struct RC_TRIVIAL_ABI weak {
 		T* ptr = nullptr;
 

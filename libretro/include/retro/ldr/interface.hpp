@@ -4,11 +4,10 @@
 #include <retro/rc.hpp>
 #include <retro/interface_manager.hpp>
 
-namespace retro::doc {
-	struct image;
-};
-
 namespace retro::ldr {
+	// Image loader instance.
+	//
+	struct image;
 	struct instance : interface_manager<instance> {
 		// Gets the associated extension list.
 		//
@@ -16,10 +15,10 @@ namespace retro::ldr {
 
 		// Returns true if the given binary blob's magic matches this format.
 		//
-		virtual bool validate(std::span<const u8> data) = 0;
+		virtual bool match(std::span<const u8> data) = 0;
 
 		// Loads the binary blob into an image.
 		//
-		virtual diag::expected<ref<doc::image>> load(std::span<const u8> data) = 0;
+		virtual diag::expected<ref<image>> load(std::span<const u8> data) = 0;
 	};
 };
