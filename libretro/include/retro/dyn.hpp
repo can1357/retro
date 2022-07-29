@@ -135,7 +135,7 @@ namespace retro {
 				if constexpr (std::is_copy_constructible_v<Self>) {
 					return new Self(*(const Self*) this);
 				} else {
-					RC_UNREACHABLE();
+					assume_unreachable();
 				}
 			}
 

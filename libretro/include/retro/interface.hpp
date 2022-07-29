@@ -3,6 +3,7 @@
 #include <retro/lock.hpp>
 #include <retro/rc.hpp>
 #include <retro/hash.hpp>
+#include <retro/dyn.hpp>
 #include <string>
 #include <vector>
 
@@ -23,7 +24,7 @@ namespace retro::interface {
 	// Base class.
 	//
 	template<typename T>
-	struct base {
+	struct base : dyn<T> {
 		// Create a new identifier type for this instance.
 		//
 		struct RC_TRIVIAL_ABI id {
@@ -45,6 +46,10 @@ namespace retro::interface {
 			// Default comparison.
 			//
 			constexpr auto operator<=>(const id& o) const = default;
+
+			// Conversion to native value.
+			//
+			explicit constexpr operator u32() const { return value; }
 
 			// String conversion.
 			//

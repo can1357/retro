@@ -507,9 +507,9 @@ namespace retro {
 				_MACRO_VISITOR(_RC_DEFINE_STD_VISIT_CASE_FOR)                  \
 				_RC_DEFINE_STD_VISIT_CASE_FOR(none)                            \
 				default:                                                       \
-					RC_UNREACHABLE();                                           \
+					retro::assume_unreachable();                                \
 			}                                                                 \
-			RC_UNREACHABLE();                                                 \
+			retro::assume_unreachable();                                      \
 		}                                                                    \
 	};
 

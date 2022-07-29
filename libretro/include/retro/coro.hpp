@@ -184,7 +184,7 @@ namespace retro {
 	struct suspend_terminate {
 		RC_INLINE bool await_ready() { return false; }
 		RC_INLINE void await_suspend(coroutine_handle<> hnd) { hnd.destroy(); }
-		RC_INLINE void await_resume() const { RC_UNREACHABLE(); }
+		RC_INLINE void await_resume() const { assume_unreachable(); }
 	};
 
 	// Unique coroutine that is destroyed on destruction by caller.

@@ -6,6 +6,17 @@
 #include <variant>
 
 namespace retro::ldr {
+	// Image kind.
+	//
+	enum class image_kind : u8 {
+		unknown = 0,
+		executable,			// Executable.
+		dynamic_library,	// Dynamic library.
+		static_library,	// Static library.
+		object_file,		// Single unit of compilation.
+		memory_dump,		// Process memory dump, meaning multiple images are present.
+	};
+
 	// Relocation entries.
 	//
 	enum class reloc_kind : u8 {
@@ -71,6 +82,10 @@ namespace retro::ldr {
 		// Base address.
 		//
 		u64 base_address = 0;
+
+		// Kind of image.
+		//
+		image_kind kind = image_kind::unknown;
 
 		// Image name if known.
 		//

@@ -280,7 +280,7 @@ namespace retro::ir {
 		if constexpr (BuiltinType<B>) {               \
 			return std::string{fmt::to_str(get<B>())}; \
 		} else {                                      \
-			RC_UNREACHABLE();                          \
+			assume_unreachable();                      \
 		}                                             \
 	}
 				RC_VISIT_TYPE(FMT_TY)

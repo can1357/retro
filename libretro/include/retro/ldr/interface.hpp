@@ -4,9 +4,9 @@
 #include <retro/rc.hpp>
 #include <retro/interface.hpp>
 
+// Common loader interface.
+//
 namespace retro::ldr {
-	// Image loader instance.
-	//
 	struct image;
 	struct instance : interface::base<instance> {
 		// Gets the associated extension list.
