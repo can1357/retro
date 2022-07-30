@@ -189,34 +189,36 @@ namespace retro::ir {
 	template<Scalar T, size_t N>
 	struct operator_visitor<vec<T, N>> {
 		RC_INLINE static constant apply(op o, const vec<T, N>& lhs, const vec<T, N>& rhs) {
-#define VEC_OPERATOR_VISITOR(OP)                                                                                \
-	case op::OP: {                                                                                               \
-		/*If application result is boolean:*/                                                                     \
-		using Result = decltype(RC_CONCAT(apply_, OP)(std::declval<T>(), std::declval<T>()));                     \
-		if constexpr (std::is_same_v<Result, bool>) {                                                             \
-			/*Only EQ and NE are well defined.*/                                                                   \
-			if (op::OP == op::eq) {                                                                                \
-				return memcmp(&lhs, &rhs, sizeof(T) * N) == 0;                                                      \
-			} else if (op::OP == op::ne) {                                                                         \
-				return memcmp(&lhs, &rhs, sizeof(T) * N) != 0;                                                      \
-			}                                                                                                      \
-			return std::nullopt;                                                                                   \
-		} /*If implemented for the element type, apply in parallel:*/                                             \
-		else if constexpr (!std::is_same_v<Result, std::nullopt_t>) {                                             \
-			vec<T, N> result = {};                                                                                 \
-			for (size_t i = 0; i != N; i++) {                                                                      \
-				if constexpr (op::OP == op::div || op::OP == op::rem || op::OP == op::udiv || op::OP == op::urem) { \
-					if (rhs[i] == 0 && Integer<T>) {                                                                 \
-						return constant{};                                                                            \
-					}                                                                                                \
-				}                                                                                                   \
-				result[i] = RC_CONCAT(apply_, OP)(lhs[i], rhs[i]);                                                  \
-			}                                                                                                      \
-			return result;                                                                                         \
-		} /*Otherwise invoke any vector handler if present.*/                                                     \
-		else {                                                                                                    \
-			return RC_CONCAT(apply_, OP)(lhs, rhs);                                                                \
-		}                                                                                                         \
+#define VEC_OPERATOR_VISITOR(OP)                                                                                           \
+	case op::OP: {                                                                                                          \
+		/*If application result is boolean:*/                                                                                \
+		using Result = decltype(RC_CONCAT(apply_, OP)(std::declval<T>(), std::declval<T>()));                                \
+		if constexpr (std::is_same_v<Result, bool>) {                                                                        \
+			/*Only EQ and NE are well defined.*/                                                                              \
+			if (op::OP == op::eq) {                                                                                           \
+				return memcmp(&lhs, &rhs, sizeof(T) * N) == 0;                                                                 \
+			} else if (op::OP == op::ne) {                                                                                    \
+				return memcmp(&lhs, &rhs, sizeof(T) * N) != 0;                                                                 \
+			}                                                                                                                 \
+			return std::nullopt;                                                                                              \
+		} /*If implemented for the element type, apply in parallel:*/                                                        \
+		else if constexpr (!std::is_same_v<Result, std::nullopt_t>) {                                                        \
+			vec<T, N> result = {};                                                                                            \
+			if constexpr (op::OP == op::div || op::OP == op::rem || op::OP == op::udiv || op::OP == op::urem && Integer<T>) { \
+				for (size_t i = 0; i != N; i++) {                                                                              \
+					if (rhs[i] == 0) {                                                                                          \
+						return constant{};                                                                                       \
+					}                                                                                                           \
+				}                                                                                                              \
+			}                                                                                                                 \
+			for (size_t i = 0; i != N; i++) {                                                                                 \
+				result[i] = RC_CONCAT(apply_, OP)(lhs[i], rhs[i]);                                                             \
+			}                                                                                                                 \
+			return result;                                                                                                    \
+		} /*Otherwise invoke any vector handler if present.*/                                                                \
+		else {                                                                                                               \
+			return RC_CONCAT(apply_, OP)(lhs, rhs);                                                                           \
+		}                                                                                                                    \
 	}
 			switch (o) {
 				RC_VISIT_IR_OP(VEC_OPERATOR_VISITOR)
