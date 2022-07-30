@@ -12,7 +12,6 @@ using namespace retro;
 RC_DEF_ERR(file_read_err, "failed to read file '%'")
 RC_DEF_ERR(no_matching_loader, "failed to identify the image loader")
 
-
 // Loads an image from memory.
 //
 static diag::expected<ref<ldr::image>> load_image(std::span<const u8> data) {

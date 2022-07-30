@@ -379,7 +379,6 @@ types =          ["@type.none"]
 templates =      [0]
 names =          [""]
 
-
 #TODO:
 #  -- vector stuff
 #  T    intrinsic<T> constexpr intrinsic:Id, Ty:ArgOrTup // lsb,msb,popcnt,sin,cos,memcpy,atomic,can represent all things we dont care about

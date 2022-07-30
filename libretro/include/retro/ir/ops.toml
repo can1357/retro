@@ -55,6 +55,41 @@ kind   = "@op-kind.unary-float"
 [op.round]
 symbol = "round"
 kind   = "@op-kind.unary-float"
+[op.sin]
+symbol = "sin"
+kind   = "@op-kind.unary-float"
+[op.cos]
+symbol = "cos"
+kind   = "@op-kind.unary-float"
+[op.tan]
+symbol = "tan"
+kind   = "@op-kind.unary-float"
+[op.asin]
+symbol = "asin"
+kind   = "@op-kind.unary-float"
+[op.acos]
+symbol = "acos"
+kind   = "@op-kind.unary-float"
+[op.atan]
+symbol = "atan"
+kind   = "@op-kind.unary-float"
+[op.sqrt]
+symbol = "sqrt"
+kind   = "@op-kind.unary-float"
+[op.exp]
+symbol  = "exp"
+kind    = "@op-kind.unary-float"
+inverse = "@op.log"
+[op.log]
+symbol  = "log"
+kind    = "@op-kind.unary-float"
+inverse = "@op.exp"
+[op.atan2]
+symbol = "atan2"
+kind   = "@op-kind.binary-float"
+[op.pow]
+symbol = "pow"
+kind   = "@op-kind.binary-float"
 
 # Binary operations
 #
@@ -248,45 +283,6 @@ ret =    "@type.pointer"
 [intrinsic.strstr]
 args =   ["@type.pointer", "@type.pointer"]
 ret =    "@type.pointer"
-
-# FP intrinsics.
-#
-[intrinsic.sin]
-args =   ["@type.f64"]
-ret =    "@type.f64"
-[intrinsic.cos]
-args =   ["@type.f64"]
-ret =    "@type.f64"
-[intrinsic.tan]
-args =   ["@type.f64"]
-ret =    "@type.f64"
-[intrinsic.asin]
-args =   ["@type.f64"]
-ret =    "@type.f64"
-[intrinsic.acos]
-args =   ["@type.f64"]
-ret =    "@type.f64"
-[intrinsic.atan]
-args =   ["@type.f64"]
-ret =    "@type.f64"
-[intrinsic.atan2]
-args =   ["@type.f64", "@type.f64"]
-ret =    "@type.f64"
-[intrinsic.exp]
-args =   ["@type.f64"]
-ret =    "@type.f64"
-[intrinsic.pow]
-args =   ["@type.f64", "@type.f64"]
-ret =    "@type.f64"
-[intrinsic.sqrt]
-args =   ["@type.f64"]
-ret =    "@type.f64"
-[intrinsic.log]
-args =   ["@type.f64"]
-ret =    "@type.f64"
-[intrinsic.copysign]
-args =   ["@type.f64", "@type.f64"]
-ret =    "@type.f64"
 
 # Low level intrinsics.
 #
