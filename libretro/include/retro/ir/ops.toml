@@ -36,7 +36,7 @@ kind   = "@op-kind.unary-bitwise"
 [op.bit_popcnt]
 symbol = "popcnt"
 kind   = "@op-kind.unary-bitwise"
-[op.bit_swap]
+[op.bit_byteswap]
 symbol = "bswap"
 kind   = "@op-kind.unary-bitwise"
 [op.bit_not]

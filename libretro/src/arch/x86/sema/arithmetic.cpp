@@ -51,7 +51,7 @@ DECL_SEMA(XADD) {
 	if (ins.modifiers & ZYDIS_ATTRIB_HAS_LOCK) {
 		auto [ptr, seg] = agen(sema_context(), ins.op[0].m, true);
 		auto lhsi		 = bb->push_atomic_binop(ir::op::add, seg, std::move(ptr), rhs);
-		result			 = bb->push_binop(ir::op::add, lhs, rhs);
+		result			 = bb->push_binop(ir::op::add, lhsi, rhs);
 		write(sema_context(), 1, lhsi);
 		lhs = lhsi;
 	} else {

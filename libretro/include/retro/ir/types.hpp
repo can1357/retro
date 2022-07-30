@@ -52,11 +52,7 @@ namespace retro::ir {
 #undef MAP_VTY
 
 	template<typename T>
-	concept BuiltinType = requires { type_to_builtin<T>::value; } && (
-		std::is_arithmetic_v<T> || std::is_enum_v<T> ||
-		std::is_same_v<T, std::string_view> ||
-		std::is_same_v<T, arch::mreg>
-	);
+	concept BuiltinType = !type_desc::all()[u32(type_to_builtin<T>::value)].pseudo;
 
 	template<type Id>
 	using type_t = typename builtin_to_type<Id>::type;
@@ -261,6 +257,12 @@ namespace retro::ir {
 		}
 		bool operator==(const constant& other) const { return equals(other); }
 		bool operator!=(const constant& other) const { return !equals(other); }
+
+		// Application of an operator over constants, returns "none" on failure.
+		//
+		constant apply(op o, const constant& rhs) const;
+		constant unop(op o) const { return apply(o, *this); }
+		constant binop(op o, const constant& rhs) const { return apply(o, rhs); }
 
 		// Reset handling freeing of the data.
 		//

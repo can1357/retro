@@ -52,6 +52,7 @@ for l in SIMD_WIDTHS:
 # Pseudo aka "none".
 #
 [type.pack]
+pseudo      = true
 VisitorArgs = ["retro::ir::value_pack_t"]
 [type.reg]
 VisitorArgs = ["retro::arch::mreg"]
@@ -60,6 +61,7 @@ VisitorArgs = ["retro::ir::op"]
 [type.intrinsic]
 VisitorArgs = ["retro::ir::intrinsic"]
 [type.label]
+pseudo      = true
 VisitorArgs = ["basic_block*"]
 [type.str]
 VisitorArgs = ["std::string_view"]

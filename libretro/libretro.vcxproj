@@ -86,6 +86,7 @@
     <ClCompile Include="src\ir\basic_block.cpp" />
     <ClCompile Include="src\ir\insn.cpp" />
     <ClCompile Include="src\ir\routine.cpp" />
+    <ClCompile Include="src\ir\types.cpp" />
     <ClCompile Include="src\ldr\pe.cpp" />
     <ClCompile Include="src\main.cpp" />
     <ClCompile Include="src\platform.cpp" />
