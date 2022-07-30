@@ -71,6 +71,19 @@ namespace retro::arch {
 		//
 		auto prev = std::prev(bb->end(), bb->empty() ? 0 : 1).at;
 
+		// If any of the register operands targeting an invalid register,
+		// generate an #UD instead. (e.g. Cr5, Dr9...).
+		//
+		bool invalid = range::any_of(ins.operands(), [](const mop& op) {
+			return op.type == mop_type::reg && op.r.get_kind() == reg_kind::none;
+		});
+		if (invalid) {
+			auto ins = bb->push_trap("#UD, invalid register.");
+			ins->arch = get_handle();
+			ins->ip	 = ip;
+			return diag::ok;
+		}
+
 		// Invoke the lifter.
 		//
 		auto status = lifter(this, bb, ins, ip);

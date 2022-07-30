@@ -253,6 +253,56 @@ DECL_SEMA(NOT) {
 	return diag::ok;
 }
 
+
+template<auto Operation>
+static diag::lazy shift(SemaContext) {
+	auto ty		= ir::int_type(ins.effective_width);
+	auto rhs		= read(sema_context(), 1, ty);
+	auto lhs		= read(sema_context(), 0, ty);
+	auto result = bb->push_binop(Operation, lhs, rhs);
+	write(sema_context(), 0, result);
+
+	/*
+	The CF flag contains the value of the last bit shifted out of the destination operand; it is undefined for SHL and SHR instructions where the count is greater than or equal to
+	the size (in bits) of the destination operand.
+	The OF flag is affected only for 1-bit shifts (see “Description” above); otherwise, it is undefined.
+	*/
+	/*
+	The SF, ZF, and PF flags are
+	set according to the result. If the count is 0, the flags are not affected. For a non-zero count, the AF flag is undefined.
+	*/
+	bb->push_write_reg(reg::flag_cf, bb->push_poison(ir::type::i1, "Shift - Carry flag NYI"));	  // TODO
+	bb->push_write_reg(reg::flag_of, bb->push_poison(ir::type::i1, "Shift - Overflow flag NYI"));  // TODO
+	bb->push_write_reg(reg::flag_sf, bb->push_poison(ir::type::i1, "Shift - Sign flag NYI"));		  // TODO
+	bb->push_write_reg(reg::flag_zf, bb->push_poison(ir::type::i1, "Shift - Zero flag NYI"));		  // TODO
+	bb->push_write_reg(reg::flag_pf, bb->push_poison(ir::type::i1, "Shift - Parity flag NYI"));	  // TODO
+	return diag::ok;
+}
+template<auto Operation>
+static diag::lazy rot(SemaContext) {
+	auto ty		= ir::int_type(ins.effective_width);
+	auto rhs		= read(sema_context(), 1, ty);
+	auto lhs		= read(sema_context(), 0, ty);
+	auto result = bb->push_binop(Operation, lhs, rhs);
+	write(sema_context(), 0, result);
+
+	/*
+	If the masked count is 0, the flags are not affected. If the masked count is 1, then the OF flag is affected, otherwise (masked count is greater than 1) the OF flag is undefined.
+	The CF flag is affected when the masked count is nonzero. The SF, ZF, AF, and PF flags are always unaffected.
+	*/
+	bb->push_write_reg(reg::flag_cf, bb->push_poison(ir::type::i1, "Rotate - Carry flag NYI"));	  // TODO
+	bb->push_write_reg(reg::flag_of, bb->push_poison(ir::type::i1, "Rotate - Overflow flag NYI"));  // TODO
+	return diag::ok;
+}
+DECL_SEMA(SHR) { return shift<ir::op::bit_shr>(sema_context()); }
+DECL_SEMA(SHL) { return shift<ir::op::bit_shl>(sema_context()); }
+DECL_SEMA(SAR) { return shift<ir::op::bit_sar>(sema_context()); }
+DECL_SEMA(ROR) { return shift<ir::op::bit_ror>(sema_context()); }
+DECL_SEMA(ROL) { return shift<ir::op::bit_rol>(sema_context()); }
+// TODO: RCL, RCR, SHRD, SHLD.
+//       SHLX, SHRX, SARX, RORX.
+
+
 // Comparisons.
 //
 DECL_SEMA(CMP) {
@@ -276,78 +326,6 @@ DECL_SEMA(TEST) {
 	set_flags_logical(bb, result);
 	return diag::ok;
 }
-
-// Conditionals.
-//
-#define VISIT_CONDITIONS(_) _(Z, NZ) _(S, NS) _(B, NB) _(BE, NBE) _(L, NL) _(LE, NLE) _(O, NO) _(P, NP)
-// TODO: CXZ
-
-// (ZF = 1)
-static ir::insn* test_Z(SemaContext) { return bb->push_read_reg(ir::type::i1, reg::flag_zf); }
-// (SF = 1)
-static ir::insn* test_S(SemaContext) { return bb->push_read_reg(ir::type::i1, reg::flag_sf); }
-// (CF=1)
-static ir::insn* test_B(SemaContext) { return bb->push_read_reg(ir::type::i1, reg::flag_cf); }
-// (PF=1)
-static ir::insn* test_P(SemaContext) { return bb->push_read_reg(ir::type::i1, reg::flag_pf); }
-// (OF=1)
-static ir::insn* test_O(SemaContext) { return bb->push_read_reg(ir::type::i1, reg::flag_of); }
-// (SF≠OF)
-static ir::insn* test_L(SemaContext) { return bb->push_binop(ir::op::bit_xor, test_O(sema_context()), test_S(sema_context())); }
-// (CF=1 or ZF=1)
-static ir::insn* test_BE(SemaContext) { return bb->push_binop(ir::op::bit_or, test_B(sema_context()), test_Z(sema_context())); }
-// (SF≠OF or ZF=1)
-static ir::insn* test_LE(SemaContext) { return bb->push_binop(ir::op::bit_or, test_L(sema_context()), test_Z(sema_context())); }
-
-template<auto Cc>
-inline diag::lazy make_jcc(SemaContext) {
-	bb->push_xjs(Cc(sema_context()), read(sema_context(), 0, ir::type::pointer), ir::constant(ir::type::pointer, ip + ins.length));
-	return diag::ok;
-}
-template<auto Cc>
-inline diag::lazy make_jccn(SemaContext) {
-	bb->push_xjs(Cc(sema_context()), ir::constant(ir::type::pointer, ip + ins.length), read(sema_context(), 0, ir::type::pointer));
-	return diag::ok;
-}
-template<auto Cc>
-inline diag::lazy make_setcc(SemaContext) {
-	auto result = bb->push_cast(ir::type::i8, Cc(sema_context()));
-	write(sema_context(), 0, result);
-	return diag::ok;
-}
-template<auto Cc>
-inline diag::lazy make_setccn(SemaContext) {
-	auto result = bb->push_cast(ir::type::i8, Cc(sema_context()));
-	write(sema_context(), 0, bb->push_binop(ir::op::bit_xor, result, ir::constant((i8) 1)));
-	return diag::ok;
-}
-template<auto Cc>
-inline diag::lazy make_cmovcc(SemaContext) {
-	auto ty		= ir::int_type(ins.effective_width);
-	auto lhs		= read(sema_context(), 0, ty);
-	auto rhs		= read(sema_context(), 1, ty);
-	auto result = bb->push_select(test_Z(sema_context()), rhs, lhs);
-	write(sema_context(), 0, result);
-	return diag::ok;
-}
-template<auto Cc>
-inline diag::lazy make_cmovccn(SemaContext) {
-	auto ty		= ir::int_type(ins.effective_width);
-	auto lhs		= read(sema_context(), 0, ty);
-	auto rhs		= read(sema_context(), 1, ty);
-	auto result = bb->push_select(test_Z(sema_context()), lhs, rhs);
-	write(sema_context(), 0, result);
-	return diag::ok;
-}
-
-#define DECLARE_CONDITIONALS(CC, _)                                                             \
-	DECL_SEMA(RC_CONCAT(J, CC)) { return make_jcc<RC_CONCAT(test_, CC)>(sema_context()); }       \
-	DECL_SEMA(RC_CONCAT(JN, CC)) { return make_jccn<RC_CONCAT(test_, CC)>(sema_context()); }     \
-	DECL_SEMA(RC_CONCAT(SET, CC)) { return make_setcc<RC_CONCAT(test_, CC)>(sema_context()); }   \
-	DECL_SEMA(RC_CONCAT(SETN, CC)) { return make_setccn<RC_CONCAT(test_, CC)>(sema_context()); } \
-	DECL_SEMA(RC_CONCAT(CMOV, CC)) { return make_cmovcc<RC_CONCAT(test_, CC)>(sema_context()); } \
-	DECL_SEMA(RC_CONCAT(CMOVN, CC)) { return make_cmovccn<RC_CONCAT(test_, CC)>(sema_context()); }
-VISIT_CONDITIONS(DECLARE_CONDITIONALS)
 
 // CALL / JMP / RET.
 //
@@ -389,74 +367,9 @@ DECL_SEMA(INT1) {
 }
 // TODO: INT / INTO
 
-#if 0
-	static ir::insn* write_reg(ir::basic_block* bb, const zydis::decoded_ins& dec, ZydisRegister r, ir::variant&& value, bool no_zeroupper = false) {
-		RC_ASSERT(r != ZYDIS_REGISTER_NONE);
-		RC_ASSERT(r != ZYDIS_REGISTER_RIP && r != ZYDIS_REGISTER_EIP && r != ZYDIS_REGISTER_IP);
-
-		reg ri = reg(r);
-		if (!no_zeroupper) {
-			auto& inf = enum_reflect(ri);
-			if (inf.alias != reg::none) {
-				bool gpr_ext = inf.kind == reg_kind::general && inf.width == 32 && dec.ins.machine_mode == ZYDIS_MACHINE_MODE_LONG_64;
-				bool vex_ext = inf.kind == reg_kind::vector && (dec.ins.attributes & (ZYDIS_ATTRIB_HAS_EVEX | ZYDIS_ATTRIB_HAS_VEX));
-				if (gpr_ext || vex_ext) {
-					RC_ASSERT(inf.offset == 0);
-					RC_ASSERT(value.get_type() == ir::int_type(inf.width));
-					auto new_size = enum_reflect(inf.alias).width;
-					return bb->push_write_reg(inf.alias, bb->push_cast(ir::int_type(new_size), std::move(value)));
-				}
-			}
-		}
-		return bb->push_write_reg(ri, std::move(value));
-	}
-#endif
-
-
-	//{
-//	u32				 total	 = 0;
-//	std::unique_ptr ins_freq = std::make_unique<u32[]>(ZYDIS_MNEMONIC_MAX_VALUE);
-//
-//	auto sample_file = [&](const std::filesystem::path& path) {
-//		if (auto buffer = read_file(path)) {
-//			auto* img	= (win::image_x64_t*) buffer->data();
-//			auto	exdir = img->get_directory(win::directory_entry_exception);
-//			for (auto& f : win::exception_directory(img->rva_to_ptr(exdir->rva), exdir->size)) {
-//				std::span data{img->rva_to_ptr<const u8>(f.rva_begin), f.rva_end - f.rva_begin};
-//				while (auto i = zydis::decode(data)) {
-//					if (i->ins.attributes & (ZYDIS_ATTRIB_HAS_VEX | ZYDIS_ATTRIB_HAS_EVEX | ZYDIS_ATTRIB_IS_PRIVILEGED))
-//						continue;
-//					if (i->ins.meta.category == ZYDIS_CATEGORY_X87_ALU || i->ins.meta.isa_ext == ZYDIS_ISA_EXT_X87)
-//						continue;
-//
-//					if (ZYDIS_MNEMONIC_JB <= i->ins.mnemonic && i->ins.mnemonic <= ZYDIS_MNEMONIC_JZ)
-//						i->ins.mnemonic = ZYDIS_MNEMONIC_JZ;
-//					if (ZYDIS_MNEMONIC_SETB <= i->ins.mnemonic && i->ins.mnemonic <= ZYDIS_MNEMONIC_SETZ)
-//						i->ins.mnemonic = ZYDIS_MNEMONIC_SETZ;
-//
-//					total++;
-//					ins_freq[i->ins.mnemonic]++;
-//				}
-//			}
-//		}
-//	};
-//	sample_file(args[0]);
-//
-//
-//	std::vector<std::pair<ZydisMnemonic, u32>> ins_present;
-//	for (auto i = 0; i != ZYDIS_MNEMONIC_MAX_VALUE; i++) {
-//		if (u32 n = ins_freq[i]) {
-//			ins_present.emplace_back(ZydisMnemonic(i), n);
-//		}
-//	}
-//	range::sort(ins_present, [](auto& a, auto& b) { return a.second >= b.second; });
-//
-//	for (auto& [m, n] : ins_present) {
-//		fmt::println(ZydisMnemonicGetString(m), " -> ", n, " ", float(100 * n) / float(total), "%");
-//	}
-//}
 /*
-popfq -> 1 0.004731%
+pushfq
+popfq
 
 xchg -> 4 0.018925%
 movzx -> 834 3.945874%
@@ -467,9 +380,6 @@ xorps -> 24 0.113550%
 cmpxchg -> 1 0.004731%
 
 xadd -> 46 0.217638%
-shr -> 111 0.525170%
-shl -> 43 0.203444%
-sar -> 21 0.099357%
 bts -> 28 0.132475%
 bt -> 15 0.070969%
 mul -> 10 0.047313%
@@ -482,7 +392,6 @@ div -> 1 0.004731%
 cdqe -> 13 0.061506%
 clc -> 10 0.047313%
 cqo -> 8 0.037850%
-
 
 movq -> 14 0.066238%
 movd -> 5 0.023656%
@@ -508,7 +417,4 @@ stosd -> 1 0.004731%
 
 xgetbv -> 1 0.004731%
 cpuid -> 3 0.014194%
-outsb -> 1 0.004731%
-in -> 4 0.018925%
-out -> 1 0.004731%
 */

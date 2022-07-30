@@ -78,6 +78,7 @@
   <ItemGroup>
     <ClCompile Include="src\arch\minsn.cpp" />
     <ClCompile Include="src\arch\x86\sema.cpp" />
+    <ClCompile Include="src\arch\x86\sema_cc.cpp" />
     <ClCompile Include="src\arch\x86\x86.cpp" />
     <ClCompile Include="src\ir\basic_block.cpp" />
     <ClCompile Include="src\ir\insn.cpp" />

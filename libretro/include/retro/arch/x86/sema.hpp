@@ -64,19 +64,38 @@ namespace retro::arch::x86 {
 		auto tmp = bb->push_binop(ir::op::bit_xor, result, std::forward<Carry>(carry));
 		return set_af(bb, std::forward<Lhs>(lhs), std::forward<Rhs>(rhs), tmp);
 	}
-	// TODO: set_cf
-	// TODO: set_of
 
 	// Sets logical flags.
-	// - The OF and CF flags are cleared; the SF, ZF, and PF flags are set according to the result. The state of the AF flag is undefined.
+	//
 	static void set_flags_logical(ir::basic_block* bb, ir::insn* result) {
 		set_sf(bb, result);
 		set_zf(bb, result);
 		set_pf(bb, result);
+		// - The OF and CF flags are cleared; the SF, ZF, and PF flags are set according to the result. The state of the AF flag is undefined.
 		bb->push_write_reg(reg::flag_of, false);
 		bb->push_write_reg(reg::flag_cf, false);
 		bb->push_write_reg(reg::flag_af, false); // Runtime behaviour.
 	}
+
+	// Conditionals.
+	//
+	#define VISIT_CONDITIONS(_) _(Z, NZ) _(S, NS) _(B, NB) _(BE, NBE) _(L, NL) _(LE, NLE) _(O, NO) _(P, NP)
+	// (ZF = 1)
+	static ir::insn* test_Z(SemaContext) { return bb->push_read_reg(ir::type::i1, reg::flag_zf); }
+	// (SF = 1)
+	static ir::insn* test_S(SemaContext) { return bb->push_read_reg(ir::type::i1, reg::flag_sf); }
+	// (CF=1)
+	static ir::insn* test_B(SemaContext) { return bb->push_read_reg(ir::type::i1, reg::flag_cf); }
+	// (PF=1)
+	static ir::insn* test_P(SemaContext) { return bb->push_read_reg(ir::type::i1, reg::flag_pf); }
+	// (OF=1)
+	static ir::insn* test_O(SemaContext) { return bb->push_read_reg(ir::type::i1, reg::flag_of); }
+	// (SF≠OF)
+	static ir::insn* test_L(SemaContext) { return bb->push_binop(ir::op::bit_xor, test_O(sema_context()), test_S(sema_context())); }
+	// (CF=1 or ZF=1)
+	static ir::insn* test_BE(SemaContext) { return bb->push_binop(ir::op::bit_or, test_B(sema_context()), test_Z(sema_context())); }
+	// (SF≠OF or ZF=1)
+	static ir::insn* test_LE(SemaContext) { return bb->push_binop(ir::op::bit_or, test_L(sema_context()), test_Z(sema_context())); }
 
 	// Segment/Register mappings.
 	//
@@ -113,7 +132,6 @@ namespace retro::arch::x86 {
 		reg r = (reg) _r.id;
 		RC_ASSERT(r != reg::none);
 		RC_ASSERT(r != reg::rip && r != reg::eip && r != reg::ip);
-		// TODO:
 		RC_ASSERT(r != reg::rflags && r != reg::eflags && r != reg::flags);
 
 		// If no type specified, use the default type.
@@ -143,17 +161,52 @@ namespace retro::arch::x86 {
 		return bb->push_read_reg(type, r);
 	}
 	inline ir::insn* write_reg(SemaContext, mreg _r, ir::variant&& value, bool implicit_zero = true) {
-		reg r = (reg) _r.id;
+		reg	r	  = (reg) _r.id;
+		auto* desc = &enum_reflect(r);
 		RC_ASSERT(r != reg::none);
 		RC_ASSERT(r != reg::rip && r != reg::eip && r != reg::ip);
-		// TODO:
 		RC_ASSERT(r != reg::rflags && r != reg::eflags && r != reg::flags);
 
-		// TODO:
-		// - Alias exploding
-		// - Implicit zeroing
+		// Long mode moves to 32-bit register zeroes the upper part.
 		//
+		if (implicit_zero && desc->kind == reg_kind::gpr32 && mach->is_64()) {
+			// Cast to i64 and swap with parent.
+			//
+			value = bb->push_cast(ir::type::i64, std::move(value));
+			r		= desc->super;
+			desc	= &enum_reflect(r);
+		}
+		// TODO: VEX/EVEX for zeroing.
+		else {
+		}
 
+		// Write sub registers.
+		//
+		if (reg_kind::gpr16 <= desc->kind && desc->kind <= reg_kind::gpr64) {
+			// For each part effected:
+			//
+			for (reg sub : desc->subregs) {
+				auto& sub_desc = enum_reflect(sub);
+				auto	sub_ty	= ir::int_type(sub_desc.width);
+
+				// Shift and truncate.
+				//
+				ir::insn* sub_val;
+				if (sub_desc.offset) {
+					sub_val = bb->push_binop(ir::op::bit_shr, value, ir::constant(value.get_type(), sub_desc.offset));
+					sub_val = bb->push_cast(sub_ty, sub_val);
+				} else {
+					sub_val = bb->push_cast(sub_ty, value);
+				}
+				
+				// Write.
+				//
+				bb->push_write_reg(sub, sub_val);
+			}
+		}
+
+		// Finally write to the register and return.
+		//
 		return bb->push_write_reg(r, std::move(value));
 	}
 
@@ -220,7 +273,7 @@ namespace retro::arch::x86 {
 	static ir::variant read(SemaContext, size_t idx, ir::type ty) {
 		switch (ins.op[idx].type) {
 			case mop_type::reg: {
-				auto reg = read_reg(sema_context(), ins.op[idx].r);
+				auto reg = read_reg(sema_context(), ins.op[idx].r, ty);
 				if (reg->get_type() != ty) {
 					reg = bb->push_cast(ty, reg);
 				}
