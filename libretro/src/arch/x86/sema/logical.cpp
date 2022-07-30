@@ -245,8 +245,6 @@ DECL_SEMA(BT) {
 
 	// count = rhs & mask
 	auto count = bb->push_binop(ir::op::bit_and, read(sema_context(), 1, ty), ir::constant(ty, ins.effective_width - 1));
-	// mask =  1 << count
-	auto rhs = bb->push_binop(ir::op::bit_shl, ir::constant(ty, 1), count);
 
 	auto lhs = read(sema_context(), 0, ty);
 

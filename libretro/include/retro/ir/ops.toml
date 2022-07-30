@@ -14,8 +14,8 @@ op-kind = [
 	"binary-unsigned",
 	"binary-bitwise",
 	"binary-float",
-	"op-signed",
-	"op-unsigned",
+	"cmp-signed",
+	"cmp-unsigned",
 ]
 
 # Unary operations
@@ -184,52 +184,52 @@ commutative = true
 #
 [op.gt]
 symbol = ">"
-kind   = "@op-kind.op-signed"
+kind   = "@op-kind.cmp-signed"
 inverse = "@op.le"
 swap_sign  = "@op.ugt"
 [op.ugt]
 symbol = ">"
-kind   = "@op-kind.op-unsigned"
+kind   = "@op-kind.cmp-unsigned"
 inverse = "@op.ule"
 swap_sign  = "@op.gt"
 [op.le]
 symbol = "<="
-kind   = "@op-kind.op-signed"
+kind   = "@op-kind.cmp-signed"
 inverse = "@op.gt"
 swap_sign = "@op.ule"
 [op.ule]
 symbol = "<="
-kind   = "@op-kind.op-unsigned"
+kind   = "@op-kind.cmp-unsigned"
 inverse = "@op.ugt"
 swap_sign = "@op.le"
 [op.ge]
 symbol = ">="
-kind   = "@op-kind.op-signed"
+kind   = "@op-kind.cmp-signed"
 inverse = "@op.lt"
 swap_sign  = "@op.uge"
 [op.uge]
 symbol = ">="
-kind   = "@op-kind.op-unsigned"
+kind   = "@op-kind.cmp-unsigned"
 inverse = "@op.ult"
 swap_sign  = "@op.ge"
 [op.lt]
 symbol = "<"
-kind   = "@op-kind.op-signed"
+kind   = "@op-kind.cmp-signed"
 inverse = "@op.ge"
 swap_sign = "@op.ult"
 [op.ult]
 symbol = "<"
-kind   = "@op-kind.op-unsigned"
+kind   = "@op-kind.cmp-unsigned"
 inverse = "@op.uge"
 swap_sign = "@op.lt"
 [op.eq]
 symbol = "=="
-kind   = "@op-kind.op-signed"
+kind   = "@op-kind.cmp-signed"
 inverse = "@op.ne"
 commutative = true
 [op.ne]
 symbol = "!="
-kind   = "@op-kind.op-signed"
+kind   = "@op-kind.cmp-signed"
 inverse = "@op.eq"
 commutative = true
 

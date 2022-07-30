@@ -61,19 +61,19 @@ DECL_SEMA(POP) {
 DECL_SEMA(MOVZX) {
 	auto t0 = ir::int_type(ins.op[0].get_width());
 	auto t1 = ir::int_type(ins.op[1].get_width());
-	write(sema_context(), 0, bb->push_cast(t1, read(sema_context(), 1, t1)));
+	write(sema_context(), 0, bb->push_cast(t0, read(sema_context(), 1, t1)));
 	return diag::ok;
 }
 DECL_SEMA(MOVSX) {
 	auto t0 = ir::int_type(ins.op[0].get_width());
 	auto t1 = ir::int_type(ins.op[1].get_width());
-	write(sema_context(), 0, bb->push_sign_extend(t1, read(sema_context(), 1, t1)));
+	write(sema_context(), 0, bb->push_sign_extend(t0, read(sema_context(), 1, t1)));
 	return diag::ok;
 }
 DECL_SEMA(MOVSXD) {
 	auto t0 = ir::int_type(ins.op[0].get_width());
 	auto t1 = ir::int_type(ins.op[1].get_width());
-	write(sema_context(), 0, bb->push_sign_extend(t1, read(sema_context(), 1, t1)));
+	write(sema_context(), 0, bb->push_sign_extend(t0, read(sema_context(), 1, t1)));
 	return diag::ok;
 }
 DECL_SEMA(CBW) {

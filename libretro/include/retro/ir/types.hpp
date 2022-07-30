@@ -151,7 +151,7 @@ namespace retro::ir {
 			type_id = (u64) t;
 			switch (t) {
 				case type::i1:
-					std::construct_at((bool*) &data, (value != 0));
+					std::construct_at((bool*) &data, (value & 1) != 0);
 					data_length = 1;
 					break;
 				case type::i8:
@@ -261,8 +261,12 @@ namespace retro::ir {
 		// Application of an operator over constants, returns "none" on failure.
 		//
 		constant apply(op o, const constant& rhs) const;
-		constant unop(op o) const { return apply(o, *this); }
-		constant binop(op o, const constant& rhs) const { return apply(o, rhs); }
+		constant apply(op o) const { return apply(o, *this); }
+
+		// Cast helpers, returns "none" on failure.
+		//
+		constant cast_zx(type into) const;
+		constant cast_sx(type into) const;
 
 		// Reset handling freeing of the data.
 		//
@@ -276,25 +280,7 @@ namespace retro::ir {
 
 		// String conversion.
 		//
-		std::string to_string() const {
-			if (get_type() == type::str) {
-				return fmt::concat(RC_ORANGE "'", get<std::string_view>(), "'" RC_RESET);
-			}
-			switch (get_type()) {
-#define FMT_TY(A, B)                                \
-	case type::A: {                                  \
-		if constexpr (BuiltinType<B>) {               \
-			return std::string{fmt::to_str(get<B>())}; \
-		} else {                                      \
-			assume_unreachable();                      \
-		}                                             \
-	}
-				RC_VISIT_IR_TYPE(FMT_TY)
-#undef FMT_TY
-				default:
-					return "none";
-			}
-		}
+		std::string to_string() const;
 
 		// Destruction.
 		//

@@ -510,18 +510,18 @@ namespace retro {
 	case _Type::V:                             \
 		return vis(retro::value_tag<_Type::V>{});
 #define RC_DEFINE_STD_VISITOR_FOR(_TYPE, _MACRO_VISITOR)                   \
-	namespace std {                                                         \
-		template<typename Visitor>                                           \
-		inline constexpr decltype(auto) visit(Visitor&& vis, _TYPE opcode) { \
-			using _Type = _TYPE;                                              \
-			switch (opcode) {                                                 \
-				_MACRO_VISITOR(_RC_DEFINE_STD_VISIT_CASE_FOR)                  \
-				_RC_DEFINE_STD_VISIT_CASE_FOR(none)                            \
-				default:                                                       \
-					retro::assume_unreachable();                                \
-			}                                                                 \
-			retro::assume_unreachable();                                      \
-		}                                                                    \
+	namespace std {                                                                   \
+		template<typename Visitor>                                                     \
+		RC_INLINE inline constexpr decltype(auto) visit(Visitor&& vis, _TYPE opcode) { \
+			using _Type = _TYPE;                                                        \
+			switch (opcode) {                                                           \
+				_MACRO_VISITOR(_RC_DEFINE_STD_VISIT_CASE_FOR)                            \
+				_RC_DEFINE_STD_VISIT_CASE_FOR(none)                                      \
+				default:                                                                 \
+					retro::assume_unreachable();                                          \
+			}                                                                           \
+			retro::assume_unreachable();                                                \
+		}                                                                              \
 	};
 
 	// Small array type for TOML generated lists.

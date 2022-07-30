@@ -15,8 +15,6 @@ namespace retro::ir {
 	// Adds or removes a jump from this basic-block to another.
 	//
 	void basic_block::add_jump(basic_block* to) {
-		auto sit = range::find(successors, to);
-		auto pit = range::find(to->predecessors, this);
 		successors.emplace_back(to);
 		to->predecessors.emplace_back(this);
 	}
