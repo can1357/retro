@@ -105,6 +105,7 @@ opcode_kind = [
 	
 	"numeric",
 	"numeric-rmw",
+	"numeric-of",
 
 	"predicate",
 	"phi",
@@ -223,6 +224,27 @@ template-count = 1
 types =          ["@type.none", "@type.op", "@type.none"]
 templates =      [1,            0,          1]
 names =          ["",           "Op",       "rhs"]
+constexprs =     [1]
+
+#i1   test_overflow<T>     Op:Operator  T:lhs  T:rhs
+[opcode.test_overflow]
+kind =           "@opcode_kind.numeric-of"
+is-const =       true
+is-pure =        true
+template-count = 1
+types =          ["@type.i1",   "@type.op", "@type.none", "@type.none"]
+templates =      [0,            0,          1,            1]
+names =          ["",           "Op",       "lhs",        "rhs"]
+constexprs =     [1]
+#i1   test_overflow_u<T>     Op:Operator  T:lhs  T:rhs
+[opcode.test_overflow_u]
+kind =           "@opcode_kind.numeric-of"
+is-const =       true
+is-pure =        true
+template-count = 1
+types =          ["@type.i1",   "@type.op", "@type.none", "@type.none"]
+templates =      [0,            0,          1,            1]
+names =          ["",           "Op",       "lhs",        "rhs"]
 constexprs =     [1]
 
 #T    atomic_binop<T>     Op:Operator  segment:Seg  pointer:lhs_ptr T:rhs
