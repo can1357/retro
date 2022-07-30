@@ -177,8 +177,8 @@ templates =      [1,            0]
 names =          ["",           "Reason"]
 constexprs =     [1]
 
-#Ty   sign_extend<Tx,Ty>  Tx:value
-[opcode.sign_extend]
+#Ty   cast_sx<Tx,Ty>  Tx:value
+[opcode.cast_sx]
 kind =           "@opcode_kind.cast"
 is-const =       true
 is-pure =        true

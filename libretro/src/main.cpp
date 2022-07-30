@@ -118,7 +118,7 @@ int main(int argv, const char** args) {
 						ins->replace_all_uses_with(res);
 					}
 				}
-			} else if (ins->op == ir::opcode::sign_extend) {
+			} else if (ins->op == ir::opcode::cast_sx) {
 				auto	into = ins->template_types[1];
 				auto& val  = ins->operands()[0];
 				if (val.is_const()) {

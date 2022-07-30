@@ -67,20 +67,20 @@ DECL_SEMA(MOVZX) {
 DECL_SEMA(MOVSX) {
 	auto t0 = ir::int_type(ins.op[0].get_width());
 	auto t1 = ir::int_type(ins.op[1].get_width());
-	write(sema_context(), 0, bb->push_sign_extend(t0, read(sema_context(), 1, t1)));
+	write(sema_context(), 0, bb->push_cast_sx(t0, read(sema_context(), 1, t1)));
 	return diag::ok;
 }
 DECL_SEMA(MOVSXD) {
 	auto t0 = ir::int_type(ins.op[0].get_width());
 	auto t1 = ir::int_type(ins.op[1].get_width());
-	write(sema_context(), 0, bb->push_sign_extend(t0, read(sema_context(), 1, t1)));
+	write(sema_context(), 0, bb->push_cast_sx(t0, read(sema_context(), 1, t1)));
 	return diag::ok;
 }
 DECL_SEMA(CBW) {
 	constexpr auto t0 = ir::type::i8;
 	constexpr auto t1 = ir::type::i16;
 	auto				a	= read_reg(sema_context(), reg::al, t0);
-	a						= bb->push_sign_extend(t1, a);
+	a						= bb->push_cast_sx(t1, a);
 	write_reg(sema_context(), reg::ax, a);
 	return diag::ok;
 }
@@ -88,7 +88,7 @@ DECL_SEMA(CWDE) {
 	constexpr auto t0 = ir::type::i16;
 	constexpr auto t1 = ir::type::i32;
 	auto				a	= read_reg(sema_context(), reg::ax, t0);
-	a						= bb->push_sign_extend(t1, a);
+	a						= bb->push_cast_sx(t1, a);
 	write_reg(sema_context(), reg::eax, a);
 	return diag::ok;
 }
@@ -96,7 +96,7 @@ DECL_SEMA(CDQE) {
 	constexpr auto t0 = ir::type::i32;
 	constexpr auto t1 = ir::type::i64;
 	auto				a	= read_reg(sema_context(), reg::eax, t0);
-	a						= bb->push_sign_extend(t1, a);
+	a						= bb->push_cast_sx(t1, a);
 	write_reg(sema_context(), reg::rax, a);
 	return diag::ok;
 }

@@ -21,6 +21,7 @@ todo.txt
 *.idb
 *.nam
 *.til
+*.z3-trace
 
 # Binaries
 #

@@ -279,7 +279,7 @@ static diag::lazy imul_1op(SemaContext) {
 	
 	// For the one operand form of the instruction, the CF and OF flags are set when significant bits are carried into the upper half of the result and cleared when the result fits exactly in the lower half of the result.
 	// The OF and CF flags are set to 0 if the upper half of the result is 0; otherwise, they are set to 1. The SF, ZF, AF, and PF flags are undefined.
-	auto of = bb->push_cmp(ir::op::ne, resultx, bb->push_sign_extend(tyx, bb->push_cast(ty, resultx)));
+	auto of = bb->push_cmp(ir::op::ne, resultx, bb->push_cast_sx(tyx, bb->push_cast(ty, resultx)));
 	bb->push_write_reg(reg::flag_of, of);
 	bb->push_write_reg(reg::flag_cf, of);
 	return diag::ok;
@@ -305,7 +305,7 @@ static diag::lazy imul_2_3op(SemaContext) {
 	// For the two- and three-operand forms of the instruction, the CF and OF flags are set when the result must be truncated to fit in the destination operand size and cleared when
 	// the result fits exactly in the destination operand size. The SF, ZF, AF, and PF flags are undefined.
 	//
-	auto of = bb->push_cmp(ir::op::ne, resultx, bb->push_sign_extend(tyx, bb->push_cast(ty, resultx)));
+	auto of = bb->push_cmp(ir::op::ne, resultx, bb->push_cast_sx(tyx, bb->push_cast(ty, resultx)));
 	bb->push_write_reg(reg::flag_of, of);
 	bb->push_write_reg(reg::flag_cf, of);
 	return diag::ok;
