@@ -91,6 +91,9 @@ int main(int argv, const char** args) {
 			}
 		}
 
+		// TODO: BB splitting and branch handling.
+		//
+
 		// Skip the bytes and increment IP.
 		//
 		data = data.subspan(ins.length);

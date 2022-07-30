@@ -1,0 +1,13 @@
+{
+	"compilerOptions": {
+		"module": "CommonJS",
+		"target": "ES6",
+		"sourceMap": true,
+		"outDir": "../dist/electron",
+		"baseUrl": ".",
+		"allowJs": true,
+		"moduleResolution": "node"
+	},
+	"include": ["**/*.ts", "../app/configs/config.js"],
+	"exclude": ["../node_modules/*", "../dist/*", "../scripts/*", "../examples/*"]
+}

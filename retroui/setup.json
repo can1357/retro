@@ -1,0 +1,13 @@
+{
+	"package_name": "retroui",
+	"package_org": "@retro",
+	"display_name": "Retro",
+	"description": "Retro Toolkit",
+	"author": "Retro",
+	"author_markdown": "Retro",
+	"author_url": "https://retro.retro",
+	"github_nickname": "retro",
+	"github_repository_url": "github.com/retro",
+	"github_full_repository_url": "github.com/retro/retro",
+	"email": "retro@retro.retro"
+}
