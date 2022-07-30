@@ -46,10 +46,20 @@ DECL_SEMA(XADD) {
 	auto ty	= ir::int_type(ins.effective_width);
 	auto rhs = read(sema_context(), 1, ty);
 
-	auto [ptr, seg] = agen(sema_context(), ins.op[0].m, true);
-	auto lhs			 = bb->push_atomic_binop(ir::op::add, seg, std::move(ptr), rhs);
-	auto result		 = bb->push_binop(ir::op::add, lhs, rhs);
-	write(sema_context(), 1, lhs);
+	ir::insn*	result;
+	ir::variant lhs;
+	if (ins.modifiers & ZYDIS_ATTRIB_HAS_LOCK) {
+		auto [ptr, seg] = agen(sema_context(), ins.op[0].m, true);
+		auto lhsi		 = bb->push_atomic_binop(ir::op::add, seg, std::move(ptr), rhs);
+		result			 = bb->push_binop(ir::op::add, lhs, rhs);
+		write(sema_context(), 1, lhsi);
+		lhs = lhsi;
+	} else {
+		lhs	 = read(sema_context(), 0, ty);
+		result = bb->push_binop(ir::op::add, lhs, rhs);
+		write(sema_context(), 0, result);
+		write(sema_context(), 1, ir::variant{lhs});
+	}
 
 	set_af(bb, lhs, rhs, result);
 	set_sf(bb, result);
