@@ -45,6 +45,30 @@ DECL_SEMA(MOVSXD) {
 	write(sema_context(), 0, bb->push_sign_extend(t1, read(sema_context(), 1, t1)));
 	return diag::ok;
 }
+DECL_SEMA(CBW) {
+	constexpr auto t0 = ir::type::i8;
+	constexpr auto t1 = ir::type::i16;
+	auto				a	= read_reg(sema_context(), reg::al, t0);
+	a						= bb->push_sign_extend(t1, a);
+	write_reg(sema_context(), reg::ax, a);
+	return diag::ok;
+}
+DECL_SEMA(CWDE) {
+	constexpr auto t0 = ir::type::i16;
+	constexpr auto t1 = ir::type::i32;
+	auto				a	= read_reg(sema_context(), reg::ax, t0);
+	a						= bb->push_sign_extend(t1, a);
+	write_reg(sema_context(), reg::eax, a);
+	return diag::ok;
+}
+DECL_SEMA(CDQE) {
+	constexpr auto t0 = ir::type::i32;
+	constexpr auto t1 = ir::type::i64;
+	auto				a	= read_reg(sema_context(), reg::eax, t0);
+	a						= bb->push_sign_extend(t1, a);
+	write_reg(sema_context(), reg::rax, a);
+	return diag::ok;
+}
 DECL_SEMA(LEA) {
 	// Pattern: [lea reg, [reg]] <=> [nop]
 	if (ins.op[0].type == arch::mop_type::reg && !ins.op[1].m.index && ins.op[1].m.disp) {
@@ -93,6 +117,40 @@ DECL_SEMA(POP) {
 }
 
 
+
+DECL_SEMA(CLAC) {
+	bb->push_write_reg(reg::flag_ac, false);
+	return diag::ok;
+}
+DECL_SEMA(CLD) {
+	bb->push_write_reg(reg::flag_df, false);
+	return diag::ok;
+}
+DECL_SEMA(CLC) {
+	bb->push_write_reg(reg::flag_cf, false);
+	return diag::ok;
+}
+DECL_SEMA(CLI) {
+	bb->push_write_reg(reg::flag_if, false);
+	return diag::ok;
+}
+DECL_SEMA(STAC) {
+	bb->push_write_reg(reg::flag_ac, true);
+	return diag::ok;
+}
+DECL_SEMA(STD) {
+	bb->push_write_reg(reg::flag_df, true);
+	return diag::ok;
+}
+DECL_SEMA(STC) {
+	bb->push_write_reg(reg::flag_cf, true);
+	return diag::ok;
+}
+DECL_SEMA(STI) {
+	bb->push_write_reg(reg::flag_if, true);
+	return diag::ok;
+}
+
 DECL_SEMA(MOVUPS) {
 	constexpr auto ty = ir::type::f32x4;
 	write(sema_context(), 0, read(sema_context(), 1, ty));
@@ -135,13 +193,32 @@ DECL_SEMA(ADD) {
 	ir::variant lhs;
 	if (ins.modifiers & ZYDIS_ATTRIB_HAS_LOCK) {
 		auto [ptr, seg] = agen(sema_context(), ins.op[0].m, true);
-		lhs	 = bb->push_atomic_binop(ir::op::add, seg, std::move(ptr), rhs);
-		result = bb->push_binop(ir::op::add, lhs, rhs);
+		lhs				 = bb->push_atomic_binop(ir::op::add, seg, std::move(ptr), rhs);
+		result			 = bb->push_binop(ir::op::add, lhs, rhs);
 	} else {
 		lhs	 = read(sema_context(), 0, ty);
 		result = bb->push_binop(ir::op::add, lhs, rhs);
 		write(sema_context(), 0, result);
 	}
+
+	set_af(bb, lhs, rhs, result);
+	set_sf(bb, result);
+	set_zf(bb, result);
+	set_pf(bb, result);
+	bb->push_write_reg(reg::flag_of, bb->push_poison(ir::type::i1, "ADD - Overflow flag NYI"));	// TODO
+	auto c0 = bb->push_cmp(ir::op::ult, result, lhs);
+	auto c1 = bb->push_cmp(ir::op::ult, result, rhs);
+	bb->push_write_reg(reg::flag_cf, bb->push_binop(ir::op::bit_or, c0, c1));
+	return diag::ok;
+}
+DECL_SEMA(XADD) {
+	auto ty	= ir::int_type(ins.effective_width);
+	auto rhs = read(sema_context(), 1, ty);
+
+	auto [ptr, seg] = agen(sema_context(), ins.op[0].m, true);
+	auto lhs			 = bb->push_atomic_binop(ir::op::add, seg, std::move(ptr), rhs);
+	auto result		 = bb->push_binop(ir::op::add, lhs, rhs);
+	write(sema_context(), 1, lhs);
 
 	set_af(bb, lhs, rhs, result);
 	set_sf(bb, result);
@@ -417,7 +494,6 @@ DECL_SEMA(INT1) {
 	return diag::ok;
 }
 // TODO: INT / INTO
-
 /*
 pushfq
 popfq
@@ -427,19 +503,14 @@ movsd -> 85 0.402157%
 xorps -> 24 0.113550%
 cmpxchg -> 1 0.004731%
 
-xadd -> 46 0.217638%
+cqo -> 8 0.037850%
 bts -> 28 0.132475%
 bt -> 15 0.070969%
 mul -> 10 0.047313%
 imul -> 19 0.089894%
-rol -> 13 0.061506%
-ror -> 1 0.004731%
+div -> 1 0.004731%
 sbb -> 5 0.023656%
 adc -> 3 0.014194%
-div -> 1 0.004731%
-cdqe -> 13 0.061506%
-clc -> 10 0.047313%
-cqo -> 8 0.037850%
 
 movq -> 14 0.066238%
 movd -> 5 0.023656%

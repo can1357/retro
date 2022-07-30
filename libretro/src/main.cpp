@@ -63,6 +63,9 @@ int main(int argv, const char** args) {
 	rtn->ip		  = ip;
 	bb->ip		  = ip;
 
+	size_t ins_read_count = 0;
+	size_t ins_write_count = 0;
+
 	std::span<const u8> data = img->slice(ip - img->base_address);
 	for (size_t i = 0; !data.empty(); i++) {
 		// Disasm the instruction and print it.
@@ -73,6 +76,7 @@ int main(int argv, const char** args) {
 			break;
 		}
 		fmt::println(ip, ": ", ins.to_string(ip));
+		ins_read_count++;
 
 		// Try lifting it and print the result.
 		//
@@ -86,10 +90,17 @@ int main(int argv, const char** args) {
 				--it;
 			}
 			while (it != bb->end()) {
+				ins_write_count++;
 				fmt::println("          -> ", it->to_string());
 				++it;
 			}
 		}
+
+		// Print statistics.
+		//
+		printf(RC_GRAY " # Successfully lifted " RC_VIOLET "%u" RC_GRAY " instructions into " RC_GREEN "%u" RC_RED " (avg: ~%u/ins) #\n" RC_RESET,
+				ins_read_count, ins_write_count, ins_write_count / ins_read_count
+		);
 
 		// TODO: BB splitting and branch handling.
 		//
