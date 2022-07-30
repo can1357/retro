@@ -65,7 +65,7 @@ namespace retro::ldr {
 		if (image_size > 1_gb) {
 			return err::mapped_too_large(image_size / 1_mb);
 		}
-		if (!ok(img->raw_to_ptr<u8>((u32)header_size), data)) {
+		if (!ok(img->template raw_to_ptr<u8>((u32)header_size), data)) {
 			return err::oob_read_during("copying headers");
 		}
 		out.raw_data.resize(image_size, 0);

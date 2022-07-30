@@ -7,6 +7,8 @@
 #include <initializer_list>
 #include <array>
 #include <bit>
+#include <string>
+#include <span>
 #include <string_view>
 #include <numeric>
 #include <ranges>
@@ -560,9 +562,9 @@ namespace retro {
 
 	// Useful literals.
 	//
-	inline constexpr size_t operator""_kb(size_t n) { return (size_t) (n * 1024ull); }
-	inline constexpr size_t operator""_mb(size_t n) { return (size_t) (n * 1024ull * 1024ull); }
-	inline constexpr size_t operator""_gb(size_t n) { return (size_t) (n * 1024ull * 1024ull * 1024ull); }
+	inline constexpr unsigned long long operator""_kb(unsigned long long n) { return (unsigned long long) (n * 1024ull); }
+	inline constexpr unsigned long long operator""_mb(unsigned long long n) { return (unsigned long long) (n * 1024ull * 1024ull); }
+	inline constexpr unsigned long long operator""_gb(unsigned long long n) { return (unsigned long long) (n * 1024ull * 1024ull * 1024ull); }
 };
 
 // String conversion.

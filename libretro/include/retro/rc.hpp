@@ -328,14 +328,14 @@ namespace retro {
 	template<typename Ty, typename T>
 	inline static ref<Ty> dynamic_rc_cast(ref<T> ptr) {
 		ref<Ty> result = {};
-		if (ptr && ptr->is<Ty>()) {
+		if (ptr && ptr->template is<Ty>()) {
 			result.adopt((Ty*) ptr.release());
 		}
 		return result;
 	}
 	template<typename Ty, typename T>
 	inline static ref<Ty> dynamic_rc_cast(const ref<T>& ptr) {
-		if (ptr && ptr->is<Ty>()) {
+		if (ptr && ptr->template is<Ty>()) {
 			return ref<Ty>((Ty*) ptr.get());
 		}
 		return nullptr;

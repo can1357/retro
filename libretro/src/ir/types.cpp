@@ -336,14 +336,14 @@ namespace retro::ir {
 	constant constant::cast_zx(type into) const {
 		return visit_valid([&]<typename Src> (type_tag<Src>) -> constant {
 			return visit_valid([&] <typename Dst> (type_tag<Dst>) -> constant {
-				return cast_visitor<Src, Dst>::zx(this->get<Src>());
+				return cast_visitor<Src, Dst>::zx(this->template get<Src>());
 			}, into);
 		}, get_type());
 	}
 	constant constant::cast_sx(type into) const {
 		return visit_valid([&]<typename Src> (type_tag<Src>) -> constant {
 			return visit_valid([&] <typename Dst> (type_tag<Dst>) -> constant {
-				return cast_visitor<Src, Dst>::sx(this->get<Src>());
+				return cast_visitor<Src, Dst>::sx(this->template get<Src>());
 			}, into);
 		}, get_type());
 	}
