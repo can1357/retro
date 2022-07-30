@@ -181,7 +181,7 @@ namespace retro::interface {
 			}
 			return std::nullopt;
 		}
-		static handle find(hash name_hash) {
+		static handle lookup(hash name_hash) {
 			// TODO: Optimize later.
 			for (auto& e : all()) {
 				if (e->name_hash == name_hash) {
@@ -190,7 +190,7 @@ namespace retro::interface {
 			}
 			return std::nullopt;
 		}
-		static handle find(std::string_view name) {
+		static handle lookup(std::string_view name) {
 			for (auto& e : all()) {
 				if (e->name == name) {
 					return handle(u32(&e - &list[0]));

@@ -73,6 +73,22 @@ namespace retro::ir {
 			}
 			return n;
 		}
+		template<typename F>
+		size_t rerase_if(F&& f) {
+			size_t n = 0;
+			if (!empty()) {
+				auto it = std::prev(end());
+				while (it != end()) {
+					if (f(it)) {
+						n++;
+						std::exchange(it, it->prev)->erase();
+					} else {
+						--it;
+					}
+				}
+			}
+			return n;
+		}
 
 		// Adds or removes a jump from this basic-block to another.
 		//

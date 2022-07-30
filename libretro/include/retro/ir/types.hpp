@@ -225,10 +225,10 @@ namespace retro::ir {
 		// Observers.
 		//
 		constexpr type get_type() const { return type(type_id); }
+		constexpr bool is(type t) const { return type_id == u64(t); }
 		template<typename T>
 		constexpr bool is() const {
-			constexpr type Id = type_v<T>;
-			return type_id == u64(Id);
+			return is(type_v<T>);
 		}
 		template<typename T>
 		decltype(auto) get() const {

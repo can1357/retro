@@ -368,6 +368,13 @@ templates =      [0,            0]
 names =          ["",           "Reason"]
 constexprs =     [1]
 
+#void  nop
+[opcode.nop]
+template-count = 0
+types =          ["@type.none"]
+templates =      [0]
+names =          [""]
+
 #void  unreachable
 [opcode.unreachable]
 kind =           "@opcode_kind.trap"
