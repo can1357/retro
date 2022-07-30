@@ -77,8 +77,11 @@
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="src\arch\minsn.cpp" />
-    <ClCompile Include="src\arch\x86\sema.cpp" />
-    <ClCompile Include="src\arch\x86\sema_cc.cpp" />
+    <ClCompile Include="src\arch\x86\sema\arithmetic.cpp" />
+    <ClCompile Include="src\arch\x86\sema\conditional.cpp" />
+    <ClCompile Include="src\arch\x86\sema\logical.cpp" />
+    <ClCompile Include="src\arch\x86\sema\misc.cpp" />
+    <ClCompile Include="src\arch\x86\sema\data.cpp" />
     <ClCompile Include="src\arch\x86\x86.cpp" />
     <ClCompile Include="src\ir\basic_block.cpp" />
     <ClCompile Include="src\ir\insn.cpp" />

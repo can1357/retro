@@ -23,9 +23,13 @@ namespace retro::arch::x86 {
 
 // Lifter declaration.
 //
-#define DECL_SEMA(mnemonic)                                                                                               \
-	static diag::lazy RC_CONCAT(lift_, mnemonic)(SemaContext); \
-	RC_INITIALIZER { arch::x86::lifter_table[u32(RC_CONCAT(ZYDIS_MNEMONIC_, mnemonic))] = &RC_CONCAT(lift_, mnemonic); };  \
+#define DECL_SEMA(mnemonic)                                                             \
+	static diag::lazy RC_CONCAT(lift_, mnemonic)(SemaContext);                           \
+	RC_INITIALIZER {                                                                     \
+		auto& entry = arch::x86::lifter_table[u32(RC_CONCAT(ZYDIS_MNEMONIC_, mnemonic))]; \
+		RC_ASSERT(!entry);                                                                \
+		entry = &RC_CONCAT(lift_, mnemonic);                                              \
+	};                                                                                   \
 	static diag::lazy RC_CONCAT(lift_, mnemonic)(SemaContext)
 
 	// Common helpers for parity, sign, zero and auxiliary carry flags.
