@@ -27,6 +27,24 @@ DECL_SEMA(MOV) {
 	write(sema_context(), 0, read(sema_context(), 1, ty));
 	return diag::ok;
 }
+DECL_SEMA(MOVZX) {
+	auto t0 = ir::int_type(ins.op[0].get_width());
+	auto t1 = ir::int_type(ins.op[1].get_width());
+	write(sema_context(), 0, bb->push_cast(t1, read(sema_context(), 1, t1)));
+	return diag::ok;
+}
+DECL_SEMA(MOVSX) {
+	auto t0 = ir::int_type(ins.op[0].get_width());
+	auto t1 = ir::int_type(ins.op[1].get_width());
+	write(sema_context(), 0, bb->push_sign_extend(t1, read(sema_context(), 1, t1)));
+	return diag::ok;
+}
+DECL_SEMA(MOVSXD) {
+	auto t0 = ir::int_type(ins.op[0].get_width());
+	auto t1 = ir::int_type(ins.op[1].get_width());
+	write(sema_context(), 0, bb->push_sign_extend(t1, read(sema_context(), 1, t1)));
+	return diag::ok;
+}
 DECL_SEMA(LEA) {
 	// Pattern: [lea reg, [reg]] <=> [nop]
 	if (ins.op[0].type == arch::mop_type::reg && !ins.op[1].m.index && ins.op[1].m.disp) {
@@ -73,6 +91,39 @@ DECL_SEMA(POP) {
 	write(sema_context(), 0, value);
 	return diag::ok;
 }
+
+
+DECL_SEMA(MOVUPS) {
+	constexpr auto ty = ir::type::f32x4;
+	write(sema_context(), 0, read(sema_context(), 1, ty));
+	return diag::ok;
+}
+DECL_SEMA(MOVAPS) {
+	constexpr auto ty = ir::type::f32x4;
+	write(sema_context(), 0, read(sema_context(), 1, ty));
+	return diag::ok;
+}
+DECL_SEMA(MOVUPD) {
+	constexpr auto ty = ir::type::f64x2;
+	write(sema_context(), 0, read(sema_context(), 1, ty));
+	return diag::ok;
+}
+DECL_SEMA(MOVAPD) {
+	constexpr auto ty = ir::type::f64x2;
+	write(sema_context(), 0, read(sema_context(), 1, ty));
+	return diag::ok;
+}
+DECL_SEMA(MOVDQU) {
+	constexpr auto ty = ir::type::i32x4;
+	write(sema_context(), 0, read(sema_context(), 1, ty));
+	return diag::ok;
+}
+DECL_SEMA(MOVDQA) {
+	constexpr auto ty = ir::type::i32x4;
+	write(sema_context(), 0, read(sema_context(), 1, ty));
+	return diag::ok;
+}
+
 
 // Arithmetic.
 //
@@ -372,9 +423,6 @@ pushfq
 popfq
 
 xchg -> 4 0.018925%
-movzx -> 834 3.945874%
-movsx -> 13 0.061506%
-movsxd -> 57 0.269682%
 movsd -> 85 0.402157%
 xorps -> 24 0.113550%
 cmpxchg -> 1 0.004731%
@@ -396,10 +444,6 @@ cqo -> 8 0.037850%
 movq -> 14 0.066238%
 movd -> 5 0.023656%
 movss -> 9 0.042581%
-movups -> 231 1.092922%
-movdqa -> 11 0.052044%
-movaps -> 34 0.160863%
-movdqu -> 5 0.023656%
 divss -> 1 0.004731%
 cvtdq2pd -> 2 0.009463%
 cvtdq2ps -> 2 0.009463%

@@ -60,6 +60,21 @@ namespace retro::arch {
 		constexpr mop(mem v) : type(mop_type::mem), m(v) {}
 		constexpr mop(imm v) : type(mop_type::imm), i(v) {}
 
+		// Gets the width or 0.
+		//
+		u16 get_width() const {
+			switch (type) {
+				case mop_type::reg:
+					return enum_reflect(r.get_kind()).width;
+				case mop_type::mem:
+					return m.width;
+				case mop_type::imm:
+					return i.width;
+				default:
+					return 0;
+			}
+		}
+
 		// String conversion.
 		//
 		std::string to_string(instance* a = nullptr, u64 ip = 0) const {
