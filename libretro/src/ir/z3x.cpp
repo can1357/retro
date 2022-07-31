@@ -589,38 +589,7 @@ namespace retro::z3x {
 
 		// Named symbol.
 		//
-		auto ty = make_sort(c, v->get_type());
-		if (ty) {
-			// If index is cached and valid, return.
-			//
-			if (i) {
-				u32 idx = (u32)i->tmp_mapping;
-				if (vs.vars.size() > idx && vs.vars[idx].first == i) {
-					return vs.vars[idx].second;
-				}
-			}
-
-			// Try finding the value in the list.
-			//
-			u32 idx = 0;
-			for (; idx != vs.vars.size(); idx++) {
-				// If found, update cache index and return.
-				//
-				if (vs.vars[idx].first == v) {
-					if (i)
-						i->tmp_mapping = idx;
-					return vs.vars[idx].second;
-				}
-			}
-
-			// Create a new entry, update cache index and return.
-			//
-			if (i)
-				i->tmp_mapping = idx;
-			return vs.vars.emplace_back(v, c.constant(c.int_symbol(idx), ty)).second;
-		} else {
-			return c;
-		}
+		return vs.emplace(c, v);
 	}
 	expr to_expr(variable_set& vs, context& c, const ir::operand& o, size_t max_depth) {
 		if (o.is_const()) {
@@ -653,7 +622,7 @@ namespace retro::z3x {
 
 	// Translates a Z3 expression tree into a series of IR instructions at the end of the block.
 	//
-	ir::variant to_insn(variable_set& vs, const expr& expr, ir::basic_block* bb) {
+	ir::variant from_expr(variable_set& vs, const expr& expr, ir::basic_block* bb) {
 		// Declare cache writer.
 		//
 		auto ret_and_cache = [&](ir::insn* i) {
@@ -676,7 +645,7 @@ namespace retro::z3x {
 			//
 			std::vector<ir::variant> args(expr.num_args());
 			for (size_t i = 0; i != args.size(); i++) {
-				args[i] = to_insn(vs, expr.arg(i), bb);
+				args[i] = from_expr(vs, expr.arg(i), bb);
 				if (args[i].is_const() && args[i].const_val.is<void>())
 					return {};
 			}

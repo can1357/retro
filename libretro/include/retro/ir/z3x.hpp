@@ -65,6 +65,46 @@ namespace retro::z3x {
 		//
 		std::vector<std::pair<weak<ir::insn>, expr>> write_list;
 
+		// Inserts a new variable or fetches it from cache.
+		//
+		expr emplace(context& c, weak<ir::value> v) {
+			// Return null expression if sort is invalid.
+			//
+			auto ty = make_sort(c, v->get_type());
+			if (!ok(ty)) {
+				return c;
+			}
+
+			// If index is cached and valid, return.
+			//
+			auto i = v->get_if<ir::insn>();
+			if (i) {
+				u32 idx = (u32) i->tmp_mapping;
+				if (vars.size() > idx && vars[idx].first == i) {
+					return vars[idx].second;
+				}
+			}
+
+			// Try finding the value in the list.
+			//
+			u32 idx = 0;
+			for (; idx != vars.size(); idx++) {
+				// If found, update cache index and return.
+				//
+				if (vars[idx].first == v) {
+					if (i)
+						i->tmp_mapping = idx;
+					return vars[idx].second;
+				}
+			}
+
+			// Create a new entry, update cache index and return.
+			//
+			if (i)
+				i->tmp_mapping = idx;
+			return vars.emplace_back(v, c.constant(c.int_symbol(idx), ty)).second;
+		}
+
 		// Wrapper using get_variable.
 		//
 		weak<ir::value> get(const expr& expr) const {
@@ -84,5 +124,5 @@ namespace retro::z3x {
 
 	// Translates a Z3 expression tree into a series of IR instructions at the end of the block.
 	//
-	ir::variant to_insn(variable_set& vs, const expr& expr, ir::basic_block* bb);
+	ir::variant from_expr(variable_set& vs, const expr& expr, ir::basic_block* bb);
 };

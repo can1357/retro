@@ -147,8 +147,8 @@ int main(int argv, const char** args) {
 
 
 	z3::context c;
-	auto			term = bb->back();
-	fmt::println(term->to_string());
+	auto			termcc = bb->back()->operands()[0].get_value();
+	fmt::println(termcc->to_string());
 
 	bb->push_nop();
 	bb->push_nop();
@@ -157,13 +157,11 @@ int main(int argv, const char** args) {
 	bb->push_nop();
 
 	z3x::variable_set vs;
-	if (auto expr = z3x::to_expr(vs, c, term->operands()[0])) {
+	if (auto expr = z3x::to_expr(vs, c, termcc)) {
 		fmt::println(expr.to_string());
 		fmt::println("->");
-		fmt::println(z3x::to_insn(vs, expr, bb));
-		//fmt::println(z3x::expr_depth(expr.simplify()), "   -> z3 expr(S):", expr.simplify());
+		fmt::println(z3x::from_expr(vs, expr, bb));
 	}
-
 	
 	fmt::println(bb->to_string());
 
