@@ -27,8 +27,8 @@ namespace retro::z3x {
 
 	// Expression depth calculation.
 	//
-	size_t						expr_depth(Z3_context c, Z3_ast a);
-	RC_INLINE static size_t expr_depth(const expr& of) { return expr_depth(of.ctx(), of); }
+	u32						expr_depth(Z3_context c, Z3_ast a);
+	RC_INLINE static u32 expr_depth(const expr& of) { return expr_depth(of.ctx(), of); }
 
 	// Symbol based variables.
 	//

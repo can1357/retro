@@ -311,13 +311,13 @@ namespace retro::z3x {
 
 	// Expression depth calculation.
 	//
-	size_t expr_depth(Z3_context c, Z3_ast a) {
+	u32 expr_depth(Z3_context c, Z3_ast a) {
 		auto	 k = Z3_get_ast_kind(c, a);
-		size_t n = 0;
+		u32  n = 0;
 		if (k == Z3_APP_AST || k == Z3_NUMERAL_AST) {
-			size_t i = Z3_get_app_num_args(c, (Z3_app) a);
+			u32 i = Z3_get_app_num_args(c, (Z3_app) a);
 			n += i;
-			for (size_t j = 0; j != i; j++) {
+			for (u32 j = 0; j != i; j++) {
 				n += expr_depth(c, Z3_get_app_arg(c, (Z3_app) a, j));
 			}
 		}
@@ -543,32 +543,32 @@ namespace retro::z3x {
 		if (i && max_depth != 0) {
 			--max_depth;
 			if (i->op == ir::opcode::cmp) {
-				auto lhs = to_expr(vs, c, i->operands()[1], max_depth);
-				auto rhs = to_expr(vs, c, i->operands()[2], max_depth);
-				if (auto val = apply(i->operands()[0].get_const().get<ir::op>(), lhs, rhs)) {
+				auto lhs = to_expr(vs, c, i->opr(1), max_depth);
+				auto rhs = to_expr(vs, c, i->opr(2), max_depth);
+				if (auto val = apply(i->opr(0).get_const().get<ir::op>(), lhs, rhs)) {
 					return val;
 				}
 			} else if (i->op == ir::opcode::binop) {
-				auto lhs = to_expr(vs, c, i->operands()[1], max_depth);
-				auto rhs = to_expr(vs, c, i->operands()[2], max_depth);
-				if (auto val = apply(i->operands()[0].get_const().get<ir::op>(), lhs, rhs)) {
+				auto lhs = to_expr(vs, c, i->opr(1), max_depth);
+				auto rhs = to_expr(vs, c, i->opr(2), max_depth);
+				if (auto val = apply(i->opr(0).get_const().get<ir::op>(), lhs, rhs)) {
 					return val;
 				}
 			} else if (i->op == ir::opcode::unop) {
-				auto rhs = to_expr(vs, c, i->operands()[1], max_depth);
-				if (auto val = apply(i->operands()[0].get_const().get<ir::op>(), rhs)) {
+				auto rhs = to_expr(vs, c, i->opr(1), max_depth);
+				if (auto val = apply(i->opr(0).get_const().get<ir::op>(), rhs)) {
 					return val;
 				}
 			} else if (i->op == ir::opcode::select) {
-				auto cc = to_expr(vs, c, i->operands()[0], max_depth);
-				auto lhs = to_expr(vs, c, i->operands()[1], max_depth);
-				auto rhs = to_expr(vs, c, i->operands()[2], max_depth);
+				auto cc = to_expr(vs, c, i->opr(0), max_depth);
+				auto lhs = to_expr(vs, c, i->opr(1), max_depth);
+				auto rhs = to_expr(vs, c, i->opr(2), max_depth);
 				if (ok(cc) && ok(lhs) && ok(rhs)) {
 					return z3::ite(cc, lhs, rhs);
 				}
 			} else if (i->op == ir::opcode::cast) {
 				auto into = make_sort(c, i->template_types[1]);
-				auto val	 = to_expr(vs, c, i->operands()[0], max_depth);
+				auto val	 = to_expr(vs, c, i->opr(0), max_depth);
 				if (ok(into) && ok(val)) {
 					val = cast(val, into);
 					if (val) {
@@ -577,11 +577,30 @@ namespace retro::z3x {
 				}
 			} else if (i->op == ir::opcode::cast_sx) {
 				auto into = make_sort(c, i->template_types[1]);
-				auto val	 = to_expr(vs, c, i->operands()[0], max_depth);
+				auto val	 = to_expr(vs, c, i->opr(0), max_depth);
 				if (ok(into) && ok(val)) {
 					val = cast_sx(val, into);
 					if (val) {
 						return val;
+					}
+				}
+			}
+			// Implement very simple local register propagation here to avoid having to modify
+			// the basic block to resolve jump targets.
+			//
+			else if (i->op == ir::opcode::read_reg) {
+				// For each instruction prior:
+				for (auto i2 : i->block->rslice(i)) {
+					// Break if it trashes registers.
+					if (i2->desc().trashes_regs)
+						break;
+					// If write_reg:
+					if (i2->op == ir::opcode::write_reg) {
+						// If register matches:
+						if (i->opr(0).get_const().get<arch::mreg>() == i2->opr(0).get_const().get<arch::mreg>()) {
+							RC_ASSERT(i2->opr(1).get_type() == i->template_types[0]); // potential bitcasts?
+							return to_expr(vs, c, i2->opr(1), max_depth);
+						}
 					}
 				}
 			}
@@ -646,7 +665,7 @@ namespace retro::z3x {
 			//
 			std::vector<ir::variant> args(expr.num_args());
 			for (size_t i = 0; i != args.size(); i++) {
-				args[i] = from_expr(vs, expr.arg(i), bb, it);
+				args[i] = from_expr(vs, expr.arg((u32) i), bb, it);
 				if (args[i].is_const() && args[i].const_val.is<void>())
 					return {};
 			}
