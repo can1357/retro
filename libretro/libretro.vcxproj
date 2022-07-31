@@ -36,7 +36,6 @@
     <ClInclude Include="include\retro\arch\x86\sema.hpp" />
     <ClInclude Include="include\retro\arch\x86\zy2rc.hpp" />
     <ClInclude Include="include\retro\diag.hpp" />
-    <ClInclude Include="include\retro\doc\workspace.hpp" />
     <ClInclude Include="include\retro\graph\naive.hpp" />
     <ClInclude Include="include\retro\graph\search.hpp" />
     <ClInclude Include="include\retro\interface.hpp" />
@@ -70,6 +69,7 @@
   </ItemGroup>
   <ItemGroup>
     <None Include="..\.clang-format" />
+    <None Include="..\scripts\tablegen.py" />
     <None Include="include\retro\arch\reg_kind.toml" />
     <None Include="include\retro\arch\x86\regs.toml" />
     <None Include="include\retro\ir\builtin_types.toml" />

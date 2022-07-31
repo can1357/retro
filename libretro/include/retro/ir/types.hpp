@@ -202,7 +202,7 @@ namespace retro::ir {
 
 		// Move construction and assignment via swap.
 		//
-		constant(constant&& o) noexcept { swap(o); }
+		constant(constant&& o) noexcept : constant() { swap(o); }
 		constant& operator=(constant&& o) noexcept {
 			swap(o);
 			return *this;

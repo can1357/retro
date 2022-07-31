@@ -32,6 +32,13 @@ namespace retro::arch::x86 {
 	};                                                                                   \
 	static diag::lazy RC_CONCAT(lift_, mnemonic)(SemaContext)
 
+	namespace detail {
+		inline ir::insn* sgn(ir::basic_block* bb, ir::variant value) {
+			auto z	= ir::constant(value.get_type(), 0);
+			return bb->push_cmp(ir::op::lt, value, z);
+		}
+	};
+
 	// Common helpers for parity, sign, zero and auxiliary carry flags.
 	//
 	inline void set_pf(ir::basic_block* bb, ir::insn* result) {
@@ -41,7 +48,7 @@ namespace retro::arch::x86 {
 		bb->push_write_reg(reg::flag_pf, mod2);
 	}
 	inline void set_sf(ir::basic_block* bb, ir::insn* result) {
-		auto sgn = bb->push_cmp(ir::op::lt, result, ir::constant(result->get_type(), 0));
+		auto sgn = detail::sgn(bb, result);
 		bb->push_write_reg(reg::flag_sf, sgn);
 	}
 	inline void set_zf(ir::basic_block* bb, ir::insn* result) {
@@ -82,28 +89,25 @@ namespace retro::arch::x86 {
 	}
 	template<typename Lhs, typename Rhs>
 	inline void set_of_add(ir::basic_block* bb, Lhs&& lhs, Rhs&& rhs, ir::insn* res) {
-		auto t  = res->get_type();
-		auto sl = bb->push_cmp(ir::op::lt, std::forward<Lhs>(lhs), ir::constant(t, 0));
-		auto sr = bb->push_cmp(ir::op::lt, std::forward<Rhs>(rhs), ir::constant(t, 0));
-		auto sx = bb->push_cmp(ir::op::lt, res, ir::constant(t, 0));
+		auto sl = detail::sgn(bb, std::forward<Lhs>(lhs));
+		auto sr = detail::sgn(bb, std::forward<Rhs>(rhs));
+		auto sx = detail::sgn(bb, res);
 		// 0.. 0.. -> 1..
 		// 1.. 1.. -> 0..
-
-		auto a = bb->push_cmp(ir::op::eq, sl, sx);
-		auto b = bb->push_cmp(ir::op::eq, sr, sx);
-		bb->push_write_reg(reg::flag_of, bb->push_binop(ir::op::bit_or, a, b));
+		auto a = bb->push_cmp(ir::op::ne, sl, sx);
+		auto b = bb->push_cmp(ir::op::ne, sr, sx);
+		bb->push_write_reg(reg::flag_of, bb->push_binop(ir::op::bit_and, a, b));
 	}
 	template<typename Lhs, typename Rhs>
 	inline void set_of_sub(ir::basic_block* bb, Lhs&& lhs, Rhs&& rhs, ir::insn* res) {
-		auto t  = res->get_type();
-		auto sl = bb->push_cmp(ir::op::lt, std::forward<Lhs>(lhs), ir::constant(t, 0));
-		auto sr = bb->push_cmp(ir::op::lt, std::forward<Rhs>(rhs), ir::constant(t, 0));
-		auto sx = bb->push_cmp(ir::op::lt, res, ir::constant(t, 0));
+		auto sl = detail::sgn(bb, std::forward<Lhs>(lhs));
+		auto sr = detail::sgn(bb, std::forward<Rhs>(rhs));
+		auto sx = detail::sgn(bb, res);
 		// 0.. 1.. -> 1..
 		// 1.. 0.. -> 0..
-		auto a = bb->push_cmp(ir::op::eq, sl, sx);
-		auto b = bb->push_cmp(ir::op::eq, sr, sx);
-		bb->push_write_reg(reg::flag_of, bb->push_binop(ir::op::bit_or, a, b));
+		auto a = bb->push_cmp(ir::op::ne, sl, sr);
+		auto b = bb->push_cmp(ir::op::ne, sl, sx);
+		bb->push_write_reg(reg::flag_of, bb->push_binop(ir::op::bit_and, a, b));
 	}
 
 	// Sets logical flags.
@@ -132,7 +136,7 @@ namespace retro::arch::x86 {
 	// (OF=1)
 	static ir::insn* test_O(SemaContext) { return bb->push_read_reg(ir::type::i1, reg::flag_of); }
 	// (SF≠OF)
-	static ir::insn* test_L(SemaContext) { return bb->push_binop(ir::op::bit_xor, test_O(sema_context()), test_S(sema_context())); }
+	static ir::insn* test_L(SemaContext) { return bb->push_cmp(ir::op::ne, test_O(sema_context()), test_S(sema_context())); }
 	// (CF=1 or ZF=1)
 	static ir::insn* test_BE(SemaContext) { return bb->push_binop(ir::op::bit_or, test_B(sema_context()), test_Z(sema_context())); }
 	// (SF≠OF or ZF=1)

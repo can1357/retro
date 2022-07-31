@@ -17,6 +17,7 @@ namespace retro::ir {
 	
 	// Common type for initializing operands.
 	//
+	struct operand;
 	struct variant {
 		// Since value is aligned by 8, if misaligned (eg check bit 0 == 1), we can use it as a thombstone.
 		//
@@ -28,7 +29,7 @@ namespace retro::ir {
 		// Default constructor creates type::none.
 		//
 		variant() : const_val{} {}
-		variant(std::nullopt_t) : const_val{} {}
+		variant(std::nullopt_t) : variant() {}
 
 		// Constructed by either possible type.
 		//
@@ -37,6 +38,7 @@ namespace retro::ir {
 		variant(constant val) : const_val(std::move(val)) {}
 		template<BuiltinType T>
 		variant(T val) : const_val(val) {}
+		explicit variant(const operand& op);
 
 		// Copy construction and assignment.
 		//
@@ -55,7 +57,7 @@ namespace retro::ir {
 
 		// Move construction and assignment via swap.
 		//
-		variant(variant&& o) noexcept { swap(o); }
+		variant(variant&& o) noexcept : variant() { swap(o); }
 		variant& operator=(variant&& o) noexcept {
 			swap(o);
 			return *this;
@@ -243,12 +245,15 @@ namespace retro::ir {
 		// Replaces all uses with another value.
 		//
 		template<typename T>
-		void replace_all_uses_with(T&& val) const {
+		size_t replace_all_uses_with(T&& val) const {
+			size_t n = 0;
 			for (auto it = use_list.begin(); it != use_list.end();) {
 				auto next = std::next(it);
 				it->reset(std::forward<T>(val));
 				it = next;
+				n++;
 			}
+			return n;
 		}
 
 		// Ensure no references left on destruction.
@@ -258,6 +263,13 @@ namespace retro::ir {
 
 	// Forwards.
 	//
+	inline variant::variant(const operand& o) {
+		if (o.is_const()) {
+			std::construct_at(&const_val, o.get_const());
+		} else {
+			std::construct_at(&value_ref, o.get_value());
+		}
+	}
 	inline std::string variant::to_string(fmt_style s) const { return is_const() ? get_const().to_string() : get_value()->to_string(s); }
 	inline type			 variant::get_type() const { return is_const() ? get_const().get_type() : get_value()->get_type(); }
 };

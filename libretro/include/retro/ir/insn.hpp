@@ -88,10 +88,12 @@ namespace retro::ir {
 		//
 		size_t index_of(const operand* operand) const { return operand - operands().data(); }
 
-		// Gets the operands.
+		// Operand getters.
 		//
 		std::span<operand>		 operands() { return {(operand*) (this + 1), operand_count}; }
 		std::span<const operand> operands() const { return {(operand*) (this + 1), operand_count}; }
+		operand&						 opr(size_t i) { return operands()[i]; }
+		const operand&				 opr(size_t i) const { return operands()[i]; }
 
 		// Changes an operands value.
 		//
