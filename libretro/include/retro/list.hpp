@@ -146,6 +146,6 @@ namespace retro::list {
 		T*							front() const { return (!empty()) ? (next) : nullptr; }
 		T*							back() const { return (!empty()) ? (prev) : nullptr; }
 		auto						slice(iterator it) const { return range::subrange(it, end()); }
-		auto						rslice(iterator it) const { return range::subrange(rbegin(), std::reverse_iterator(it)); }
+		auto						rslice(iterator it) const { return range::subrange(std::reverse_iterator(it), rend()); }
 	};
 };
