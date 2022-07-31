@@ -15,10 +15,11 @@ namespace retro::ir {
 		//
 		routine* rtn = nullptr;
 
-		// Name and Label IP.
+		// Name and IP ranges.
 		//
 		u32 name = 0;
-		u64 ip	= NO_LABEL;
+		u64 ip	  = NO_LABEL;
+		u64 end_ip = NO_LABEL;
 
 		// Temporary for algorithms.
 		//
@@ -41,6 +42,13 @@ namespace retro::ir {
 		}
 		auto phis() const { return range::subrange(begin(), end_phi()); }
 		auto insns() const { return range::subrange(begin(), end()); }
+		insn* terminator() const {
+			if (auto r = back()) {
+				if (auto& desc = r->desc(); desc.bb_terminator || desc.terminator)
+					return r;
+			}
+			return nullptr;
+		}
 
 		// Insertion.
 		//
@@ -95,6 +103,10 @@ namespace retro::ir {
 		//
 		void add_jump(basic_block* to);
 		void del_jump(basic_block* to, bool fix_phi = true);
+
+		// Splits the basic block at the specified instruction boundary.
+		//
+		basic_block* split(list::iterator<insn> boundary);
 
 		// Validation.
 		//

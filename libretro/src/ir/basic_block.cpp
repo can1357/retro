@@ -34,6 +34,66 @@ namespace retro::ir {
 		to->predecessors.erase(pit);
 	}
 
+	// Splits the basic block at the specified instruction boundary.
+	//
+	basic_block* basic_block::split(list::iterator<insn> boundary) {
+		// Filter out stupid calls.
+		//
+		if (boundary == begin()) {
+			return this;
+		}
+		auto* blk = rtn->add_block();
+		blk->end_ip = this->end_ip;
+		if (boundary == end()) {
+			blk->ip = this->end_ip;
+			return blk;
+		}
+
+		// Update the tracked IP ranges.
+		//
+		blk->ip		 = boundary->ip;
+		this->end_ip = boundary->ip;
+
+		// Manually split the list.
+		//
+		auto this_head	 = entry();
+		auto this_front = front();
+		auto this_back	 = boundary->prev;
+
+		auto new_head	 = blk->entry();
+		auto new_front	 = boundary.get();
+		auto new_back	 = back();
+
+		this_head->next = this_front;
+		this_head->prev = this_back;
+		this_front->prev = this_head;
+		this_back->next  = this_head;
+
+		new_head->next  = new_front;
+		new_head->prev  = new_back;
+		new_front->prev = new_head;
+		new_back->next  = new_head;
+
+		// Fix the parent pointers.
+		//
+		for (auto ins : blk->insns()) {
+			ins->block = blk;
+		}
+
+		// Fixup the successor / predecessor list.
+		//
+		for (auto& suc : successors) {
+			for (auto& pred : suc->predecessors) {
+				if (pred == this) {
+					pred = blk;
+					break;
+				}
+			}
+		}
+		successors.swap(blk->successors);
+		return blk;
+	}
+
 	// String conversion and type getter.
 	//
 	std::string basic_block::to_string(fmt_style s) const {
@@ -41,6 +101,14 @@ namespace retro::ir {
 			return fmt::str(RC_CYAN "$%x" RC_RESET, name);
 		} else {
 			std::string result	  = fmt::str(RC_CYAN "$%x:" RC_RESET, name);
+			if (ip != NO_LABEL && end_ip != NO_LABEL) {
+				result += fmt::str(RC_GRAY " [%llx => %llx]" RC_RESET, ip, end_ip);
+			} else if (end_ip != NO_LABEL) {
+				result += fmt::str(RC_GRAY " [... => %llx]" RC_RESET, end_ip);
+			} else if (ip != NO_LABEL) {
+				result += fmt::str(RC_GRAY " [%llx => ...]" RC_RESET, ip);
+			}
+
 			auto			last_label = NO_LABEL;
 			for (insn* i : *this) {
 				auto str = i->to_string();
