@@ -1,0 +1,41 @@
+# Group constants.
+#
+[[replace]]
+src = "(A+@B)+@C"
+dst = "A+(@B+@C)"
+[[replace]]
+src = "(A*@B)*@C"
+dst = "A*(@B*@C)"
+[[replace]]
+src = "(A-@B)-@C"
+dst = "A-(@B+@C)"
+
+# Fix some Z3 problems.
+#
+[[replace]]
+src = "A*[-1]"
+dst = "-A"
+[[replace]]
+src = "~(A<=B)"
+dst = "A>B"
+[[replace]]
+src = "~(A>=B)"
+dst = "A<B"
+[[replace]]
+src = "~(Au<=B)"
+dst = "Au>B"
+[[replace]]
+src = "~(Au>=B)"
+dst = "Au<B"
+[[replace]]
+src = "(A<B)|(A==B)"
+dst = "A<=B"
+[[replace]]
+src = "(A>B)|(A==B)"
+dst = "A>=B"
+[[replace]]
+src = "(Au<B)|(A==B)"
+dst = "Au<=B"
+[[replace]]
+src = "(Au>B)|(A==B)"
+dst = "Au>=B"

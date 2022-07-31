@@ -1,6 +1,7 @@
 # Auto generated files
 #
 **/retro/**/*.hxx
+**/retro/**/*.cxx
 
 # Build files
 #

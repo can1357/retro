@@ -72,6 +72,7 @@ namespace retro::ir {
 
 		// Observers.
 		//
+		bool			is_null() const { return is_const() && const_val.get_type() == type::none; }
 		bool			is_const() const { return const_val.__rsvd == 1; }
 		std::string to_string(fmt_style s = {}) const;
 		type			get_type() const;

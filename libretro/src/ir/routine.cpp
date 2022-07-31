@@ -5,12 +5,14 @@ namespace retro::ir {
 	// Creates or removes a block.
 	//
 	basic_block* routine::add_block() {
+		dirty_cfg();
 		auto* blk = blocks.emplace_back(make_rc<basic_block>()).get();
 		blk->rtn	 = this;
 		blk->name = next_blk_name++;
 		return blk;
 	}
 	auto routine::del_block(basic_block* b) {
+		dirty_cfg();
 		RC_ASSERT(b->predecessors.empty());
 		RC_ASSERT(b->successors.empty());
 		for (auto it = blocks.begin();; ++it) {

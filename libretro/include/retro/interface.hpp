@@ -97,7 +97,7 @@ namespace retro::interface {
 		// Instance map.
 		//
 		inline static ref<T>				 list[max_instances] = {};	 // Padded with null to avoid branch for 0 case.
-		inline static basic_lock		 list_lock				= {};
+		inline static simple_lock		 list_lock				= {};
 		inline static std::atomic<u32> list_last_handle		= 0;
 
 		// Private identification.

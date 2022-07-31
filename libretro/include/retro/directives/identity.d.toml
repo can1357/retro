@@ -1,0 +1,59 @@
+# Double inverse.
+#
+[[replace]]
+src = "-(-A)"
+dst = "A"
+[[replace]]
+src = "~(~A)"
+dst = "A"
+[[replace]]
+src = "~(-A)"
+dst = "A-1"
+[[replace]]
+src = "-(~A)"
+dst = "A+1"
+
+# Identity constants.
+#
+[[replace]]
+src = "A+0"
+dst = "A"
+[[replace]]
+src = "A-0"
+dst = "A"
+[[replace]]
+src = "A|A"
+dst = "A"
+[[replace]]
+src = "A&A"
+dst = "A"
+[[replace]]
+src = "A^0"
+dst = "A"
+[[replace]]
+src = "A&[-1]"
+dst = "A"
+[[replace]]
+src = "A*1"
+dst = "A"
+[[replace]]
+src = "A/1"
+dst = "A"
+[[replace]]
+src = "Au/1"
+dst = "A"
+[[replace]]
+src = "rotl(A,0)"
+dst = "A"
+[[replace]]
+src = "rotr(A,0)"
+dst = "A"
+[[replace]]
+src = "A>>0"
+dst = "A"
+[[replace]]
+src = "As>>0"
+dst = "A"
+[[replace]]
+src = "A<<0"
+dst = "A"

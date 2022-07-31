@@ -19,7 +19,7 @@ using namespace retro;
 
 
 #include <retro/lock.hpp>
-
+#include <retro/directives/pattern.hpp>
 namespace retro::ir::opt {
 	// Utility functions.
 	//
@@ -243,6 +243,27 @@ namespace retro::ir::opt {
 				//
 				if (ins2->desc().side_effect && !ins->desc().is_const) {
 					break;
+				}
+			}
+		}
+
+		// Run DCE if there were any changes, return the change count.
+		return n ? n + dce(bb) : n;
+	}
+
+	// Simple instruction combination rules.
+	//
+	static size_t ins_combine(basic_block* bb) {
+		size_t n = 0;
+		for (auto it = bb->begin(); it != bb->end();) {
+			auto ins = it++;
+			if (ins->op == ir::opcode::binop || ins->op == ir::opcode::unop || ins->op == ir::opcode::cmp) {
+				for (auto& match : directives::replace_list) {
+					pattern::match_context ctx{};
+					if (match(ins, ctx)) {
+						n++;
+						break;
+					}
 				}
 			}
 		}
@@ -517,6 +538,28 @@ namespace retro::analysis {
 int main(int argv, const char** args) {
 	platform::setup_ansi_escapes();
 
+	//auto rtn = make_rc<ir::routine>();
+	//auto bb	= rtn->add_block();
+	//
+	//auto a = bb->push_read_reg(ir::type::i64, arch::x86::reg::rax);
+	//a = bb->push_binop(ir::op::add, a, i64(1));
+	//a = bb->push_binop(ir::op::add, a, i64(1));
+	//bb->push_write_reg(arch::x86::reg::rax, a);
+	//
+	//fmt::println(bb->to_string());
+	//
+	//size_t n = 0;
+	//for (auto& bb : rtn->blocks) {
+	//	n += ir::opt::reg_move_prop(bb);
+	//	n += ir::opt::const_fold(bb);
+	//	n += ir::opt::id_fold(bb);
+	//	n += ir::opt::ins_combine(bb);
+	//	n += ir::opt::const_fold(bb);
+	//	n += ir::opt::id_fold(bb);
+	//}
+	//fmt::println(bb->to_string());
+
+
 	// Create the workspace.
 	//
 	auto ws = analysis::workspace::create();
@@ -540,7 +583,7 @@ int main(int argv, const char** args) {
 
 	// Print statistics.
 	//
-	printf(RC_GRAY " # Successfully lifted " RC_VIOLET "%u" RC_GRAY " instructions into " RC_GREEN "%u" RC_RED " (avg: ~%u/ins) #\n" RC_RESET, dom->stats.minsn_disasm.load(),
+	printf(RC_GRAY " # Successfully lifted " RC_VIOLET "%llu" RC_GRAY " instructions into " RC_GREEN "%llu" RC_RED " (avg: ~%llu/ins) #\n" RC_RESET, dom->stats.minsn_disasm.load(),
 		 dom->stats.insn_lifted.load(), dom->stats.insn_lifted.load() / dom->stats.minsn_disasm.load());
 
 	// Run simple optimizations.
@@ -550,10 +593,12 @@ int main(int argv, const char** args) {
 		n += ir::opt::reg_move_prop(bb);
 		n += ir::opt::const_fold(bb);
 		n += ir::opt::id_fold(bb);
+		n += ir::opt::ins_combine(bb);
+		n += ir::opt::const_fold(bb);
+		n += ir::opt::id_fold(bb);
 	}
-	printf("Optimized out %llu instructions.\n", n);
+	printf("Optimized %llu instructions.\n", n);
 
-	// TODO: PHI Gen
 
 
 	fmt::println(rtn->to_string());

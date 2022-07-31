@@ -1,7 +1,7 @@
 #!/usr/bin/env python
 # coding: utf-8
 
-# In[18]:
+# In[141]:
 
 
 #!conda install --yes toml
@@ -12,6 +12,227 @@ import sys
 import time
 import ast
 import traceback
+
+
+# In[191]:
+
+
+# Directive implementation.
+#
+umap = {}
+bmap = {}
+cmplist = []
+cmtlist = []
+def update_operators(op_tbl):
+    global umap
+    global bmap
+    global cmplist
+    global cmtlist
+    umap = {}
+    bmap = {}
+    cmtlist = []
+    cmplist = []
+    for k,v in op_tbl["op"].items():
+        cname = "op::" + to_cname(k)
+        if "unary" in v["kind"]:
+            umap[v["symbol"]] = cname
+        else:
+            bmap[v["symbol"]] = cname
+            if "cmp" in v["kind"]:
+                cmplist.append(cname)
+            elif v.get("commutative", False):
+                cmtlist.append(cname)
+dtmpcounter = 0 
+
+class DirectiveValue:
+    def __init__(self, value):
+        self.value = value
+    def write_match(self, ref):        
+        return "if(!match_imm({0}, {1}, ctx)) return false;\n".format(self.value, ref)
+    def write_create(self):
+        return "", "imm(i->get_type(), {0})".format(self.value)
+    def to_string(self):
+        return self.value
+    def permutate(self):
+        return [self]
+    def is_imm(self):
+        return True
+class DirectiveValueWild:
+    def __init__(self, name):
+        self.name = name
+    def write_match(self, ref):
+        return "if(!match_imm_symbol({0}, {1}, ctx)) return false;\n".format(ord(self.name)-ord('A'), ref)
+    def write_create(self):
+        return "", "ctx.symbols[{0}].const_val".format(ord(self.name)-ord('A'))
+    def to_string(self):
+        return self.name
+    def permutate(self):
+        return [self]
+    def is_imm(self):
+        return True
+class DirectiveIdentifier:
+    def __init__(self, name):
+        self.name = name
+    def write_match(self, ref):
+        return "if(!match_symbol({0}, {1}, ctx)) return false;\n".format(ord(self.name)-ord('A'), ref)
+    def write_create(self):
+        return "", "ctx.symbols[{0}]".format(ord(self.name)-ord('A'))
+    def to_string(self):
+        return self.name
+    def permutate(self):
+        return [self]
+    def is_imm(self):
+        return False
+class DirectiveExpr:
+    def __init__(self, op, lhs, rhs = None, no_lookup = False):
+        if rhs == None:
+            self.op =  op if no_lookup else umap[op]
+            self.lhs = None
+            self.rhs = lhs
+        else:
+            self.op =  op if no_lookup else bmap[op]
+            self.lhs = lhs
+            self.rhs = rhs
+    def is_unary(self):
+        return self.lhs == None
+    def permutate(self):
+        global cmtlist
+        
+        if self.is_unary():
+            l = self.rhs.permutate()
+            for i in range(len(l)):
+                l[i] = DirectiveExpr(self.op, l[i], no_lookup=True)
+            return l
+        else:
+            cmt = self.op in cmtlist
+            l = self.lhs.permutate()
+            r = self.rhs.permutate()
+            result = []
+            for i in range(len(l)):
+                for j in range(len(r)):
+                    result.append(DirectiveExpr(self.op, l[i], r[j], no_lookup=True))
+                    if cmt:
+                        result.append(DirectiveExpr(self.op, r[j], l[i], no_lookup=True))
+            return result
+    def is_imm(self):
+        return (not(self.lhs) or self.lhs.is_imm()) and self.rhs.is_imm()
+    def write_create(self):
+        global dtmpcounter
+        global cmplist
+        dtmpcounter += 1
+        res_name = "v{0}".format(dtmpcounter)
+        
+        if self.is_imm():
+            _, rv = self.rhs.write_create()
+            if self.is_unary():
+                return "", "{rhs}.apply({op})".format(rhs=rv, op=self.op)
+            else:
+                _, lv = self.lhs.write_create()
+                return "", "{lhs}.apply({op}, {rhs})".format(rhs=rv, lhs=lv, op=self.op)
+        elif self.is_unary():
+            rhst, rhsv = self.rhs.write_create()
+            res = rhst + "ins* {res_name} = write_unop(it, {op}, {rhs});\n".format(
+                res_name=res_name, op=self.op,
+                rhs=rhsv
+            )
+            return res, res_name
+        else:
+            wrtr = "write_cmp" if (self.op in cmplist) else "write_binop"
+            lhts, lhsv = self.lhs.write_create()
+            rhst, rhsv = self.rhs.write_create()
+            res = lhts + rhst + "ins* {res_name} = {wrtr}(it, {op}, {lhs}, {rhs});\n".format(
+                res_name=res_name, op=self.op,
+                lhs=lhsv, rhs=rhsv, wrtr=wrtr
+            )
+            return res, res_name
+            
+    def write_match(self, ref):
+        global dtmpcounter
+        
+        dtmpcounter += 1
+        rhs_name = "o{0}".format(dtmpcounter)
+        
+        if self.is_unary():
+            return """opr*{rhs_name};
+if(!match_unop({op}, &{rhs_name}, {ref}, ctx)) return false;
+{rest}""".format(
+                rhs_name=rhs_name,
+                op=self.op, ref=ref,
+                rest=self.rhs.write_match(rhs_name)
+            )
+        else:
+            dtmpcounter += 1
+            lhs_name = "o{0}".format(dtmpcounter)
+            return """opr* {lhs_name}, *{rhs_name};
+if(!match_binop({op}, &{lhs_name}, &{rhs_name}, {ref}, ctx)) return false;
+{rest}""".format(
+                lhs_name=lhs_name,rhs_name=rhs_name,
+                op=self.op, ref=ref,
+                rest=self.lhs.write_match(lhs_name)+self.rhs.write_match(rhs_name)
+            )
+
+    def to_string(self):
+        if self.is_unary():
+            return "Unary<{0}>({1})".format(self.op, self.rhs.to_string())
+        else:
+            return "Binary<{0}>({1}, {2})".format(self.op, self.lhs.to_string(), self.rhs.to_string())
+
+def split_until(s, f):
+    for i in range(len(s)):
+        if f(s[i]) or s[i] == "(" or s[i] == ")" or s[i] == "[" or s[i] == "," or s[i] == "@":
+            return s[:i], s[i:]
+    return s, ""
+def split_until_noesc(s, f):
+    for i in range(len(s)):
+        if f(s[i]):
+            return s[:i], s[i:]
+    return s, ""
+def consume_binop(lhs,s):
+    op,s = split_until(s, lambda a: a.isnumeric() or a.isupper())
+    rhs,s = consume_expr(s)
+    return DirectiveExpr(op, lhs, rhs), s
+def consume_expr(s):
+    i = s[0]
+    if i == "[":
+        val,s = split_until_noesc(s[1:], lambda a: a == "]")
+        assert s[0] == "]"
+        return DirectiveValue(val), s[1:]
+    elif i == "(":
+        e,s = consume_expr(s[1:])
+        if s[0] != ")":
+            e,s = consume_binop(e,s)
+        assert s[0] == ")"
+        return e, s[1:]
+    elif i == "@":
+        return DirectiveValueWild(s[1]), s[2:]
+    elif i.isnumeric() or i == ".":
+        val,s = split_until(s, lambda a: not(a.isnumeric() or a == "."))
+        return DirectiveValue(val), s
+    elif i.isalpha() and i.isupper():
+        return DirectiveIdentifier(i[0]), s[1:]
+    elif i.isalpha() and i.islower():
+        op,s = split_until(s, lambda a: a == "(")
+        lhs,s = consume_expr(s[1:])
+        if s[0]==")":
+            return DirectiveExpr(op, lhs), s[1:]
+        else:
+            rhs,s = consume_expr(s[1:])
+            assert s[0] == ")"
+            return DirectiveExpr(op, lhs, rhs), s[1:]
+    else:
+        op,s = split_until(s, lambda a: a.isalpha() or a.isnumeric())
+        rhs,s = consume_expr(s)
+        return DirectiveExpr(op, rhs), s
+def parse_expr(s):
+    e,l = consume_expr(s.replace(" ", ""))
+    if len(l) != 0:
+        e,l = consume_binop(e,l)
+    assert len(l) == 0
+    return e
+
+
+# In[192]:
+
 
 # Constants
 #
@@ -759,10 +980,66 @@ class Struct(Decl):
     
     
 cache = {}
+
+
+CXX_DIR_FUNC = """static bool {name}(ins* i, match_context& ctx){{
+{mbody}
+ins* it = i;
+{wbody}
+i->replace_all_uses_with({wname});
+return true;
+}}
+"""
+def generate_directive_table(data):
+    global dtmpcounter
+    dtmpcounter = 0
+    
+    result =  "#pragma once\n"
+    result += "#include <retro/directives/pattern.hpp>\n\n"
+    result += "#ifndef __INTELLISENSE__\n"
+    result += "using op =  retro::ir::op;\n"
+    result += "using opr = retro::ir::operand;\n"
+    result += "using imm = retro::ir::constant;\n"
+    result += "using ins = retro::ir::insn;\n"
+    result += "using namespace retro::directives;\n"
+    result += "using namespace retro::pattern;\n\n"
+    
+    init = []
+    for k,v in data.items():
+        flist = []
+        for e in v:
+            srcx = parse_expr(e["src"])
+            dstx = parse_expr(e["dst"])
+            for srcp in srcx.permutate():
+                dtmpcounter += 1
+                name = "__{0}_pattern__{1}".format(k, dtmpcounter)
+                flist.append("&"+name)
+
+                wbody,wname = dstx.write_create()
+                result += "\n" + CXX_DIR_FUNC.format(
+                    name=name, 
+                    mbody=srcp.write_match("i"), 
+                    wbody=wbody, wname=wname
+                )
+        init.append("\t{0}_list.insert({0}_list.end(), {{ {1} }});".format(k, ",".join(flist)))
+    result += "\nRC_INITIALIZER {\n"
+    result += "\n".join(init)
+    result += "\n};\n"
+    result += "#endif\n"
+    return result
+
 def generate_all(root):
     global cache
     root = os.path.abspath(root)
-    for file in glob.iglob(root + '/**/*.toml', recursive=True):
+    
+    # Sort the file list so that we parse ".d.toml" after the op table.
+    #
+    filelist = list(glob.iglob(root + '/**/*.toml', recursive=True))
+    filelist.sort(key = lambda a: a.endswith(".d.toml"))
+    
+    # For each file:
+    #
+    for file in filelist:
         # Find the namespace.
         #
         idx = file.find("include")
@@ -778,19 +1055,33 @@ def generate_all(root):
         if file in cache and cache[file] == filedata:
             continue
         cache[file] = filedata
+        tomldata =    toml.loads(filedata)
         
-        print("\n[{0}] {1}".format(namespace, os.path.basename(file)))
-        out = file.rsplit(".",1)[0] + ".hxx"
+        # If operator decl, update the operator map.
+        #
+        fname =       os.path.basename(file)
+        if fname == "ops.toml":
+            update_operators(tomldata)
+        
+        # Write the document:
+        #
+        is_drc = fname.endswith(".d.toml")
+        print("\n[{0}] {1}".format(namespace, fname))
+        out = file.rsplit(".",1)[0] + (".cxx" if is_drc else ".hxx")
         with open(out, "w") as outf:
-            ns = Namespace(None, namespace, toml.loads(filedata))
-            includes = ns.properties.get("Includes", [])
-            includes.insert(0, "<retro/common.hpp>")
-            
-            result =  "#pragma once\n"
-            for inc in includes:
-                result += "#include " + inc + "\n"
-            
-            result += "\n" + ns.write()
+            result = None
+            if is_drc:
+                result = generate_directive_table(tomldata)
+            else:
+                ns = Namespace(None, namespace, tomldata)
+                includes = ns.properties.get("Includes", [])
+                includes.insert(0, "<retro/common.hpp>")
+
+                result =  "#pragma once\n"
+                for inc in includes:
+                    result += "#include " + inc + "\n"
+
+                result += "\n" + ns.write()
             outf.write(result)
 
 def main():
@@ -816,6 +1107,12 @@ def main():
         path = sys.argv[1]
     generate_all(path)
 main()
+
+
+# In[ ]:
+
+
+
 
 
 # In[ ]:

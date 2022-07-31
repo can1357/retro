@@ -78,7 +78,7 @@ namespace retro::ldr {
 
 	// Image type.
 	//
-	struct image {
+	struct image final {
 		// Base address.
 		//
 		u64 base_address = 0;

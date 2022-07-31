@@ -30,6 +30,10 @@ namespace retro::ir {
 		mutable u32 next_ins_name = 0;  // Next instruction name.
 		mutable u32 next_blk_name = 0;  // Next basic-block name.
 
+		// Last control flow modification time.
+		//
+		mutable u64 last_cfg_modify_timer = 0;
+
 		// List of basic-blocks.
 		//
 		container blocks = {};
@@ -60,6 +64,10 @@ namespace retro::ir {
 		//
 		void rename_insns();
 		void rename_blocks();
+
+		// Marks the cfg dirty.
+		//
+		void dirty_cfg() const { last_cfg_modify_timer = graph::monotonic_counter(); }
 
 		// Validation.
 		//

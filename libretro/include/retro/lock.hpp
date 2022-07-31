@@ -46,9 +46,9 @@ namespace retro {
 		}
 	};
 
-	// Basic lock.
+	// Simple lock.
 	//
-	struct basic_lock {
+	struct simple_lock {
 		std::atomic<u16> flag  = 0;
 		detail::signal   signal = {};
 

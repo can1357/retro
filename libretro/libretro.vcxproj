@@ -36,6 +36,7 @@
     <ClInclude Include="include\retro\arch\x86\sema.hpp" />
     <ClInclude Include="include\retro\arch\x86\zy2rc.hpp" />
     <ClInclude Include="include\retro\diag.hpp" />
+    <ClInclude Include="include\retro\directives\pattern.hpp" />
     <ClInclude Include="include\retro\graph\naive.hpp" />
     <ClInclude Include="include\retro\graph\search.hpp" />
     <ClInclude Include="include\retro\interface.hpp" />
@@ -72,11 +73,15 @@
     <None Include="..\scripts\tablegen.py" />
     <None Include="include\retro\arch\reg_kind.toml" />
     <None Include="include\retro\arch\x86\regs.toml" />
+    <None Include="include\retro\directives\identity.d.toml" />
+    <None Include="include\retro\directives\preferred.d.toml" />
     <None Include="include\retro\ir\builtin_types.toml" />
     <None Include="include\retro\ir\opcodes.toml" />
     <None Include="include\retro\ir\ops.toml" />
   </ItemGroup>
   <ItemGroup>
+    <ClCompile Include="include\retro\directives\identity.d.cxx" />
+    <ClCompile Include="include\retro\directives\preferred.d.cxx" />
     <ClCompile Include="src\arch\minsn.cpp" />
     <ClCompile Include="src\arch\x86\sema\arithmetic.cpp" />
     <ClCompile Include="src\arch\x86\sema\conditional.cpp" />
