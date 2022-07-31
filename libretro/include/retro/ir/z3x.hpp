@@ -122,7 +122,11 @@ namespace retro::z3x {
 	expr to_expr(variable_set& vs, context& c, ir::value* i, size_t max_depth = SIZE_MAX);
 	expr to_expr(variable_set& vs, context& c, const ir::operand& o, size_t max_depth = SIZE_MAX);
 
-	// Translates a Z3 expression tree into a series of IR instructions at the end of the block.
+	// Translates a Z3 expression tree into a series of IR instructions before the specified position of the block.
 	//
-	ir::variant from_expr(variable_set& vs, const expr& expr, ir::basic_block* bb);
+	ir::variant from_expr(variable_set& vs, const expr& expr, ir::basic_block* bb, list::iterator<ir::insn>& it);
+	RC_INLINE static ir::variant from_expr(variable_set& vs, const expr& expr, ir::basic_block* bb) {
+		auto it = bb->end();
+		return from_expr(vs, expr, bb, it);
+	}
 };

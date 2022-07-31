@@ -82,7 +82,7 @@ int main(int argv, const char** args) {
 						// Insert a bitcast right before the read.
 						auto bc = bb->insert(ins, ir::make_bitcast(ins->template_types[0], lpv));
 						// Replace uses with the result value.
-						ins->replace_all_uses_with(bc.at);
+						ins->replace_all_uses_with(bc.get());
 					}
 				}
 			}
@@ -151,16 +151,15 @@ int main(int argv, const char** args) {
 	fmt::println(termcc->to_string());
 
 	bb->push_nop();
-	bb->push_nop();
+	list::iterator insert_here_plz = bb->push_nop();
+
 	bb->push_nop();
 	bb->push_nop();
 	bb->push_nop();
 
 	z3x::variable_set vs;
 	if (auto expr = z3x::to_expr(vs, c, termcc)) {
-		fmt::println(expr.to_string());
-		fmt::println("->");
-		fmt::println(z3x::from_expr(vs, expr, bb));
+		fmt::println(z3x::from_expr(vs, expr, bb, insert_here_plz));
 	}
 	
 	fmt::println(bb->to_string());

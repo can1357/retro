@@ -6,9 +6,13 @@ namespace retro::ir {
 	//
 	list::iterator<insn> basic_block::insert(list::iterator<insn> position, ref<insn> v) {
 		RC_ASSERT(v->is_orphan());
+		// Guessed IPs.
+		if (v->ip == NO_LABEL && position->prev != end().get()) {
+			v->ip = position->prev->ip;
+		}
 		v->block = this;
 		v->name	= (rtn ? rtn->next_ins_name : orphan_next_ins_name)++;
-		list::link_before(position.at, v.get());
+		list::link_before(position.get(), v.get());
 		return {v.release()};
 	}
 

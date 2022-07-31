@@ -69,7 +69,7 @@ namespace retro::arch {
 
 		// Reference the last instruction unrelated to the next one.
 		//
-		auto prev = std::prev(bb->end(), bb->empty() ? 0 : 1).at;
+		auto prev = std::prev(bb->end(), bb->empty() ? 0 : 1).get();
 
 		// If any of the register operands targeting an invalid register,
 		// generate an #UD instead. (e.g. Cr5, Dr9...).

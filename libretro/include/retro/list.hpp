@@ -22,7 +22,9 @@ namespace retro::list {
 
 		// Current position.
 		//
+	  private:
 		T* at = nullptr;
+	  public:
 
 		// Default construction, construction from pointer, copy and move.
 		//
@@ -41,6 +43,7 @@ namespace retro::list {
 
 		// Common iteration operators.
 		//
+		T*						  get() const { return at; }
 		constexpr			  operator T*() const { return at; }
 		constexpr reference operator*() const { return at; }
 		constexpr pointer	  operator->() const { return at; }

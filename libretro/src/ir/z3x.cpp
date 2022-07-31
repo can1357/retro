@@ -608,21 +608,21 @@ namespace retro::z3x {
 		if (args.size() != 2) {                                                                              \
 			fmt::abort("expected 2 arguments to %s (%x)", decl.name().str(), decl.decl_kind());               \
 		}                                                                                                    \
-		it = bb->insert_after(it, RC_CONCAT(ir::make_, RCOC)(RCOP, std::move(args[0]), std::move(args[1]))); \
-		return ret_and_cache(it);                                                                          \
+		it = bb->insert(it, RC_CONCAT(ir::make_, RCOC)(RCOP, std::move(args[0]), std::move(args[1]))); \
+		return ret_and_cache(it++);                                                                          \
 	}
 #define DEF_UNOP(Z3OP, RCOC, RCOP)                                                           \
 	case Z3OP: {                                                                              \
 		if (args.size() != 1) {                                                                \
 			fmt::abort("expected 1 arguments to %s (%x)", decl.name().str(), decl.decl_kind()); \
 		}                                                                                      \
-		it = bb->insert_after(it, RC_CONCAT(ir::make_, RCOC)(RCOP, std::move(args[0])));       \
-		return ret_and_cache(it);                                                            \
+		it = bb->insert(it, RC_CONCAT(ir::make_, RCOC)(RCOP, std::move(args[0])));       \
+		return ret_and_cache(it++);                                                            \
 	}																																															
 
 	// Translates a Z3 expression tree into a series of IR instructions at the end of the block.
 	//
-	ir::variant from_expr(variable_set& vs, const expr& expr, ir::basic_block* bb) {
+	ir::variant from_expr(variable_set& vs, const expr& expr, ir::basic_block* bb, list::iterator<ir::insn>& it) {
 		// Declare cache writer.
 		//
 		auto ret_and_cache = [&](ir::insn* i) {
@@ -646,11 +646,10 @@ namespace retro::z3x {
 			//
 			std::vector<ir::variant> args(expr.num_args());
 			for (size_t i = 0; i != args.size(); i++) {
-				args[i] = from_expr(vs, expr.arg(i), bb);
+				args[i] = from_expr(vs, expr.arg(i), bb, it);
 				if (args[i].is_const() && args[i].const_val.is<void>())
 					return {};
 			}
-			auto it = std::prev(bb->end());
 
 			// Finally parse the applied operator.
 			//
@@ -741,27 +740,27 @@ namespace retro::z3x {
 				case Z3_OP_FPA_TO_FP: {	 // (rounding mode, value)
 					RC_ASSERT(args.size() == 2);
 					auto ty = (ir::type) type_of(expr);
-					it		  = bb->insert_after(it, ir::make_cast(ty, std::move(args[1])));
-					return ret_and_cache(it);
+					it		  = bb->insert(it, ir::make_cast(ty, std::move(args[1])));
+					return ret_and_cache(it++);
 				}
 				case Z3_OP_FPA_TO_UBV:
 				case Z3_OP_FPA_TO_FP_UNSIGNED: {	 // (rounding mode, value)
 					RC_ASSERT(args.size() == 2);
 					auto ty = (ir::type) type_of(expr);
-					it		  = bb->insert_after(it, ir::make_cast(ty, std::move(args[1])));
-					return ret_and_cache(it);
+					it		  = bb->insert(it, ir::make_cast(ty, std::move(args[1])));
+					return ret_and_cache(it++);
 				}
 				case Z3_OP_SIGN_EXT: {	// (value)
 					RC_ASSERT(args.size() == 1);
 					auto ty = (ir::type) type_of(expr);
-					it		  = bb->insert_after(it, ir::make_cast_sx(ty, std::move(args[0])));
-					return ret_and_cache(it);
+					it		  = bb->insert(it, ir::make_cast_sx(ty, std::move(args[0])));
+					return ret_and_cache(it++);
 				}
 				case Z3_OP_ZERO_EXT: {	// (value)
 					RC_ASSERT(args.size() == 1);
 					auto ty = (ir::type) type_of(expr);
-					it		  = bb->insert_after(it, ir::make_cast(ty, std::move(args[0])));
-					return ret_and_cache(it);
+					it		  = bb->insert(it, ir::make_cast(ty, std::move(args[0])));
+					return ret_and_cache(it++);
 				}
 				// TODO: Wheres BV -> FP?
 
@@ -770,8 +769,8 @@ namespace retro::z3x {
 				DEF_BINOP(Z3_OP_DISTINCT, cmp, ir::op::ne);	// TODO: Not really, vararg.
 				case Z3_OP_ITE: {
 					RC_ASSERT(args.size() == 3);
-					it = bb->insert_after(it, ir::make_select(std::move(args[0]), std::move(args[1]), std::move(args[2])));
-					return ret_and_cache(it);
+					it = bb->insert(it, ir::make_select(std::move(args[0]), std::move(args[1]), std::move(args[2])));
+					return ret_and_cache(it++);
 				}
 
 				// Bit vectors.
@@ -786,28 +785,28 @@ namespace retro::z3x {
 					//
 					if (lo != 0) {
 						auto ty = args[0].get_type();
-						it		  = bb->insert_after(it, ir::make_binop(ir::op::bit_shr, std::move(args[0]), ir::constant(ty, lo)));
-						args[0] = it.at;
+						it		  = bb->insert(it, ir::make_binop(ir::op::bit_shr, std::move(args[0]), ir::constant(ty, lo)));
+						args[0] = it++.get();
 					}
 
 					// Round the final size up and cast.
 					//
 					auto bitlen = hi - lo + 1;
 					if (bitlen <= 8) {
-						it = bb->insert_after(it, ir::make_cast(ir::type::i8, std::move(args[0])));
-						return ret_and_cache(it);
+						it = bb->insert(it, ir::make_cast(ir::type::i8, std::move(args[0])));
+						return ret_and_cache(it++);
 					} else if (bitlen <= 16) {
-						it = bb->insert_after(it, ir::make_cast(ir::type::i16, std::move(args[0])));
-						return ret_and_cache(it);
+						it = bb->insert(it, ir::make_cast(ir::type::i16, std::move(args[0])));
+						return ret_and_cache(it++);
 					} else if (bitlen <= 32) {
-						it = bb->insert_after(it, ir::make_cast(ir::type::i32, std::move(args[0])));
-						return ret_and_cache(it);
+						it = bb->insert(it, ir::make_cast(ir::type::i32, std::move(args[0])));
+						return ret_and_cache(it++);
 					} else if (bitlen <= 64) {
-						it = bb->insert_after(it, ir::make_cast(ir::type::i64, std::move(args[0])));
-						return ret_and_cache(it);
+						it = bb->insert(it, ir::make_cast(ir::type::i64, std::move(args[0])));
+						return ret_and_cache(it++);
 					} else if (bitlen <= 128) {
-						it = bb->insert_after(it, ir::make_cast(ir::type::i128, std::move(args[0])));
-						return ret_and_cache(it);
+						it = bb->insert(it, ir::make_cast(ir::type::i128, std::move(args[0])));
+						return ret_and_cache(it++);
 					}
 					fmt::abort("invalid extract %d:%d", lo, hi);
 					break;
@@ -827,8 +826,8 @@ namespace retro::z3x {
 						if (bad.is_const()) {
 							bad = std::move(bad).get_const().cast_zx(rty);
 						} else {
-							it	 = bb->insert_after(it, ir::make_cast(rty, std::move(bad)));
-							bad = it.at;
+							it	 = bb->insert(it, ir::make_cast(rty, std::move(bad)));
+							bad = it++.get();
 						}
 					}
 
@@ -841,32 +840,32 @@ namespace retro::z3x {
 					if (args[0].is_const()) {
 						args[0] = std::move(args[0]).get_const().apply(ir::op::bit_shl, ir::constant(rty, offset));
 					} else {
-						it		  = bb->insert_after(it, ir::make_binop(ir::op::bit_shl, std::move(args[0]), ir::constant(rty, offset)));
-						args[0] = it.at;
+						it		  = bb->insert(it, ir::make_binop(ir::op::bit_shl, std::move(args[0]), ir::constant(rty, offset)));
+						args[0] = it++.get();
 					}
 
 					// Or both of it together and return.
 					//
-					it = bb->insert_after(it, ir::make_binop(ir::op::bit_or, std::move(args[0]), std::move(args[1])));
-					return ret_and_cache(it);
+					it = bb->insert(it, ir::make_binop(ir::op::bit_or, std::move(args[0]), std::move(args[1])));
+					return ret_and_cache(it++);
 				}
 				case Z3_OP_BNAND: {
 					RC_ASSERT(args.size() == 2);
-					it = bb->insert_after(it, ir::make_binop(ir::op::bit_and, std::move(args[0]), std::move(args[1])));
-					it = bb->insert_after(it, ir::make_unop(ir::op::bit_not, it.at));
-					return ret_and_cache(it);
+					it = bb->insert(it, ir::make_binop(ir::op::bit_and, std::move(args[0]), std::move(args[1])));
+					it = bb->insert(++it, ir::make_unop(ir::op::bit_not, it.get()));
+					return ret_and_cache(it++);
 				}
 				case Z3_OP_BNOR: {
 					RC_ASSERT(args.size() == 2);
-					it = bb->insert_after(it, ir::make_binop(ir::op::bit_or, std::move(args[0]), std::move(args[1])));
-					it = bb->insert_after(it, ir::make_unop(ir::op::bit_not, it.at));
-					return ret_and_cache(it);
+					it = bb->insert(it, ir::make_binop(ir::op::bit_or, std::move(args[0]), std::move(args[1])));
+					it = bb->insert(++it, ir::make_unop(ir::op::bit_not, it.get()));
+					return ret_and_cache(it++);
 				}
 				case Z3_OP_BXNOR: {
 					RC_ASSERT(args.size() == 2);
-					it = bb->insert_after(it, ir::make_binop(ir::op::bit_xor, std::move(args[0]), std::move(args[1])));
-					it = bb->insert_after(it, ir::make_unop(ir::op::bit_not, it.at));
-					return ret_and_cache(it);
+					it = bb->insert(it, ir::make_binop(ir::op::bit_xor, std::move(args[0]), std::move(args[1])));
+					it = bb->insert(++it, ir::make_unop(ir::op::bit_not, it.get()));
+					return ret_and_cache(it++);
 				}
 				//case Z3_OP_REPEAT:
 				//case Z3_OP_BREDOR:

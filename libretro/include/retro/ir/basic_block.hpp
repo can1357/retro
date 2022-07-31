@@ -65,7 +65,7 @@ namespace retro::ir {
 		size_t erase_if(F&& f) {
 			size_t n = 0;
 			for (auto it = begin(); it != end();) {
-				if (f(it.at)) {
+				if (f(it.get())) {
 					n++;
 					it = erase(it);
 				} else {
