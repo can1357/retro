@@ -20,7 +20,7 @@ int main(int argv, const char** args) {
 	platform::setup_ansi_escapes();
 
 	u64					  ip		 = 0x100;
-	constexpr u8		  test[]	 = {0x48, 0xD1, 0xE0, 0x48, 0x83, 0xC8, 0x01, 0x48, 0xD1, 0xC8, 0x48, 0x83, 0xF8, 0x00, 0x76, 0x01, 0x90};
+	constexpr u8		  test[]	 = {0x48, 0x39, 0xD8, 0x7C, 0x01, 0x90};
 	std::span<const u8> data	 = test;
 	auto					  machine = arch::instance::lookup("x86_64");
 
@@ -159,7 +159,7 @@ int main(int argv, const char** args) {
 
 	z3x::variable_set vs;
 	if (auto expr = z3x::to_expr(vs, c, termcc)) {
-		fmt::println(z3x::from_expr(vs, expr, bb, insert_here_plz));
+		fmt::println(z3x::from_expr(vs, expr.simplify(), bb, insert_here_plz));
 	}
 	
 	fmt::println(bb->to_string());

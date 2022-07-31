@@ -91,7 +91,7 @@ namespace retro::arch::x86 {
 
 		auto a = bb->push_cmp(ir::op::eq, sl, sx);
 		auto b = bb->push_cmp(ir::op::eq, sr, sx);
-		bb->push_write_reg(reg::flag_cf, bb->push_binop(ir::op::bit_or, a, b));
+		bb->push_write_reg(reg::flag_of, bb->push_binop(ir::op::bit_or, a, b));
 	}
 	template<typename Lhs, typename Rhs>
 	inline void set_of_sub(ir::basic_block* bb, Lhs&& lhs, Rhs&& rhs, ir::insn* res) {
@@ -103,7 +103,7 @@ namespace retro::arch::x86 {
 		// 1.. 0.. -> 0..
 		auto a = bb->push_cmp(ir::op::eq, sl, sx);
 		auto b = bb->push_cmp(ir::op::eq, sr, sx);
-		bb->push_write_reg(reg::flag_cf, bb->push_binop(ir::op::bit_or, a, b));
+		bb->push_write_reg(reg::flag_of, bb->push_binop(ir::op::bit_or, a, b));
 	}
 
 	// Sets logical flags.
