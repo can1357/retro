@@ -10,11 +10,71 @@ dst = "A*(@B*@C)"
 src = "(A-@B)-@C"
 dst = "A-(@B+@C)"
 
-# Fix some Z3 problems.
+# Normal forms.
 #
+[[replace]]
+src = "-(-A)"
+dst = "A"
+[[replace]]
+src = "~(~A)"
+dst = "A"
+[[replace]]
+src = "~(-A)"
+dst = "A-1"
+[[replace]]
+src = "-(~A)"
+dst = "A+1"
 [[replace]]
 src = "A*[-1]"
 dst = "-A"
+[[replace]]
+src = "A+(-B)"
+dst = "A-B"
+[[replace]]
+src = "~(A-1)"
+dst = "-A"
+[[replace]]
+src = "0-A"
+dst = "-A"
+
+# Grouping.
+#
+[[replace]]
+src = "(A&B)|(A&C)"
+dst = "A&(B|C)"
+[[replace]]
+src = "(A|B)&(A|C)"
+dst = "A|(B&C)"
+[[replace]]
+src = "(A<B)|(A==B)"
+dst = "A<=B"
+[[replace]]
+src = "(A>B)|(A==B)"
+dst = "A>=B"
+[[replace]]
+src = "(Au<B)|(A==B)"
+dst = "Au<=B"
+[[replace]]
+src = "(Au>B)|(A==B)"
+dst = "Au>=B"
+
+# Opaque predicates.
+#
+[[replace]]
+src = "A&(A|B)"
+dst = "A"
+[[replace]]
+src = "A|(A&B)"
+dst = "A"
+[[replace]]
+src = "A^(A&B)"
+dst = "A&(~B)"
+[[replace]]
+src = "A^(A|B)"
+dst = "B&(~A)"
+
+# Invert comparisons.
+#
 [[replace]]
 src = "~(A<=B)"
 dst = "A>B"
@@ -28,14 +88,23 @@ dst = "Au>B"
 src = "~(Au>=B)"
 dst = "Au<B"
 [[replace]]
-src = "(A<B)|(A==B)"
-dst = "A<=B"
-[[replace]]
-src = "(A>B)|(A==B)"
+src = "~(A<B)"
 dst = "A>=B"
 [[replace]]
-src = "(Au<B)|(A==B)"
+src = "~(A>B)"
+dst = "A<=B"
+[[replace]]
+src = "~(Au<B)"
+dst = "Au>=B"
+[[replace]]
+src = "~(Au>B)"
 dst = "Au<=B"
 [[replace]]
-src = "(Au>B)|(A==B)"
-dst = "Au>=B"
+src = "~(A==B)"
+dst = "A!=B"
+[[replace]]
+src = "~(A!=B)"
+dst = "A==B"
+[[replace]]
+src = "A==(-A)"
+dst = "A==0"

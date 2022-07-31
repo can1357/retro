@@ -1,18 +1,3 @@
-# Double inverse.
-#
-[[replace]]
-src = "-(-A)"
-dst = "A"
-[[replace]]
-src = "~(~A)"
-dst = "A"
-[[replace]]
-src = "~(-A)"
-dst = "A-1"
-[[replace]]
-src = "-(~A)"
-dst = "A+1"
-
 # Identity constants.
 #
 [[replace]]
@@ -57,3 +42,45 @@ dst = "A"
 [[replace]]
 src = "A<<0"
 dst = "A"
+
+# Expressions with constant results.
+#
+[[replace]]
+src = "A-A"
+dst = "0"
+[[replace]]
+src = "A&0"
+dst = "0"
+[[replace]]
+src = "A&(~A)"
+dst = "0"
+[[replace]]
+src = "A^A"
+dst = "0"
+[[replace]]
+src = "A|[-1]"
+dst = "[-1]"
+[[replace]]
+src = "A+(~A)"
+dst = "[-1]"
+[[replace]]
+src = "A^(~A)"
+dst = "[-1]"
+[[replace]]
+src = "A/A"
+dst = "1"
+[[replace]]
+src = "Au/A"
+dst = "1"
+[[replace]]
+src = "A%A"
+dst = "0"
+[[replace]]
+src = "Au%A"
+dst = "0"
+[[replace]]
+src = "A*0"
+dst = "0"
+[[replace]]
+src = "A*0"
+dst = "0"

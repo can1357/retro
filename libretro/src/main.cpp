@@ -257,6 +257,9 @@ namespace retro::ir::opt {
 		size_t n = 0;
 		for (auto it = bb->begin(); it != bb->end();) {
 			auto ins = it++;
+
+			// Numeric rules:
+			//
 			if (ins->op == ir::opcode::binop || ins->op == ir::opcode::unop || ins->op == ir::opcode::cmp) {
 				for (auto& match : directives::replace_list) {
 					pattern::match_context ctx{};
@@ -266,6 +269,16 @@ namespace retro::ir::opt {
 					}
 				}
 			}
+			// Nops.
+			//
+			else if (ins->op == ir::opcode::select) {
+				if (util::is_identical(ins->opr(1), ins->opr(2))) {
+					ins->replace_all_uses_with(ins->opr(1));
+				}
+			}
+			// TODO:
+			// cast simplification
+			// write_reg with op == read_reg
 		}
 
 		// Run DCE if there were any changes, return the change count.
