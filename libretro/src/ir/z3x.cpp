@@ -394,13 +394,13 @@ namespace retro::z3x {
 			case ir::type::i1:
 				return (bool) expr.is_true();
 			case ir::type::i8:
-				return (i8) expr.as_int64();
+				return (i8) (u8) expr.as_uint64();
 			case ir::type::i16:
-				return (i16) expr.as_int64();
+				return (i16) (u16) expr.as_uint64();
 			case ir::type::i32:
-				return (i32) expr.as_int64();
+				return (i32) (u32) expr.as_uint64();
 			case ir::type::i64:
-				return (i64) expr.as_int64();
+				return (i64) (u64) expr.as_uint64();
 			case ir::type::i128:
 				// TODO:
 				return std::nullopt;
