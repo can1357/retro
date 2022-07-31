@@ -298,7 +298,7 @@ namespace retro::z3x {
 		else {
 			// b -> i
 			if (into.is_bv()) {
-				return z3::ite(val, val.ctx().bv_val(1, into), val.ctx().bv_val(0, into));
+				return z3::ite(val, val.ctx().bv_val(1, into.bv_size()), val.ctx().bv_val(0, into.bv_size()));
 			}
 			// b -> b
 			else if (into.is_bool()) {
@@ -632,7 +632,8 @@ namespace retro::z3x {
 
 		// If application:
 		//
-		if (expr.kind() == Z3_APP_AST) {
+		auto expr_kind = expr.kind();
+		if (expr_kind == Z3_APP_AST) {
 			// Try fetching from cache.
 			//
 			for (auto& c : vs.write_list) {
@@ -736,25 +737,30 @@ namespace retro::z3x {
 
 				// Casts.
 				//
-				case Z3_OP_FPA_TO_FP:
 				case Z3_OP_FPA_TO_SBV:
-				case Z3_OP_SIGN_EXT: {
+				case Z3_OP_FPA_TO_FP: {	 // (rounding mode, value)
 					RC_ASSERT(args.size() == 2);
-					auto ty = (ir::type) args[0].get_const().get<u32>();
-					it		  = bb->insert_after(it, ir::make_cast_sx(ty, std::move(args[0])));
+					auto ty = (ir::type) type_of(expr);
+					it		  = bb->insert_after(it, ir::make_cast(ty, std::move(args[1])));
 					return ret_and_cache(it);
 				}
 				case Z3_OP_FPA_TO_UBV:
-				case Z3_OP_ZERO_EXT: {
+				case Z3_OP_FPA_TO_FP_UNSIGNED: {	 // (rounding mode, value)
 					RC_ASSERT(args.size() == 2);
-					auto ty = (ir::type) args[0].get_const().get<u32>();
-					it		  = bb->insert_after(it, ir::make_cast(ty, std::move(args[0])));
+					auto ty = (ir::type) type_of(expr);
+					it		  = bb->insert_after(it, ir::make_cast(ty, std::move(args[1])));
 					return ret_and_cache(it);
 				}
-				case Z3_OP_FPA_TO_IEEE_BV: {
-					RC_ASSERT(args.size() == 2);
-					auto ty = (ir::type) args[0].get_const().get<u32>();
-					it		  = bb->insert_after(it, ir::make_bitcast(ty, std::move(args[0])));
+				case Z3_OP_SIGN_EXT: {	// (value)
+					RC_ASSERT(args.size() == 1);
+					auto ty = (ir::type) type_of(expr);
+					it		  = bb->insert_after(it, ir::make_cast_sx(ty, std::move(args[0])));
+					return ret_and_cache(it);
+				}
+				case Z3_OP_ZERO_EXT: {	// (value)
+					RC_ASSERT(args.size() == 1);
+					auto ty = (ir::type) type_of(expr);
+					it		  = bb->insert_after(it, ir::make_cast(ty, std::move(args[0])));
 					return ret_and_cache(it);
 				}
 				// TODO: Wheres BV -> FP?
@@ -770,28 +776,115 @@ namespace retro::z3x {
 
 				// Bit vectors.
 				//
-				case Z3_OP_EXTRACT:
-				case Z3_OP_BNAND:
-				case Z3_OP_BNOR:
-				case Z3_OP_BXNOR:
-				case Z3_OP_CONCAT:
-				case Z3_OP_REPEAT:
-				case Z3_OP_BREDOR:
-				case Z3_OP_BREDAND:
-				case Z3_OP_BCOMP:
-				case Z3_OP_BIT2BOOL:
+				case Z3_OP_EXTRACT: {
+					RC_ASSERT(args.size() == 1);
+					auto decl = expr.decl();
+					auto hi = Z3_get_decl_int_parameter(decl.ctx(), decl, 0);
+					auto lo = Z3_get_decl_int_parameter(decl.ctx(), decl, 1);
+
+					// Shift first if needed.
+					//
+					if (lo != 0) {
+						auto ty = args[0].get_type();
+						it		  = bb->insert_after(it, ir::make_binop(ir::op::bit_shr, std::move(args[0]), ir::constant(ty, lo)));
+						args[0] = it.at;
+					}
+
+					// Round the final size up and cast.
+					//
+					auto bitlen = hi - lo + 1;
+					if (bitlen <= 8) {
+						it = bb->insert_after(it, ir::make_cast(ir::type::i8, std::move(args[0])));
+						return ret_and_cache(it);
+					} else if (bitlen <= 16) {
+						it = bb->insert_after(it, ir::make_cast(ir::type::i16, std::move(args[0])));
+						return ret_and_cache(it);
+					} else if (bitlen <= 32) {
+						it = bb->insert_after(it, ir::make_cast(ir::type::i32, std::move(args[0])));
+						return ret_and_cache(it);
+					} else if (bitlen <= 64) {
+						it = bb->insert_after(it, ir::make_cast(ir::type::i64, std::move(args[0])));
+						return ret_and_cache(it);
+					} else if (bitlen <= 128) {
+						it = bb->insert_after(it, ir::make_cast(ir::type::i128, std::move(args[0])));
+						return ret_and_cache(it);
+					}
+					fmt::abort("invalid extract %d:%d", lo, hi);
+					break;
+				}
+				case Z3_OP_CONCAT: {
+					RC_ASSERT(args.size() == 2);
+					auto ty0 = args[0].get_type();
+					auto ty1 = args[1].get_type();
+					auto rty = std::max(ty0, ty1);
+
+					// If types are mismatching:
+					//
+					if (ty0 != rty || ty1 != rty) {
+						// Cast the other.
+						//
+						auto& bad = ty0 != rty ? args[0] : args[1];
+						if (bad.is_const()) {
+							bad = std::move(bad).get_const().cast_zx(rty);
+						} else {
+							it	 = bb->insert_after(it, ir::make_cast(rty, std::move(bad)));
+							bad = it.at;
+						}
+					}
+
+					// Find the bit offset of the first operand.
+					//
+					u8 offset = expr.arg(1).get_sort().bv_size();
+
+					// Shift the first operand.
+					//
+					if (args[0].is_const()) {
+						args[0] = std::move(args[0]).get_const().apply(ir::op::bit_shl, ir::constant(rty, offset));
+					} else {
+						it		  = bb->insert_after(it, ir::make_binop(ir::op::bit_shl, std::move(args[0]), ir::constant(rty, offset)));
+						args[0] = it.at;
+					}
+
+					// Or both of it together and return.
+					//
+					it = bb->insert_after(it, ir::make_binop(ir::op::bit_or, std::move(args[0]), std::move(args[1])));
+					return ret_and_cache(it);
+				}
+				case Z3_OP_BNAND: {
+					RC_ASSERT(args.size() == 2);
+					it = bb->insert_after(it, ir::make_binop(ir::op::bit_and, std::move(args[0]), std::move(args[1])));
+					it = bb->insert_after(it, ir::make_unop(ir::op::bit_not, it.at));
+					return ret_and_cache(it);
+				}
+				case Z3_OP_BNOR: {
+					RC_ASSERT(args.size() == 2);
+					it = bb->insert_after(it, ir::make_binop(ir::op::bit_or, std::move(args[0]), std::move(args[1])));
+					it = bb->insert_after(it, ir::make_unop(ir::op::bit_not, it.at));
+					return ret_and_cache(it);
+				}
+				case Z3_OP_BXNOR: {
+					RC_ASSERT(args.size() == 2);
+					it = bb->insert_after(it, ir::make_binop(ir::op::bit_xor, std::move(args[0]), std::move(args[1])));
+					it = bb->insert_after(it, ir::make_unop(ir::op::bit_not, it.at));
+					return ret_and_cache(it);
+				}
+				//case Z3_OP_REPEAT:
+				//case Z3_OP_BREDOR:
+				//case Z3_OP_BREDAND:
+				//case Z3_OP_BCOMP:
+				//case Z3_OP_BIT2BOOL:
 
 				// Floating point.
 				//
-				case Z3_OP_FPA_FMA:
-				case Z3_OP_FPA_ROUND_TO_INTEGRAL:
-				case Z3_OP_FPA_IS_NAN:
-				case Z3_OP_FPA_IS_INF:
-				case Z3_OP_FPA_IS_ZERO:
-				case Z3_OP_FPA_IS_NORMAL:
-				case Z3_OP_FPA_IS_SUBNORMAL:
-				case Z3_OP_FPA_IS_NEGATIVE:
-				case Z3_OP_FPA_IS_POSITIVE:
+				//case Z3_OP_FPA_FMA:
+				//case Z3_OP_FPA_ROUND_TO_INTEGRAL:
+				//case Z3_OP_FPA_IS_NAN:
+				//case Z3_OP_FPA_IS_INF:
+				//case Z3_OP_FPA_IS_ZERO:
+				//case Z3_OP_FPA_IS_NORMAL:
+				//case Z3_OP_FPA_IS_SUBNORMAL:
+				//case Z3_OP_FPA_IS_NEGATIVE:
+				//case Z3_OP_FPA_IS_POSITIVE:
 
 				// Unknown.
 				//
@@ -800,18 +893,25 @@ namespace retro::z3x {
 					for (auto e : const_cast<z3::expr&>(expr)) {
 						printf("-> %s\n", e.to_string().c_str());
 					}
-					return std::nullopt;
+					fmt::abort_no_msg();
 				}
 			}
-		} else if (expr.kind() == Z3_SORT_AST) {
+		} else if (expr_kind == Z3_SORT_AST) {
 			auto ty = z3x::type_of(sort(expr.ctx(), expr));
 			if (ty == ir::type::none) {
 				return std::nullopt;
 			} else {
 				return ir::constant((u32)ty);
 			}
-		} else {
+		} else if (expr_kind == Z3_NUMERAL_AST) {
+			if (expr.get_sort().sort_kind() == Z3_ROUNDING_MODE_SORT) {
+				return ir::constant((i64) expr);
+			}
 			return value_of(expr);
+		} else {
+			printf("Don't know how to translate expr kind %u\n", expr_kind);
+			printf("-> %s\n", expr.to_string().c_str());
+			fmt::abort_no_msg();
 		}
 	}
 };
