@@ -68,6 +68,43 @@ namespace retro::arch::x86 {
 		auto tmp = bb->push_binop(ir::op::bit_xor, result, std::forward<Carry>(carry));
 		return set_af(bb, std::forward<Lhs>(lhs), std::forward<Rhs>(rhs), tmp);
 	}
+	template<typename Lhs, typename Rhs>
+	inline void set_cf_add(ir::basic_block* bb, Lhs&& lhs, Rhs&& rhs, ir::insn* res) {
+		// res u< lhs || res u< rhs
+		auto a = bb->push_cmp(ir::op::ult, res, std::forward<Lhs>(lhs));
+		auto b = bb->push_cmp(ir::op::ult, res, std::forward<Rhs>(rhs));
+		bb->push_write_reg(reg::flag_cf, bb->push_binop(ir::op::bit_or, a, b));
+	}
+	template<typename Lhs, typename Rhs>
+	inline void set_cf_sub(ir::basic_block* bb, Lhs&& lhs, Rhs&& rhs) {
+		// lhs u< rhs
+		bb->push_write_reg(reg::flag_cf, bb->push_cmp(ir::op::ult, std::forward<Lhs>(lhs), std::forward<Rhs>(rhs)));
+	}
+	template<typename Lhs, typename Rhs>
+	inline void set_of_add(ir::basic_block* bb, Lhs&& lhs, Rhs&& rhs, ir::insn* res) {
+		auto t  = res->get_type();
+		auto sl = bb->push_cmp(ir::op::lt, std::forward<Lhs>(lhs), ir::constant(t, 0));
+		auto sr = bb->push_cmp(ir::op::lt, std::forward<Rhs>(rhs), ir::constant(t, 0));
+		auto sx = bb->push_cmp(ir::op::lt, res, ir::constant(t, 0));
+		// 0.. 0.. -> 1..
+		// 1.. 1.. -> 0..
+
+		auto a = bb->push_cmp(ir::op::eq, sl, sx);
+		auto b = bb->push_cmp(ir::op::eq, sr, sx);
+		bb->push_write_reg(reg::flag_cf, bb->push_binop(ir::op::bit_or, a, b));
+	}
+	template<typename Lhs, typename Rhs>
+	inline void set_of_sub(ir::basic_block* bb, Lhs&& lhs, Rhs&& rhs, ir::insn* res) {
+		auto t  = res->get_type();
+		auto sl = bb->push_cmp(ir::op::lt, std::forward<Lhs>(lhs), ir::constant(t, 0));
+		auto sr = bb->push_cmp(ir::op::lt, std::forward<Rhs>(rhs), ir::constant(t, 0));
+		auto sx = bb->push_cmp(ir::op::lt, res, ir::constant(t, 0));
+		// 0.. 1.. -> 1..
+		// 1.. 0.. -> 0..
+		auto a = bb->push_cmp(ir::op::eq, sl, sx);
+		auto b = bb->push_cmp(ir::op::eq, sr, sx);
+		bb->push_write_reg(reg::flag_cf, bb->push_binop(ir::op::bit_or, a, b));
+	}
 
 	// Sets logical flags.
 	//

@@ -103,12 +103,6 @@ kind   = "@op-kind.binary-signed"
 [op.mul]
 symbol = "*"
 kind   = "@op-kind.binary-signed"
-swap_sign = "@op.umul"
-commutative = true
-[op.umul]
-symbol = "*"
-kind   = "@op-kind.binary-unsigned"
-swap_sign = "@op.mul"
 commutative = true
 [op.div]
 symbol = "/"

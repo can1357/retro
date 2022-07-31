@@ -4,7 +4,6 @@
 TODO: Fix for f80 where it needs to be emulated
 		Implement for i128, u128
 		Implement vector comparison.
-		Add overflow checks
 */
 
 namespace retro::ir {
@@ -109,7 +108,6 @@ namespace retro::ir {
 	RC_INLINE static auto apply_ugt(Integer auto lhs, Integer auto rhs) -> bool { return to_unsigned(lhs) > to_unsigned(rhs); }
 	RC_INLINE static auto apply_ult(Integer auto lhs, Integer auto rhs) -> bool { return to_unsigned(lhs) < to_unsigned(rhs); }
 	RC_INLINE static auto apply_ule(Integer auto lhs, Integer auto rhs) -> bool { return to_unsigned(lhs) <= to_unsigned(rhs); }
-	RC_INLINE static auto apply_umul(Integer auto lhs, Integer auto rhs) -> decltype(rhs) { return to_signed(to_unsigned(lhs) * to_signed(rhs)); }
 	RC_INLINE static auto apply_udiv(Integer auto lhs, Integer auto rhs) -> decltype(rhs) { return to_signed(to_unsigned(lhs) / to_signed(rhs)); }
 	RC_INLINE static auto apply_urem(Integer auto lhs, Integer auto rhs) -> decltype(rhs) { return to_signed(to_unsigned(lhs) % to_signed(rhs)); }
 	RC_INLINE static auto apply_umax(Integer auto lhs, Integer auto rhs) -> decltype(rhs) { return to_signed(std::max(to_unsigned(lhs), to_unsigned(rhs))); }
@@ -122,7 +120,6 @@ namespace retro::ir {
 	RC_INLINE static auto apply_add(i1 lhs, i1 rhs) -> decltype(rhs) { return lhs != rhs; }
 	RC_INLINE static auto apply_sub(i1 lhs, i1 rhs) -> decltype(rhs) { return lhs != rhs; }
 	RC_INLINE static auto apply_mul(i1 lhs, i1 rhs) -> decltype(rhs) { return lhs && rhs; }
-	RC_INLINE static auto apply_umul(i1 lhs, i1 rhs) -> decltype(rhs) { return lhs && rhs; }
 	RC_INLINE static auto apply_div(i1 lhs, i1 rhs) -> decltype(rhs) { return lhs; /*since rhs == 1*/ }
 	RC_INLINE static auto apply_udiv(i1 lhs, i1 rhs) -> decltype(rhs) { return lhs; /*since rhs == 1*/ }
 	RC_INLINE static auto apply_max(i1 lhs, i1 rhs) -> decltype(rhs) { return lhs || rhs; }

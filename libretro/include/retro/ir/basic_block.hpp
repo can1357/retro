@@ -45,6 +45,7 @@ namespace retro::ir {
 		// Insertion.
 		//
 		list::iterator<insn> insert(list::iterator<insn> position, ref<insn> v);
+		list::iterator<insn> insert_after(list::iterator<insn> position, ref<insn> v) { return insert(++position, v); }
 		list::iterator<insn> push_front(ref<insn> v) { return insert(begin(), std::move(v)); }
 		list::iterator<insn> push_back(ref<insn> v) { return insert(end(), std::move(v)); }
 

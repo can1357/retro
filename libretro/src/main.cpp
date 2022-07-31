@@ -14,11 +14,13 @@ using namespace retro;
 #include <retro/arch/x86/regs.hxx>
 #include <retro/robin_hood.hpp>
 
+#include <retro/ir/z3x.hpp>
+
 int main(int argv, const char** args) {
 	platform::setup_ansi_escapes();
 
-	u64					  ip		= 0x100;
-	constexpr u8		  test[] = {0x48, 0xB8, 0xEF, 0xBE, 0xAD, 0xDE, 0x00, 0x00, 0x00, 0x00, 0x48, 0x05, 0xCE, 0xCE, 0xBE, 0x00, 0x48, 0x83, 0xC8, 0x01};
+	u64					  ip		 = 0x100;
+	constexpr u8		  test[]	 = {0x48, 0xD1, 0xE0, 0x48, 0x83, 0xC8, 0x01, 0x48, 0xD1, 0xC8, 0x48, 0x83, 0xF8, 0x00, 0x76, 0x01, 0x90};
 	std::span<const u8> data	 = test;
 	auto					  machine = arch::instance::lookup("x86_64");
 
@@ -126,6 +128,12 @@ int main(int argv, const char** args) {
 						ins->replace_all_uses_with(res);
 					}
 				}
+			} else if (ins->op == ir::opcode::select) {
+				auto	into = ins->template_types[1];
+				auto& val  = ins->operands()[0];
+				if (val.is_const()) {
+					ins->replace_all_uses_with(ins->operands()[val.const_val.get<bool>() ? 1 : 2]);
+				}
 			}
 		}
 	}
@@ -133,6 +141,30 @@ int main(int argv, const char** args) {
 
 	// TODO: PHI Gen
 	//
+	fmt::println(bb->to_string());
+
+	// ----------
+
+
+	z3::context c;
+	auto			term = bb->back();
+	fmt::println(term->to_string());
+
+	bb->push_nop();
+	bb->push_nop();
+	bb->push_nop();
+	bb->push_nop();
+	bb->push_nop();
+
+	z3x::variable_set vs;
+	if (auto expr = z3x::to_expr(vs, c, term->operands()[0])) {
+		fmt::println(expr.to_string());
+		fmt::println("->");
+		fmt::println(z3x::to_insn(vs, expr, bb));
+		//fmt::println(z3x::expr_depth(expr.simplify()), "   -> z3 expr(S):", expr.simplify());
+	}
+
+	
 	fmt::println(bb->to_string());
 
 	#if 0

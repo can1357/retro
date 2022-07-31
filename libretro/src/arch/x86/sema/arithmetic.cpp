@@ -37,9 +37,8 @@ DECL_SEMA(ADD) {
 	set_sf(bb, result);
 	set_zf(bb, result);
 	set_pf(bb, result);
-
-	bb->push_write_reg(reg::flag_of, bb->push_test_overflow(ir::op::add, lhs, rhs));
-	bb->push_write_reg(reg::flag_cf, bb->push_test_overflow_u(ir::op::add, lhs, rhs));
+	set_cf_add(bb, lhs, rhs, result);
+	set_of_add(bb, std::move(lhs), std::move(rhs), result);
 	return diag::ok;
 }
 DECL_SEMA(XADD) {
@@ -65,8 +64,8 @@ DECL_SEMA(XADD) {
 	set_sf(bb, result);
 	set_zf(bb, result);
 	set_pf(bb, result);
-	bb->push_write_reg(reg::flag_of, bb->push_test_overflow(ir::op::add, lhs, rhs));
-	bb->push_write_reg(reg::flag_cf, bb->push_test_overflow_u(ir::op::add, lhs, rhs));
+	set_cf_add(bb, lhs, rhs, result);
+	set_of_add(bb, std::move(lhs), std::move(rhs), result);
 	return diag::ok;
 }
 DECL_SEMA(SUB) {
@@ -89,8 +88,8 @@ DECL_SEMA(SUB) {
 	set_sf(bb, result);
 	set_zf(bb, result);
 	set_pf(bb, result);
-	bb->push_write_reg(reg::flag_of, bb->push_test_overflow(ir::op::sub, lhs, rhs));
-	bb->push_write_reg(reg::flag_cf, bb->push_test_overflow_u(ir::op::sub, lhs, rhs));
+	set_cf_sub(bb, lhs, rhs);
+	set_of_sub(bb, std::move(lhs), std::move(rhs), result);
 	return diag::ok;
 }
 DECL_SEMA(INC) {
@@ -113,7 +112,7 @@ DECL_SEMA(INC) {
 	set_sf(bb, result);
 	set_zf(bb, result);
 	set_pf(bb, result);
-	bb->push_write_reg(reg::flag_of, bb->push_test_overflow(ir::op::add, lhs, rhs));
+	set_of_add(bb, std::move(lhs), std::move(rhs), result);
 	return diag::ok;
 }
 DECL_SEMA(DEC) {
@@ -136,7 +135,7 @@ DECL_SEMA(DEC) {
 	set_sf(bb, result);
 	set_zf(bb, result);
 	set_pf(bb, result);
-	bb->push_write_reg(reg::flag_of, bb->push_test_overflow(ir::op::sub, lhs, rhs));
+	set_of_sub(bb, std::move(lhs), std::move(rhs), result);
 	return diag::ok;
 }
 DECL_SEMA(NEG) {
@@ -158,8 +157,10 @@ DECL_SEMA(NEG) {
 	set_sf(bb, result);
 	set_zf(bb, result);
 	set_pf(bb, result);
+
+
 	bb->push_write_reg(reg::flag_cf, bb->push_cmp(ir::op::ne, lhs, ir::constant(ty, 0)));
-	bb->push_write_reg(reg::flag_of, bb->push_test_overflow(ir::op::sub, ir::constant(ty, 0), lhs));
+	set_of_sub(bb, ir::constant(ty, 0), lhs, result);
 	return diag::ok;
 }
 DECL_SEMA(CMP) {
@@ -171,8 +172,8 @@ DECL_SEMA(CMP) {
 	set_sf(bb, result);
 	set_zf(bb, result);
 	set_pf(bb, result);
-	bb->push_write_reg(reg::flag_of, bb->push_test_overflow(ir::op::sub, lhs, rhs));
-	bb->push_write_reg(reg::flag_cf, bb->push_test_overflow_u(ir::op::sub, lhs, rhs));
+	set_cf_sub(bb, lhs, rhs);
+	set_of_sub(bb, std::move(lhs), std::move(rhs), result);
 	return diag::ok;
 }
 
@@ -225,7 +226,7 @@ DECL_SEMA(MUL) {
 
 	auto lhsx	  = bb->push_cast(tyx, read_reg(sema_context(), lhs, ty));
 	auto rhsx	  = bb->push_cast(tyx, rhs);
-	auto resultx  = bb->push_binop(ir::op::umul, lhsx, rhsx);
+	auto resultx  = bb->push_binop(ir::op::mul, lhsx, rhsx);
 	auto resulthi = bb->push_cast(ty, bb->push_binop(ir::op::bit_shr, resultx, ir::constant(tyx, 1)));
 
 	if (!outhi) {
@@ -250,7 +251,7 @@ DECL_SEMA(MULX) {
 
 	auto lhsx	  = bb->push_cast(tyx, read_reg(sema_context(), lhs, ty));
 	auto rhsx	  = bb->push_cast(tyx, rhs);
-	auto resultx  = bb->push_binop(ir::op::umul, lhsx, rhsx);
+	auto resultx  = bb->push_binop(ir::op::mul, lhsx, rhsx);
 	auto resulthi = bb->push_cast(ty, bb->push_binop(ir::op::bit_shr, resultx, ir::constant(tyx, 1)));
 
 	write(sema_context(), 1, bb->push_cast(ty, resultx));
@@ -265,8 +266,8 @@ static diag::lazy imul_1op(SemaContext) {
 
 	auto [lhs, outlo, outhi] = select_muldiv_regs(ins.effective_width);
 
-	auto lhsx	  = bb->push_cast(tyx, read_reg(sema_context(), lhs, ty));
-	auto rhsx	  = bb->push_cast(tyx, rhs);
+	auto lhsx	  = bb->push_cast_sx(tyx, read_reg(sema_context(), lhs, ty));
+	auto rhsx	  = bb->push_cast_sx(tyx, rhs);
 	auto resultx  = bb->push_binop(ir::op::mul, lhsx, rhsx);
 	auto resulthi = bb->push_cast(ty, bb->push_binop(ir::op::bit_shr, resultx, ir::constant(tyx, 1)));
 

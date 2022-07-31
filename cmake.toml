@@ -8,10 +8,11 @@ x86_64 = "CMAKE_SYSTEM_PROCESSOR MATCHES \"(amd64)|(AMD64)|(x86_64)\""
 [subdir.zydis]
 [subdir.linux-pe]
 [subdir.scripts]
+[subdir.z3]
 
 [target.libretro]
 type = "static"
-link-libraries = ["Zydis", "linux-pe"]
+link-libraries = ["Zydis", "linux-pe", "z3"]
 include-directories = ["libretro/include"]
 compile-features = ["cxx_std_23"]
 sources = [

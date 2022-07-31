@@ -34,7 +34,7 @@ DECL_SEMA(PUSH) {
 	write_reg(sema_context(), rsp, new_sp);
 
 	// Write the value.
-	bb->push_store_mem(ir::NO_SEGMENT, bb->push_cast(ir::type::pointer, new_sp), std::move(value));
+	bb->push_store_mem(ir::NO_SEGMENT, bb->push_bitcast(ir::type::pointer, new_sp), std::move(value));
 	return diag::ok;
 }
 DECL_SEMA(POP) {
@@ -45,7 +45,7 @@ DECL_SEMA(POP) {
 	auto prev_sp = read_reg(sema_context(), rsp, pty);
 
 	// Read the value.
-	auto value = bb->push_load_mem(ty, ir::NO_SEGMENT, bb->push_cast(ir::type::pointer, prev_sp));
+	auto value = bb->push_load_mem(ty, ir::NO_SEGMENT, bb->push_bitcast(ir::type::pointer, prev_sp));
 
 	// Update SP.
 	auto new_sp = bb->push_binop(ir::op::add, prev_sp, ir::constant(pty, dif));
