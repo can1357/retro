@@ -1,6 +1,7 @@
 #pragma once
 #include <retro/common.hpp>
 #include <retro/dyn.hpp>
+#include <retro/arch/callconv.hpp>
 #include <string>
 #include <vector>
 #include <variant>
@@ -99,7 +100,11 @@ namespace retro::ldr {
 		//
 		interface::hash ldr_hash  = 0;
 		interface::hash arch_hash = 0;
-		// TODO: env_hash / abi_hash
+
+		// ABI and environment details.
+		//
+		bool				 env_privileged = false;
+		arch::call_conv default_call_conv = arch::call_conv::unknown;
 
 		// Descriptor tables.
 		// - Sorted by RVA, use insert_into_rva_set for insertion.

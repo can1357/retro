@@ -27,11 +27,13 @@
     </ProjectConfiguration>
   </ItemGroup>
   <ItemGroup>
+    <ClInclude Include="include\retro\arch\callconv.hpp" />
     <ClInclude Include="include\retro\arch\minsn.hpp" />
     <ClInclude Include="include\retro\arch\interface.hpp" />
     <ClInclude Include="include\retro\arch\mreg.hpp" />
     <ClInclude Include="include\retro\arch\reg_kind.hxx" />
     <ClInclude Include="include\retro\arch\x86.hpp" />
+    <ClInclude Include="include\retro\arch\x86\callconv.hpp" />
     <ClInclude Include="include\retro\arch\x86\regs.hxx" />
     <ClInclude Include="include\retro\arch\x86\sema.hpp" />
     <ClInclude Include="include\retro\arch\x86\zy2rc.hpp" />

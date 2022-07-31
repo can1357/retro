@@ -3,6 +3,7 @@
 #include <retro/diag.hpp>
 #include <retro/interface.hpp>
 #include <retro/rc.hpp>
+#include <retro/arch/callconv.hpp>
 #include <retro/arch/mreg.hpp>
 #include <retro/arch/minsn.hpp>
 #include <retro/ir/types.hpp>
@@ -25,6 +26,15 @@ namespace retro::arch {
 	struct instance : interface::base<instance> {
 		// TODO: Context for emulation.
 
+		// ABI information.
+		//
+		virtual const call_conv_desc* get_cc_desc(call_conv cc) = 0;
+
+		// Register information.
+		//
+		virtual bool test_reg_alias(mreg a, mreg b) = 0;
+		virtual bool is_subreg(mreg a)				  = 0;
+
 		// Lifting and disassembly.
 		//
 		virtual bool		 disasm(std::span<const u8> data, minsn* out)		  = 0;
@@ -32,13 +42,12 @@ namespace retro::arch {
 
 		// Formatting.
 		//
-		virtual std::string_view name_register(mreg r)											 = 0;
-		virtual std::string_view name_mnemonic(u32 id)											 = 0;
-		virtual std::string		 format_minsn_modifiers(const minsn& i)					 = 0;
+		virtual std::string_view name_register(mreg r)						 = 0;
+		virtual std::string_view name_mnemonic(u32 id)						 = 0;
+		virtual std::string		 format_minsn_modifiers(const minsn& i) = 0;
 
 		// Architectural details.
 		//
-		virtual bool		  is_physical()					  = 0;
 		virtual std::endian get_byte_order()				  = 0;
 		virtual u32			  get_pointer_width()			  = 0;
 		virtual u32			  get_effective_pointer_width() = 0;

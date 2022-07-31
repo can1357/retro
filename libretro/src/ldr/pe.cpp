@@ -48,6 +48,7 @@ namespace retro::ldr {
 			}
 			case win::machine_id::amd64: {
 				out.arch_hash = arch::x86_64;
+				out.default_call_conv = arch::call_conv::msabi_x86_64;
 				break;
 			}
 			// TODO: arm/thumb/armnt/powerpc/powerpcfp/mips16/mipsfpu/mipsfpu16...
@@ -55,8 +56,31 @@ namespace retro::ldr {
 				break;
 		}
 
-		// TODO: Identify environment from subsystem.
+		// TODO: Further environment information like type libraries and so on.
 		//
+		switch (nt->optional_header.subsystem) {
+			case win::subsystem_id::efi_application:
+			case win::subsystem_id::efi_boot_service_driver:
+			case win::subsystem_id::efi_runtime_driver:
+			case win::subsystem_id::efi_rom:
+			case win::subsystem_id::native:
+			case win::subsystem_id::native_windows: {
+				out.env_privileged = true;
+				break;
+			}           
+			case win::subsystem_id::windows_gui:
+			case win::subsystem_id::windows_cui:               
+			case win::subsystem_id::os2_cui:                   
+			case win::subsystem_id::posix_cui:                
+			case win::subsystem_id::windows_ce_gui:            
+			case win::subsystem_id::xbox:                      
+			case win::subsystem_id::windows_boot_application:  
+			case win::subsystem_id::xbox_code_catalog: {
+				break;
+			}
+			default:
+				break;
+		}
 
 		// Allocate space for the entire image and copy the headers.
 		//

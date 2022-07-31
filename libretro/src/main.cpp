@@ -306,7 +306,15 @@ namespace retro::analysis {
 		std::atomic<u64> block_count = 0;
 	};
 
+	// Lifter parameters.
+	//
+	struct lifter_params {
+		arch::handle					 arch = {};
+		const arch::call_conv_desc* cc = nullptr;
+	};
 
+	// Domain represents the analysis state associated with a single image.
+	//
 	struct domain {
 		// Owning workspace.
 		//
@@ -316,13 +324,20 @@ namespace retro::analysis {
 		//
 		ref<ldr::image> img			  = {};
 		domain_stats	 stats		  = {};
-		arch::handle	 default_arch = {};
 
+		// Loader provided defaults.
+		//
+		arch::handle					 default_arch = {};
+		const arch::call_conv_desc* default_cc	  = nullptr;
 
-
-
-		ref<ir::routine> lift_routine(u64 va, arch::handle machine_override = {});
+		// Lifts a routine given the virtual address.
+		//
+		ref<ir::routine> lift_routine(u64 va, const lifter_params& p);
+		ref<ir::routine> lift_routine(u64 va) { return lift_routine(va, {default_arch, default_cc}); }
 	};
+
+	// Workspace holds the document state and may represent multiple images.
+	//
 	struct workspace {
 		// Workspace list.
 		//
@@ -340,8 +355,11 @@ namespace retro::analysis {
 
 			auto dom				= domain_list.emplace_back(make_rc<domain>());
 			dom->parent			= this;
+			dom->img				= img;
 			dom->default_arch = arch::instance::lookup(img->arch_hash);
-			dom->img				= std::move(img);
+			if (dom->default_arch) {
+				dom->default_cc = dom->default_arch->get_cc_desc(img->default_call_conv);
+			}
 			return dom;
 		}
 	};
@@ -349,7 +367,7 @@ namespace retro::analysis {
 
 
 
-	static ir::basic_block* lift_block(domain* dom, ir::routine* rtn, u64 va, arch::handle machine) {
+	static ir::basic_block* lift_block(domain* dom, ir::routine* rtn, u64 va, const lifter_params& p) {
 		// Invalid jump if out of image boundaries.
 		//
 		std::span<const u8> data = dom->img->slice(va - dom->img->base_address);
@@ -403,7 +421,7 @@ namespace retro::analysis {
 			// Diassemble the instruction, push trap on failure and break.
 			//
 			arch::minsn ins = {};
-			if (!machine->disasm(data, &ins)) {
+			if (!p.arch->disasm(data, &ins)) {
 				bb->push_trap("undefined opcode")->ip = va;
 				break;
 			}
@@ -415,7 +433,7 @@ namespace retro::analysis {
 
 			// Lift the instruction, push trap on failure and break.
 			//
-			if (auto err = machine->lift(bb, ins, va)) {
+			if (auto err = p.arch->lift(bb, ins, va)) {
 				bb->push_trap("lifter error: " + err.to_string())->ip = va;
 				break;
 			}
@@ -467,7 +485,7 @@ namespace retro::analysis {
 						// Try coercing destination into a constant.
 						//
 						if (coerce_const(term->opr(i + 1))) {
-							bbs[i] = lift_block(dom, rtn, (u64) term->opr(i + 1).const_val.get<ir::pointer>(), machine);
+							bbs[i] = lift_block(dom, rtn, (u64) term->opr(i + 1).const_val.get<ir::pointer>(), p);
 						}
 					}
 
@@ -500,7 +518,7 @@ namespace retro::analysis {
 				if (coerce_const(term->opr(0))) {
 					// Lift the target block.
 					//
-					if (auto target = lift_block(dom, rtn, (u64) term->opr(0).const_val.get<ir::pointer>(), machine)) {
+					if (auto target = lift_block(dom, rtn, (u64) term->opr(0).const_val.get<ir::pointer>(), p)) {
 						// Replace with jmp if successful.
 						//
 						bb->push_jmp(target);
@@ -517,21 +535,10 @@ namespace retro::analysis {
 		}
 		return bb;
 	}
-
-	ref<ir::routine> domain::lift_routine(u64 va, arch::handle machine_override) {
-		// If no machine override specified, use default architecture.
-		//
-		if (!machine_override) {
-			machine_override = default_arch;
-		}
-
-		// If we do not have a valid machine in the end, fail.
-		//
-		if (!machine_override) {
-			// TODO: log
+	ref<ir::routine> domain::lift_routine(u64 va, const lifter_params& p) {
+		if (!p.arch)
 			return nullptr;
-		}
-
+		
 		// Create the routine.
 		//
 		ref<ir::routine> rtn = make_rc<ir::routine>();
@@ -540,7 +547,7 @@ namespace retro::analysis {
 
 		// Recursively lift starting from the entry point.
 		//
-		if (!lift_block(this, rtn, va, machine_override)) {
+		if (!lift_block(this, rtn, va, p)) {
 			return nullptr;
 		}
 		return rtn;
@@ -550,28 +557,6 @@ namespace retro::analysis {
 
 int main(int argv, const char** args) {
 	platform::setup_ansi_escapes();
-
-	//auto rtn = make_rc<ir::routine>();
-	//auto bb	= rtn->add_block();
-	//
-	//auto a = bb->push_read_reg(ir::type::i64, arch::x86::reg::rax);
-	//a = bb->push_binop(ir::op::add, a, i64(1));
-	//a = bb->push_binop(ir::op::add, a, i64(1));
-	//bb->push_write_reg(arch::x86::reg::rax, a);
-	//
-	//fmt::println(bb->to_string());
-	//
-	//size_t n = 0;
-	//for (auto& bb : rtn->blocks) {
-	//	n += ir::opt::reg_move_prop(bb);
-	//	n += ir::opt::const_fold(bb);
-	//	n += ir::opt::id_fold(bb);
-	//	n += ir::opt::ins_combine(bb);
-	//	n += ir::opt::const_fold(bb);
-	//	n += ir::opt::id_fold(bb);
-	//}
-	//fmt::println(bb->to_string());
-
 
 	// Create the workspace.
 	//
@@ -613,7 +598,6 @@ int main(int argv, const char** args) {
 	printf("Optimized %llu instructions.\n", n);
 
 
-
 	fmt::println(rtn->to_string());
 	return 0;
 
@@ -631,29 +615,16 @@ int main(int argv, const char** args) {
 	//bb->push_nop();
 	//bb->push_nop();
 	//
-	//// SF != OF
 	//{
 	//	auto a = c.bv_const("a", 64);
 	//	auto b = c.bv_const("b", 64);
-	//
-	//
-	//	/*
-	//	CY = ¬ unu ∧ (t2 < 0).
-	//	OV = ¬ (no ∨ unu) ∨ ¬ snu
-	//	where
-	//	*/
 	//
 	//	auto sl = a < 0;
 	//	auto sr	= b < 0;
 	//	auto sf	= (a - b) < 0;
 	//	auto of	= (sl != sr) & (sl != sf);
-	//	auto nof = (sl == sr) | (sl == sf);
-	//
-	//	fmt::println((nof == sf).simplify());
-	//
 	//
 	//	z3::solver s(c);
-	//	s.add((nof == sf) == (a < b));
 	//	//s.add((of != sf) == (a < b));
 	//	switch (s.check()) {
 	//		case z3::unsat:

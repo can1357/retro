@@ -1,6 +1,7 @@
 #include <retro/arch/x86.hpp>
 #include <retro/arch/x86/zy2rc.hpp>
 #include <retro/arch/x86/sema.hpp>
+#include <retro/arch/x86/callconv.hpp>
 
 namespace retro::arch {
 	static_assert(ZYDIS_MAX_OPERAND_COUNT_VISIBLE <= arch::max_mop_count, "Update constants.");
@@ -37,6 +38,29 @@ namespace retro::arch {
 		//
 		ZydisDecoderInit(&decoder, machine_mode, stack_width);
 	}
+
+	// ABI information.
+	//
+	const call_conv_desc* x86arch::get_cc_desc(call_conv cc) {
+		switch (cc) {
+			case retro::arch::call_conv::msabi_x86_64:
+				return &x86::cc_msabi_x86_64;
+			case retro::arch::call_conv::sysv_x86_64:
+				return &x86::cc_sysv_x86_64;
+			default:
+				return nullptr;
+		}
+	}
+	// Register information.
+	//
+	bool x86arch::test_reg_alias(mreg a, mreg b) {
+		auto& desc_a = enum_reflect(x86::reg(a.id));
+		auto& desc_b = enum_reflect(x86::reg(b.id));
+		auto	full_a = (desc_a.super != x86::reg::none ? desc_a.super : x86::reg(a.id));
+		auto	full_b = (desc_b.super != x86::reg::none ? desc_b.super : x86::reg(b.id));
+		return full_a == full_b;
+	}
+	bool x86arch::is_subreg(mreg a) { return enum_reflect(x86::reg(a.id)).super != x86::reg::none; }
 
 	// Lifting and disassembly.
 	//

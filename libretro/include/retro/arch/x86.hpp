@@ -39,6 +39,15 @@ namespace retro::arch {
 		bool is_32() { return machine_mode == ZYDIS_MACHINE_MODE_LONG_COMPAT_32 || machine_mode == ZYDIS_MACHINE_MODE_LEGACY_32; }
 		bool is_16() { return machine_mode == ZYDIS_MACHINE_MODE_LONG_COMPAT_16 || machine_mode == ZYDIS_MACHINE_MODE_LEGACY_16 || machine_mode == ZYDIS_MACHINE_MODE_REAL_16; }
 
+		// ABI information.
+		//
+		const call_conv_desc* get_cc_desc(call_conv cc);
+
+		// Register information.
+		//
+		bool test_reg_alias(mreg a, mreg b);
+		bool is_subreg(mreg a);
+
 		// Lifting and disassembly.
 		//
 		bool		  disasm(std::span<const u8> data, x86insn* out);
@@ -53,7 +62,6 @@ namespace retro::arch {
 
 		// Architectural details.
 		//
-		bool			is_physical() { return true; }
 		std::endian get_byte_order() { return std::endian::little; }
 		u32			get_pointer_width() { return ptr_width; }
 		u32			get_effective_pointer_width() { return ptr_width_eff; }
