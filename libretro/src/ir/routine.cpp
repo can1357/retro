@@ -70,4 +70,12 @@ namespace retro::ir {
 			return result;
 		}
 	}
+
+	// Clear all block references on destruction to prevent an error being raised.
+	//
+	routine::~routine() {
+		for (auto& bb : blocks) {
+			bb->replace_all_uses_with(std::nullopt);
+		}
+	}
 };

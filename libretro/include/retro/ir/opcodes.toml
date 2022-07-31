@@ -276,6 +276,7 @@ names =          ["",           "cc",      "tv",          "fv"]
 
 #void  xcall      pointer:destination
 [opcode.xcall]
+trashes-regs =   true
 kind =           "@opcode_kind.external-branch"
 side-effect    = true
 template-count = 0

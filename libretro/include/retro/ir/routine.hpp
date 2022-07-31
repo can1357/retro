@@ -7,6 +7,8 @@
 #include <retro/graph/search.hpp>
 #include <vector>
 
+namespace retro::analysis { struct domain; };
+
 namespace retro::ir {
 	// Routine type.
 	//
@@ -14,6 +16,10 @@ namespace retro::ir {
 		using container		= std::vector<ref<basic_block>>;
 		using iterator			= typename container::iterator;
 		using const_iterator = typename container::const_iterator;
+
+		// Owning domain.
+		//
+		weak<analysis::domain> dom = {};
 
 		// Entry point ip if relevant.
 		//
@@ -69,5 +75,9 @@ namespace retro::ir {
 		// String conversion.
 		//
 		std::string to_string(fmt_style s = {}) const;
+
+		// Clear all block references on destruction to prevent an error being raised.
+		//
+		~routine();
 	};
 };
