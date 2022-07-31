@@ -35,7 +35,7 @@ namespace retro::ir {
 		u32	 operand_count = 0;
 		opcode op				= opcode::none;
 
-		// Template types.
+		// Instruction meta-parameters.
 		//
 		type template_types[2] = {};
 

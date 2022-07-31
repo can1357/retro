@@ -5,7 +5,7 @@
 namespace retro::arch {
 	// Call convention enumerator.
 	//
-	enum class call_conv : i32 {
+	enum class call_conv : i8 {
 		preserve_none = -3,	// None of the callee registers are preserved (except stack pointer).
 		interrupt	  = -2,	// Same semantics as preserve all except the stack data on entry, which differs based on architecture.
 		preserve_all  = -1,	// Preserves all registers.

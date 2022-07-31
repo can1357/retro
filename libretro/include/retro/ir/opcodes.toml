@@ -276,7 +276,7 @@ names =          ["",           "cc",      "tv",          "fv"]
 
 #void  xcall      pointer:destination
 [opcode.xcall]
-trashes-regs =   true
+unk-reg-use =    true
 kind =           "@opcode_kind.external-branch"
 side-effect    = true
 template-count = 0
@@ -304,6 +304,17 @@ bb-terminator  = true
 types =          ["@type.none", "@type.i1", "@type.pointer", "@type.pointer"]
 templates =      [0,            0,          0,            0]
 names =          ["",           "cc",      "tb",          "fb"]
+
+#void  xret
+[opcode.xret]
+unk-reg-use =    true
+kind =           "@opcode_kind.external-branch"
+side-effect    = true
+terminator =     true
+bb-terminator  = true
+types =          ["@type.none"]
+templates =      [0]
+names =          [""]
 
 #void  jmp       label:destination
 [opcode.jmp]

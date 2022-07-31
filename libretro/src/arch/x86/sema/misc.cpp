@@ -28,7 +28,7 @@ DECL_SEMA(RET) {
 		auto new_sp	 = bb->push_binop(ir::op::add, prev_sp, ir::constant(pty, ins.op[0].i.s));
 		write_reg(sema_context(), rsp, new_sp);
 	}
-	bb->push_ret(std::nullopt);
+	bb->push_xret();
 	return diag::ok;
 }
 DECL_SEMA(NOP) { return diag::ok; }

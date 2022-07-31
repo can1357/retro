@@ -115,7 +115,7 @@ namespace retro::ir::opt {
 				// If there's another producer, remove it from the stream, declare ourselves as the last one.
 				auto& [lp, lpw] = producer_map[r.uid()];
 				if (lp && lpw) {
-					n += 1 + lp->replace_all_uses_with(ins);
+					n++;
 					lp->erase();
 				}
 				lpw = true;
@@ -155,8 +155,9 @@ namespace retro::ir::opt {
 					lpw = false;
 				}
 			}
-			// If trashes registers:
-			else if (ins->desc().trashes_regs) {
+			// Clear current state if we hit an instruction with unknown register use.
+			//
+			else if (ins->desc().unk_reg_use) {
 				producer_map.clear();
 			}
 		}

@@ -589,15 +589,17 @@ namespace retro::z3x {
 			// the basic block to resolve jump targets.
 			//
 			else if (i->op == ir::opcode::read_reg) {
+				auto rt = i->opr(0).get_const().get<arch::mreg>();
+
 				// For each instruction prior:
 				for (auto i2 : i->block->rslice(i)) {
-					// Break if it trashes registers.
-					if (i2->desc().trashes_regs)
+					// Break if we hit an instruction with unknown register I/O.
+					if (i2->desc().unk_reg_use)
 						break;
 					// If write_reg:
 					if (i2->op == ir::opcode::write_reg) {
 						// If register matches:
-						if (i->opr(0).get_const().get<arch::mreg>() == i2->opr(0).get_const().get<arch::mreg>()) {
+						if (rt == i2->opr(0).get_const().get<arch::mreg>()) {
 							RC_ASSERT(i2->opr(1).get_type() == i->template_types[0]); // potential bitcasts?
 							return to_expr(vs, c, i2->opr(1), max_depth);
 						}
