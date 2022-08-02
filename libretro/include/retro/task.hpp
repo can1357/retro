@@ -176,6 +176,19 @@ namespace retro {
 		inline void await_resume() {}
 	};
 
+	// Simple wrapper for a coroutine starting itself and destorying itself on finalization.
+	//
+	struct async_task {
+		struct promise_type {
+			async_task	  get_return_object() { return {}; }
+			suspend_never initial_suspend() noexcept { return {}; }
+			suspend_never final_suspend() noexcept { return {}; }
+			RC_UNHANDLED_RETHROW;
+			void return_void() {}
+		};
+		async_task() {}
+	};
+
 	// Unique task.
 	//
 	template<typename T>
@@ -183,8 +196,7 @@ namespace retro {
 		struct promise_type {
 			// Symetric transfer.
 			//
-			coroutine_handle<>				  continuation				= nullptr;
-			std::vector<coroutine_handle<>> extended_continuation = {};
+			coroutine_handle<> continuation = nullptr;
 
 			// Result.
 			//
@@ -195,9 +207,8 @@ namespace retro {
 			//
 			~promise_type() {
 				RC_ASSERT(!continuation);	// Should not leak continuation!
-				if (state.load(std::memory_order::relaxed) == 2) {
-					std::destroy_at((T*) &data);
-				}
+				RC_ASSERT(state.load(std::memory_order::relaxed) == 2);
+				std::destroy_at((T*) &data);
 			}
 
 			struct final_awaitable {
@@ -206,10 +217,7 @@ namespace retro {
 				template<typename P = promise_type>
 				inline coroutine_handle<> await_suspend(coroutine_handle<P> handle) noexcept {
 					auto& pr = handle.promise();
-					for (auto& ex : pr.extended_continuation) {
-						ex();
-					}
-					if (auto c = pr.continuation)
+					if (auto c = std::exchange(pr.continuation, nullptr))
 						return c;
 					else
 						return noop_coroutine();
@@ -257,64 +265,60 @@ namespace retro {
 		bool pending() const { return handle.promise().state.load(std::memory_order::relaxed) == 1; }
 		bool lazy() const { return handle.promise().state.load(std::memory_order::relaxed) == 0; }
 
-		// Starts the task if not already done so.
+		// Starts the task if not already done so, returns the previous state.
 		//
-		bool signal() const {
+		long signal() const {
 			u32 expected = 0;
 			if (handle.promise().state.compare_exchange_strong(expected, 1)) {
 				handle.resume();
-				return true;
 			}
-			return false;
+			return expected;
 		}
 
 		// Value getter.
 		//
-		T& value() & {
-			RC_ASSERT(complete());
+		T& get() & {
+			// If not done yet, enter the wait loop.
+			//
+			if (signal() != 2) [[unlikely]] {
+				auto& s = handle.promise().state;
+				do {
+					s.wait(1, std::memory_order::relaxed);
+				} while (s.load(std::memory_order::relaxed) != 2);
+			}
+
+			// Return the value.
+			//
 			return *(T*) &handle.promise().data;
 		}
-		T&& value() && { return std::move(value()); }
-		const T& value() const& { return const_cast<unique_task*>(this)->value(); }
-
-		// Make waitable.
-		//
-		T& wait() & {
-			signal();
-			auto& s = handle.promise().state;
-			while (s.load(std::memory_order::relaxed) != 2) {
-				s.wait(1, std::memory_order::relaxed);
-			}
-			return value();
-		}
-		T&&		wait() && { return std::move(wait()); }
-		const T& wait() const& { return const_cast<unique_task*>(this)->wait(); }
-
-		// Wrapper around wait.
-		//
-		T&			operator()() & { return wait(); }
-		T&&		operator()() && { return std::move(wait()); }
-		const T& operator()() const& { return wait(); }
+		T&& get() && { return std::move(get()); }
+		const T& get() const& { return const_cast<unique_task*>(this)->get(); }
 
 		// Cannot be destructed whilist its executing.
 		//
-		~unique_task() {
-			if (pending()) {
-				wait();
-			}
-		}
+		~unique_task() { get(); }
 	};
 
-	// Simple wrapper for a coroutine starting itself and destorying itself on finalization.
+	// Make unique task co-awaitable, note that only one coroutine may wait on unique task.
 	//
-	struct async_task {
-		struct promise_type {
-			async_task	  get_return_object() { return {}; }
-			suspend_never initial_suspend() noexcept { return {}; }
-			suspend_never final_suspend() noexcept { return {}; }
-			RC_UNHANDLED_RETHROW;
-			void return_void() {}
+	template<typename T>
+	inline auto operator co_await(const unique_task<T>& ref) {
+		struct awaitable {
+			const unique_task<T>& ref;
+			long						 state;
+
+			inline bool await_ready() {
+				state = ref.signal();
+				return state == 2;
+			}
+			inline const auto& await_resume() const { return *(const T*) &ref.handle.promise().data; }
+
+			inline void await_suspend(coroutine_handle<> hnd) {
+				auto& pr = ref.handle.promise();
+				RC_ASSERT(pr.continuation == nullptr);
+				pr.continuation = hnd;
+			}
 		};
-		async_task() {}
-	};
+		return awaitable{ref};
+	}
 };
