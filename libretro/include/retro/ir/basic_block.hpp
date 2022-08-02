@@ -117,29 +117,7 @@ namespace retro::ir {
 
 		// Validation.
 		//
-		diag::lazy validate() const {
-			for (auto&& ins : insns()) {
-				if (auto err = ins->validate()) {
-					return err;
-				}
-				for (auto& op : ins->operands()) {
-					if (!op.is_const()) {
-						if (auto* iref = op.get_value()->get_if<insn>()) {
-							if (iref->block == this) {
-								for (auto&& ins2 : slice(ins->next)) {
-									if (ins2 == iref) {
-										return err::insn_ref_invalid(ins->to_string());
-									}
-								}
-							}
-							// TODO: DOM check.
-							// TODO: Phi validation.
-						}
-					}
-				}
-			}
-			return diag::ok;
-		}
+		diag::lazy validate() const;
 
 		// String conversion and type getter.
 		//

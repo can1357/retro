@@ -1,0 +1,16 @@
+{
+	"version": "0.2.0",
+	"configurations": [
+		{
+			"name": "Launch",
+			"request": "launch",
+			"type": "coreclr",
+			"preLaunchTask": "li",
+			"program": "cmd.exe",
+			"args": ["/c"],
+			"cwd": "${workspaceFolder}",
+			"console": "internalConsole",
+			"internalConsoleOptions": "neverOpen"
+		}
+	]
+}

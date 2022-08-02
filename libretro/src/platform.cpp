@@ -77,6 +77,20 @@ namespace retro::platform {
 		ok = true;
 		return buffer;
 	}
+#if RC_WINDOWS
+	#define popen	_popen
+	#define pclose _pclose
+#endif
+	std::string exec(std::string cmd) {
+		std::array<char, 128> buffer;
+		std::string				 result;
+		FILE*						 f = popen(cmd.c_str(), "r");
+		while (fgets(buffer.data(), (int) buffer.size(), f) != nullptr) {
+			result += buffer.data();
+		}
+		pclose(f);
+		return result;
+	}
 
 #if RC_WINDOWS
 	static constexpr ULONG protection_map[] = {PAGE_READONLY, PAGE_READWRITE, PAGE_EXECUTE_READ, PAGE_EXECUTE_READWRITE};

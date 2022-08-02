@@ -46,7 +46,7 @@ namespace retro::ir {
 		// Filter out stupid calls.
 		//
 		if (boundary == begin()) {
-			return this;
+			return nullptr;
 		}
 		auto* blk = rtn->add_block();
 		blk->end_ip = this->end_ip;
@@ -99,6 +99,37 @@ namespace retro::ir {
 		}
 		successors.swap(blk->successors);
 		return blk;
+	}
+	
+	// Validation.
+	//
+	diag::lazy basic_block::validate() const {
+		for (auto&& ins : insns()) {
+			if (auto err = ins->validate()) {
+				return err;
+			}
+
+			if (ins->op == opcode::phi) {
+				// TODO: Phi validation.
+			} else {
+				for (auto& op : ins->operands()) {
+					if (!op.is_const()) {
+						if (auto* iref = op.get_value()->get_if<insn>()) {
+							if (iref->block == this) {
+								for (auto&& ins2 : slice(ins->next)) {
+									if (ins2 == iref) {
+										return err::insn_ref_invalid(ins->to_string());
+									}
+								}
+							} else {
+								// TODO: DOM check.
+							}
+						}
+					}
+				}
+			}
+		}
+		return diag::ok;
 	}
 
 	// String conversion and type getter.

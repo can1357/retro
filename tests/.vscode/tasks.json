@@ -1,0 +1,13 @@
+{
+	"version": "2.0.0",
+	"tasks": [
+		{
+			"label": "li",
+			"command": "${workspaceFolder}\\..\\build\\libretro\\x64\\Debug\\libretro.exe",
+			"args": ["${file}"],
+			"type": "shell",
+			"console": "integratedTerminal",
+			"request": "launch"
+		}
+	]
+}

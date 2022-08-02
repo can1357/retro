@@ -64,6 +64,10 @@ namespace retro::platform {
 	bool				 read_file(const std::filesystem::path& path, std::span<const u8> data);
 	std::vector<u8> read_file(const std::filesystem::path& path, bool& ok);
 
+	// Executes a command and returns the result.
+	//
+	std::string exec(std::string cmd);
+
 	// File mapping.
 	//
 	struct file_mapping {

@@ -64,10 +64,10 @@ namespace retro::analysis {
 		arch::handle					 default_arch = {};
 		const arch::call_conv_desc* default_cc	  = nullptr;
 
-		// Lifts a routine given the virtual address.
+		// Lifts a routine given the RVA.
 		//
-		ref<ir::routine> lift_routine(u64 va, const lifter_params& p);
-		ref<ir::routine> lift_routine(u64 va) { return lift_routine(va, {.arch=default_arch}); }
+		ref<ir::routine> lift_routine(u64 rva, const lifter_params& p);
+		ref<ir::routine> lift_routine(u64 rva) { return lift_routine(rva, {.arch=default_arch}); }
 
 		// Given a xcall instruction or the routine determines the calling convention. 
 		//
@@ -149,6 +149,8 @@ namespace retro::analysis {
 				// Split the block, add a jump from the previous block to this one.
 				//
 				auto new_block = bbs->split(ins);
+				if (!new_block)
+					return bbs;
 				bbs->push_jmp(new_block);
 				bbs->add_jump(new_block);
 
@@ -287,7 +289,7 @@ namespace retro::analysis {
 		}
 		return bb;
 	}
-	ref<ir::routine> domain::lift_routine(u64 va, const lifter_params& p) {
+	ref<ir::routine> domain::lift_routine(u64 rva, const lifter_params& p) {
 		if (!p.arch)
 			return nullptr;
 		
@@ -295,11 +297,11 @@ namespace retro::analysis {
 		//
 		ref<ir::routine> rtn = make_rc<ir::routine>();
 		rtn->dom					= this;
-		rtn->ip					= va;
+		rtn->ip					= rva + img->base_address;
 
 		// Recursively lift starting from the entry point.
 		//
-		if (!lift_block(this, rtn, va, p)) {
+		if (!lift_block(this, rtn, rva + img->base_address, p)) {
 			return nullptr;
 		}
 		return rtn;
@@ -861,61 +863,158 @@ namespace retro::ir::opt {
 };
 
 
-int main(int argv, const char** args) {
-	platform::setup_ansi_escapes();
+static std::vector<u8> compile(std::string code, const char* args) {
+#if RC_WINDOWS
+	code.insert(0, "#define EXPORT __declspec(dllexport)\nint main() {}\n");
+#else
+	code.insert(0, "#define EXPORT __attribute__((visibility(\"default\")))\nint main() {}\n")
+#endif
 
+	// Create the temporary paths.
+	//
+	auto tmp_dir  = std::filesystem::temp_directory_path();
+	auto in		  = tmp_dir / "retrotmp.c";
+	auto out		  = tmp_dir / "retrotmp.exe";
+
+	// Write the file.
+	//
+	platform::write_file(in, {(const u8*) code.data(), code.size()});
+
+	// Create and execute the command.
+	//
+	auto output = platform::exec(fmt::str("%%LLVM_PATH%%/bin/clang \"%s\" -fms-extensions -o \"%s\" %s", in.string().c_str(), out.string().c_str(), args));
+
+	// Read the file.
+	//
+	bool ok;
+	auto result = platform::read_file(out, ok);
+	if (result.empty()) {
+		fmt::abort("failed to compile the code:\n%s\n", output.c_str());
+	}
+	return result;
+}
+
+void do_stuff(ref<ldr::image> img) {
 	// Create the workspace.
 	//
 	auto ws = analysis::workspace::create();
-	
+
 	// Load the image.
 	//
-	auto img		 = ldr::load_from_file("../tests/libretro.exe").value();
 	auto machine = arch::instance::lookup(img->arch_hash);
 	auto loader	 = ldr::instance::lookup(img->ldr_hash);
 	RC_ASSERT(loader && machine);
 	fmt::println("-> loader:  ", loader->get_name());
 	fmt::println("-> machine: ", machine->get_name());
 
-	// Create a domain for it.
+	// Add entry point symbol if none present, create the domain.
 	//
+	if (img->symbols.empty()) {
+		img->symbols.push_back({img->base_address, "entry point"});
+	}
 	auto dom = ws->add_image(std::move(img));
-	
-	// Demo.
-	//
-	auto rtn = dom->lift_routine(0x140006FD0);
 
-	// Print statistics.
-	//
-	printf(RC_GRAY " # Successfully lifted " RC_VIOLET "%llu" RC_GRAY " instructions into " RC_GREEN "%llu" RC_RED " (avg: ~%llu/ins) #\n" RC_RESET, dom->stats.minsn_disasm.load(),
-		 dom->stats.insn_lifted.load(), dom->stats.insn_lifted.load() / dom->stats.minsn_disasm.load());
+	for (auto& sym : dom->img->symbols) {
+		// Demo.
+		//
+		auto rtn = dom->lift_routine(sym.rva);
 
-	// Run simple optimizations.
-	//
-	size_t n = 0;
-	n += ir::opt::apply_cc_info(rtn);
-	for (auto& bb : rtn->blocks) {
-		n += ir::opt::reg_move_prop(bb);
-		n += ir::opt::const_fold(bb);
-		n += ir::opt::id_fold(bb);
-		n += ir::opt::ins_combine(bb);
-		n += ir::opt::const_fold(bb);
-		n += ir::opt::id_fold(bb);
+		// Print statistics.
+		//
+		printf(RC_WHITE " ----- Routine '%s' -------\n", sym.name.data());
+		printf(RC_GRAY " # Successfully lifted " RC_VIOLET "%llu" RC_GRAY " instructions into " RC_GREEN "%llu" RC_RED " (avg: ~%llu/ins) #\n" RC_RESET,
+			 dom->stats.minsn_disasm.load(), dom->stats.insn_lifted.load(), dom->stats.insn_lifted.load() / dom->stats.minsn_disasm.load());
+
+		// Run simple optimizations.
+		//
+		size_t n = 0;
+		for (auto& bb : rtn->blocks) {
+			n += ir::opt::reg_move_prop(bb);
+			n += ir::opt::const_fold(bb);
+			n += ir::opt::id_fold(bb);
+			n += ir::opt::ins_combine(bb);
+			n += ir::opt::const_fold(bb);
+			n += ir::opt::id_fold(bb);
+		}
+		n += ir::opt::apply_cc_info(rtn);
+		for (auto& bb : rtn->blocks) {
+			n += ir::opt::reg_move_prop(bb);
+			n += ir::opt::const_fold(bb);
+			n += ir::opt::id_fold(bb);
+			n += ir::opt::ins_combine(bb);
+			n += ir::opt::const_fold(bb);
+			n += ir::opt::id_fold(bb);
+		}
+		n += ir::opt::reg_to_phi(rtn);
+		for (auto& bb : rtn->blocks) {
+			n += ir::opt::const_fold(bb);
+			n += ir::opt::id_fold(bb);
+			n += ir::opt::ins_combine(bb);
+			n += ir::opt::const_fold(bb);
+			n += ir::opt::id_fold(bb);
+		}
+		rtn->rename_insns();
+		printf(RC_GRAY " # Optimized " RC_RED "%llu " RC_GRAY "instructions.\n", n);
+		fmt::println(rtn->to_string());
 	}
-	n += ir::opt::reg_to_phi(rtn);
-	for (auto& bb : rtn->blocks) {
-		n += ir::opt::const_fold(bb);
-		n += ir::opt::id_fold(bb);
-		n += ir::opt::ins_combine(bb);
-		n += ir::opt::const_fold(bb);
-		n += ir::opt::id_fold(bb);
-	}
-	rtn->rename_insns();
+}
 
-	printf(RC_GRAY " # Optimized " RC_RED "%llu " RC_GRAY "instructions.\n", n);
-	fmt::println(rtn->to_string());
+#include <retro/utf.hpp>
+
+int main(int argv, const char** args) {
+	platform::setup_ansi_escapes();
+
+	/*
+			  $0: [140001010 => 140001016]
+					 %0 = read_reg.i32 edx
+					 %1 = read_reg.i32 ecx
+					 %2 = read_reg.i64 rdx
+					 %3 = read_reg.i8x16 xmm0
+					 %4 = cast.i32.i64 %1                 ; 0000000140001010
+					 %5 = cast.i64.i32 %4
+					 %6 = cmp.i32 eq, %0, 0               ; 0000000140001012
+					 js %6, $2, $1                        ; 0000000140001014
+		  $1: [140001016 => 140001027]
+					 %8 = phi.i32 %13, %0
+					 %9 = phi.i32 %10, %5
+					 %a = phi.i8x16 %a, %3 <--- missed opt
+					 %b = cast.i32.i64 %9                 ; 0000000140001020
+					 %c = cast.i32.i64 %8
+					 %d = binop.i64 mul, %b, %c
+					 %e = cast.i64.i32 %d <--- missed opt
+					 %f = cast.i32.i64 %e <--- missed opt
+					 %10 = cast.i64.i32 %f <--- missed opt
+					 %11 = binop.i32 sub, %8, 1           ; 0000000140001023
+					 %12 = cast.i32.i64 %11
+					 %13 = cast.i64.i32 %12
+					 %14 = cmp.i32 eq, %11, 0
+					 js %14, $2, $1                       ; 0000000140001025
+		  $2: [140001027 => 140001028]
+					 %16 = phi.i8x16 %a, %3 <--- missed opt
+					 %17 = phi.i64 %12, %2
+					 %18 = phi.i64 %f, %4
+					 %19 = undef.context
+					 %1a = insert_context.i64 %19, rax, %18
+					 %1b = insert_context.i64 %1a, rdx, %17
+					 %1c = insert_context.i8x16 %1b, xmm0, %16 <--- missed opt
+					 ret %1c
+
+	*/
+
+	std::string test_file = "S:\\Projects\\Retro\\tests\\simple.c";
+	if (argv > 1) {
+		test_file = args[1];
+	}
+
+	bool ok;
+	auto code = platform::read_file(test_file, ok);
+	if (!ok) {
+		fmt::abort("failed to read the file.");
+	}
+
+	auto bin = compile(utf::convert<char>(code), "-O1");
+	do_stuff(ldr::load_from_memory(bin).value());
 	return 0;
-
 
 
 

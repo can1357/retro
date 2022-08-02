@@ -14,8 +14,8 @@ namespace retro::ldr {
 	// Range check utility.
 	//
 	template<typename T>
-	static bool ok(const T* ptr, std::span<const u8> input) {
-		return uptr(std::next(ptr)) <= uptr(input.data() + input.size());
+	static bool ok(const T* ptr, std::span<const u8> input, size_t n = 1) {
+		return (!n || ptr) && uptr((ptr + n)) <= uptr(input.data() + input.size());
 	}
 
 	// Templated loader handling both 32-bit and 64-bit formats.
@@ -129,6 +129,54 @@ namespace retro::ldr {
 			insert_into_rva_set(out.sections, res);
 
 			// TODO: Check overlaps?
+		}
+
+		// Parse export directory:
+		//
+		if (auto* dd = img->get_directory(win::directory_entry_export)) {
+			auto exp = img->rva_to_ptr<win::export_directory_t>(dd->rva);
+			if (ok(exp, data)) {
+				size_t	  num_func			  = exp->num_functions;
+				size_t	  num_names			  = exp->num_names;
+				const u32* rvas				  = img->rva_to_ptr<u32>(exp->rva_functions);
+				const u32* rva_names			  = img->rva_to_ptr<u32>(exp->rva_names);
+				const u16* rva_name_ordinals = img->rva_to_ptr<u16>(exp->rva_name_ordinals);
+				if (ok(rvas, data, num_func) && ok(rva_names, data, num_names) && ok(rva_name_ordinals, data, num_names)) {
+					// Write ordinal list.
+					//
+					out.symbols.resize(num_func);
+					for (size_t i = 0; i != num_func; i++) {
+						out.symbols[i].rva = rvas[i];
+					}
+
+					// Write entries with symbols.
+					//
+					for (size_t i = 0; i != num_names; i++) {
+						// Invalid ordinal.
+						//
+						auto o = rva_name_ordinals[i];
+						if (o >= out.symbols.size()) {
+							continue;
+						}
+
+						// Map the name.
+						//
+						auto s = img->rva_to_ptr<char>(rva_names[i]);
+						if (ok(s, data)) {
+							auto e = std::find(s, (const char*)data.data() + data.size(), 0);
+							out.symbols[o].name = {s, e};
+						}
+					}
+
+					// Fill the rest of the names.
+					//
+					for (size_t i = 0; i != num_func; i++) {
+						if (out.symbols[i].name.empty()) {
+							out.symbols[i].name = fmt::str("Ordinal%x", (u32) (i + exp->base));
+						}
+					}
+				}
+			}
 		}
 
 		// TODO: Relocation info.
