@@ -741,8 +741,11 @@ namespace retro::ir::opt {
 	static variant try_remove_trivial_phi(ref<insn> phi) {
 		const operand* same = nullptr;
 		for (auto& op : phi->operands()) {
+			if (!op.is_const() && op.get_value() == phi) {
+				continue;
+			}
 			if (same) {
-				if (op != *same && (op.is_const() || op.get_value() != phi)) {
+				if (op != *same) {
 					return phi.get();
 				}
 			} else {
