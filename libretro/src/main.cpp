@@ -19,7 +19,6 @@ using namespace retro;
 
 
 #include <retro/lock.hpp>
-#include <retro/directives/pattern.hpp>
 
 namespace retro::analysis {
 
@@ -309,384 +308,14 @@ namespace retro::analysis {
 };
 
 
-namespace retro::ir::opt {
-	// Utility functions.
-	//
-	namespace util {
-		// Checks IR values for equality.
-		//
-		struct identity_check_record {
-			identity_check_record* prev = nullptr;
-			const value*			  a;
-			const value*			  b;
-		};
-		inline bool is_identical(const operand& a, const operand& b, identity_check_record* prev = nullptr);
-		inline bool is_identical(const value* a, const value* b, identity_check_record* prev = nullptr) {
-			// If same value, assume equal.
-			// If different types, assume non-equal.
-			//
-			if (a == b)
-				return true;
-			if (a->get_type() != b->get_type())
-				return false;
+#include <retro/opt/interface.hpp>
+#include <retro/opt/utility.hpp>
 
-			// If in the equality check stack already, assume equal. (?)
-			//
-			for (auto it = prev; it; it = it->prev)
-				if (it->a == a && it->b == b)
-					return true;
 
-			// If both are instructions:
-			//
-			auto ai = a->get_if<insn>();
-			auto bi = b->get_if<insn>();
-			if (ai && bi && ai->op == bi->op && ai->template_types == bi->template_types) {
-				// If there are side effects or instruction is not pure, assume false.
-				//
-				auto& desc = ai->desc();
-				if (desc.side_effect || !desc.is_pure)
-					return false;
-
-				// If non-constant instruction:
-				//
-				if (desc.is_const) {
-					// TODO: Trace until common dominator to ensure no side effects.
-				}
-
-				// If opcode is the same and operand size matches:
-				//
-				if (ai->op == bi->op && ai->operand_count == bi->operand_count) {
-					// Make a new record to fix infinite-loops with PHIs.
-					//
-					identity_check_record rec{prev, a, b};
-
-					// If all values are equal, pass the check.
-					//
-					for (size_t i = 0; i != ai->operand_count; i++)
-						if (!is_identical(ai->opr(i), bi->opr(i), &rec))
-							return false;
-					return true;
-				}
-			}
-			return false;
-		}
-		inline bool is_identical(const operand& a, const operand& b, identity_check_record* prev) {
-			if (a.is_const()) {
-				return b.is_const() && a.get_const().equals(b.get_const());
-			} else {
-				return !b.is_const() && is_identical(a.get_value(), b.get_value(), prev);
-			}
-		}
-	};
-
-	// Local dead code elimination.
-	//
-	static size_t dce(basic_block* bb) {
-#if RC_DEBUG
-		bb->validate().raise();
-#endif
-		return bb->rerase_if([](insn* i) { return !i->uses() && !i->desc().side_effect; });
-	}
-
-	// Local register move propagation.
-	//
-	static size_t reg_move_prop(basic_block* bb) {
-		size_t n = 0;
-
-		// For each instruction:
-		//
-		robin_hood::unordered_flat_map<u32, std::pair<ref<insn>, bool>> producer_map = {};
-		for (auto* ins : bb->insns()) {
-			// If producing a value:
-			if (ins->op == opcode::write_reg) {
-				auto r = ins->opr(0).get_const().get<arch::mreg>();
-
-				// If there's another producer, remove it from the stream, declare ourselves as the last one.
-				auto& [lp, lpw] = producer_map[r.uid()];
-				if (lp && lpw) {
-					n++;
-					lp->erase();
-				}
-				lpw = true;
-				lp	 = ins;
-			}
-			// If requires a value:
-			else if (ins->op == opcode::read_reg) {
-				auto r = ins->opr(0).get_const().get<arch::mreg>();
-
-				// If there's a cached producer of this value:
-				auto& [lp, lpw] = producer_map[r.uid()];
-				if (lp) {
-					variant lpv;
-					if (lpw) {
-						lpv = variant{lp->opr(1)};
-					} else {
-						lpv = weak<value>{lp};
-					}
-
-					// If the type matches:
-					if (auto ty = lpv.get_type(); ty == ins->template_types[0]) {
-						// Replace uses with the assigned value.
-						n += 1 + ins->replace_all_uses_with(lpv);
-						ins->op = opcode::nop;
-					}
-					// Otherwise:
-					else {
-						// Insert a bitcast right before the read.
-						auto bc = bb->insert(ins, make_bitcast(ins->template_types[0], lpv));
-						// Replace uses with the result value.
-						n += 1 + ins->replace_all_uses_with(bc.get());
-					}
-				}
-				// Otherwise, declare ourselves as the producer to deduplicate.
-				else {
-					lp	 = ins;
-					lpw = false;
-				}
-			}
-			// Clear current state if we hit an instruction with unknown register use.
-			//
-			else if (ins->desc().unk_reg_use) {
-				producer_map.clear();
-			}
-		}
-
-		// Run DCE if there were any changes, return the change count.
-		return n ? n + dce(bb) : n;
-	}
-
-	// Local constant folding.
-	//
-	static size_t const_fold(basic_block* bb) {
-		size_t n = 0;
-
-		// For each instruction:
-		//
-		for (auto* ins : bb->insns()) {
-			// If we can evaluate the instruction in a constant manner, do so.
-			//
-			if (ins->op == opcode::binop || ins->op == opcode::cmp) {
-				auto& opc = ins->opr(0);
-				auto& lhs = ins->opr(1);
-				auto& rhs = ins->opr(2);
-				if (lhs.is_const() && rhs.is_const()) {
-					if (auto res = lhs.get_const().apply(opc.get_const().get<op>(), rhs.get_const()); !res.is<void>()) {
-						n += 1 + ins->replace_all_uses_with(res);
-					}
-				}
-			} else if (ins->op == opcode::unop) {
-				auto& opc = ins->opr(0);
-				auto& lhs = ins->opr(1);
-				if (lhs.is_const()) {
-					if (auto res = lhs.get_const().apply(opc.get_const().get<op>()); !res.is<void>()) {
-						n += 1 + ins->replace_all_uses_with(res);
-					}
-				}
-			} else if (ins->op == opcode::cast) {
-				auto	into = ins->template_types[1];
-				auto& val  = ins->opr(0);
-				if (val.is_const()) {
-					if (auto res = val.get_const().cast_zx(into); !res.is<void>()) {
-						n += 1 + ins->replace_all_uses_with(res);
-					}
-				}
-			} else if (ins->op == opcode::cast_sx) {
-				auto	into = ins->template_types[1];
-				auto& val  = ins->opr(0);
-				if (val.is_const()) {
-					if (auto res = val.get_const().cast_sx(into); !res.is<void>()) {
-						n += 1 + ins->replace_all_uses_with(res);
-					}
-				}
-			} else if (ins->op == opcode::select) {
-				auto	into = ins->template_types[1];
-				auto& val  = ins->opr(0);
-				if (val.is_const()) {
-					n += 1 + ins->replace_all_uses_with(ins->opr(val.const_val.get<bool>() ? 1 : 2));
-				}
-			}
-		}
-
-		// Run DCE if there were any changes, return the change count.
-		return n ? n + dce(bb) : n;
-	}
-
-	// Local identical value folding.
-	//
-	static size_t id_fold(basic_block* bb) {
-		size_t n = 0;
-
-		// For each instruction:
-		//
-		for (insn* ins : view::reverse(bb->insns())) {
-			// For each instruction before it:
-			//
-			for (insn* ins2 : bb->rslice(ins)) {
-				// If identical, replace.
-				//
-				if (util::is_identical(ins, ins2)) {
-					n += 1 + ins->replace_all_uses_with(ins2);
-					break;
-				}
-
-				// If instruction has side effects and the target is not const, fail.
-				//
-				if (ins2->desc().side_effect && !ins->desc().is_const) {
-					break;
-				}
-			}
-		}
-
-		// Run DCE if there were any changes, return the change count.
-		return n ? n + dce(bb) : n;
-	}
-
-	// Simple instruction combination rules.
-	//
-	static size_t ins_combine(basic_block* bb) {
-		size_t n = 0;
-		for (auto it = bb->begin(); it != bb->end();) {
-			auto ins = it++;
-
-			// Numeric rules:
-			//
-			if (ins->op == opcode::binop || ins->op == opcode::unop || ins->op == opcode::cmp) {
-				for (auto& match : directives::replace_list) {
-					pattern::match_context ctx{};
-					if (match(ins, ctx)) {
-						n++;
-						break;
-					}
-				}
-			}
-			// Casts.
-			//
-			else if (ins->op == opcode::bitcast) {
-				// If cast between same types, no op.
-				//
-				auto ty1 = ins->template_types[0];
-				auto ty2 = ins->template_types[1];
-				if (ty1 == ty2) {
-					ins->replace_all_uses_with(ins->opr(0));
-					ins->erase();
-					n++;
-					continue;
-				}
-
-				// If RHS is not an instruction, nothing else to match.
-				//
-				auto& rhsv = ins->opr(0);
-				if (rhsv.is_const())
-					continue;
-				auto rhs = rhsv.get_value()->get_if<insn>();
-				if (!rhs)
-					continue;
-
-				// If RHS is also a bitcast, propagate.
-				//
-				if (rhs->op == opcode::bitcast) {
-					ins->template_types[0] = rhs->opr(0).get_type();
-					ins->opr(0)				  = rhs->opr(0);
-					n++;
-				}
-			}
-			else if (ins->op == opcode::cast || ins->op == opcode::cast_sx) {
-				// If cast between same types, no op.
-				//
-				auto ty1 = ins->template_types[0];
-				auto ty2 = ins->template_types[1];
-				if (ty1 == ty2) {
-					n += 1 + ins->replace_all_uses_with(ins->opr(0));
-					ins->erase();
-					continue;
-				}
-
-				// If RHS is not an instruction, nothing else to match.
-				//
-				auto& rhsv = ins->opr(0);
-				if (rhsv.is_const())
-					continue;
-				auto rhs = rhsv.get_value()->get_if<insn>();
-				if (!rhs)
-					continue;
-
-				// If RHS is also a cast:
-				//
-				if (rhs->op == opcode::cast || rhs->op == opcode::cast_sx) {
-					auto& val = rhs->opr(0);
-					auto	ty0  = rhs->template_types[0];
-					auto& ti0 = enum_reflect(ty0);
-					auto& ti1 = enum_reflect(ty1);
-					auto& ti2 = enum_reflect(ty2);
-
-					// If cast between same type kinds:
-					//
-					if (ti0.kind == ti1.kind && ti1.kind == ti2.kind && ti0.lane_width == ti1.lane_width && ti1.lane_width == ti2.lane_width) {
-						bool sx0_1 = rhs->op == opcode::cast_sx;
-						bool sx1_2 = ins->op == opcode::cast_sx;
-
-						// If no information lost during middle translation:
-						//
-						if (ti1.bit_size >= ti0.bit_size) {
-							// [e.g. i16->i32->i16]
-							//
-							if (ti2.bit_size == ti0.bit_size) {
-								n += 1 + ins->replace_all_uses_with(val);
-								ins->erase();
-								continue;
-							}
-							// [e.g. i16->i32->i16]
-							//
-							else if (ti2.bit_size < ti0.bit_size) {
-								ins->template_types[0] = val.get_type();
-								rhsv						  = val;
-								continue;
-							}
-							// [e.g. i16->i32->i64]
-							//
-							else if (ti2.bit_size >= ti1.bit_size && sx0_1 == sx1_2) {
-								ins->template_types[0] = val.get_type();
-								rhsv						  = val;
-								continue;
-							}
-						} else {
-							// [e.g. i32->i16->i8]
-							//
-							if (ti2.bit_size <= ti1.bit_size) {
-								ins->template_types[0] = val.get_type();
-								rhsv						  = val;
-								continue;
-							}
-						}
-
-						//fmt::println(rhs->to_string());
-						//fmt::println(ins->to_string());
-						//fmt::println(ty0, sx0_1 ? "->s" : "->", ty1, sx1_2 ? "->s" : "->", ty2);
-					}
-				} else {
-					// TODO: convert unop/binop s
-				}
-			}
-			// Nops.
-			//
-			else if (ins->op == opcode::select) {
-				if (util::is_identical(ins->opr(1), ins->opr(2))) {
-					ins->replace_all_uses_with(ins->opr(1));
-				}
-			}
-
-			// TODO:
-			// cast simplification
-			// write_reg with op == read_reg
-		}
-
-		// Run DCE if there were any changes, return the change count.
-		return n ? n + dce(bb) : n;
-	}
-
+namespace retro::analysis {
 	// Converts xcall/xret into call/ret where possible.
 	//
-	static size_t apply_cc_info(routine* rtn) {
+	static size_t apply_cc_info(ir::routine* rtn) {
 		// Get domain for CC analysis.
 		//
 		auto* dom = rtn->dom.get();
@@ -697,10 +326,10 @@ namespace retro::ir::opt {
 		//
 		size_t n = 0;
 		for (auto& bb : rtn->blocks) {
-			n += bb->erase_if([&](insn* i){
+			n += bb->erase_if([&](ir::insn* i) {
 				// If XCALL:
 				//
-				if (i->op == opcode::xcall) {
+				if (i->op == ir::opcode::xcall) {
 					// Determine the calling convention.
 					//
 					auto* cc = dom->get_routine_cc(i);
@@ -709,11 +338,11 @@ namespace retro::ir::opt {
 
 					// First read each argument:
 					//
-					auto args = bb->insert(i, make_undef(type::context));
+					auto args	  = bb->insert(i, ir::make_undef(ir::type::context));
 					auto push_reg = [&](arch::mreg a) {
 						if (a) {
-							auto val = bb->insert(i, make_read_reg(enum_reflect(a.get_kind()).type, a));
-							args		= bb->insert(i, make_insert_context(args.get(), a, val.get()));
+							auto val = bb->insert(i, ir::make_read_reg(enum_reflect(a.get_kind()).type, a));
+							args		= bb->insert(i, ir::make_insert_context(args.get(), a, val.get()));
 						}
 					};
 					range::for_each(cc->argument_gpr, push_reg);
@@ -722,38 +351,15 @@ namespace retro::ir::opt {
 
 					// Create the call.
 					//
-					auto res = bb->insert(i, make_call(i->opr(0), args.get()));
+					auto res = bb->insert(i, ir::make_call(i->opr(0), args.get()));
 
 					// Read each result.
 					//
 					auto pop_reg = [&](arch::mreg a) {
 						if (a) {
 							auto& desc = enum_reflect(a.get_kind());
-							auto	val  = bb->insert(i, make_extract_context(desc.type, res.get(), a));
-
-							bb->insert(i, make_write_reg(a, val.get()));
-
-							auto ainfo = i->arch->get_register_info(a);
-							i->arch->for_each_subreg(ainfo.full_reg, [&](arch::mreg sr) {
-								if (sr != a) {
-									auto sinfo	= i->arch->get_register_info(sr);
-									auto sub_ty = int_type(sinfo.bit_width);
-
-									// Shift and truncate.
-									//
-									insn* sub_val;
-									if (sinfo.bit_offset) {
-										sub_val = bb->insert(i, make_binop(op::bit_shr, val.get(), constant(val->get_type(), sinfo.bit_offset)));
-										sub_val = bb->insert(i, make_cast(sub_ty, sub_val));
-									} else {
-										sub_val = bb->insert(i, make_cast(sub_ty, val.get()));
-									}
-
-									// Write.
-									//
-									bb->insert(i, make_write_reg(sr, sub_val));
-								}
-							});
+							auto	val  = bb->insert(i, ir::make_extract_context(desc.type, res.get(), a));
+							i->arch->explode_write_reg(bb->insert(i, ir::make_write_reg(a, val.get())));
 						}
 					};
 					range::for_each(cc->retval_gpr, pop_reg);
@@ -765,7 +371,7 @@ namespace retro::ir::opt {
 				}
 				// If XRET:
 				//
-				else if (i->op == opcode::xret) {
+				else if (i->op == ir::opcode::xret) {
 					// Determine the calling convention.
 					//
 					auto* cc = dom->get_routine_cc(rtn);
@@ -774,11 +380,11 @@ namespace retro::ir::opt {
 
 					// Read each result:
 					//
-					auto args	  = bb->insert(i, make_undef(type::context));
+					auto args	  = bb->insert(i, ir::make_undef(ir::type::context));
 					auto push_reg = [&](arch::mreg a) {
 						if (a) {
-							auto val = bb->insert(i, make_read_reg(enum_reflect(a.get_kind()).type, a));
-							args		= bb->insert(i, make_insert_context(args.get(), a, val.get()));
+							auto val = bb->insert(i, ir::make_read_reg(enum_reflect(a.get_kind()).type, a));
+							args		= bb->insert(i, ir::make_insert_context(args.get(), a, val.get()));
 						}
 					};
 					range::for_each(cc->retval_gpr, push_reg);
@@ -786,192 +392,25 @@ namespace retro::ir::opt {
 
 					// Create the ret.
 					//
-					bb->insert(i, make_ret(args.get()));
+					bb->insert(i, ir::make_ret(args.get()));
 					return true;
 				}
 				return false;
 			});
 		}
-		return n;
-	}
-
-
-
-
-
-
-
-	// The following algorithm is a modified version adapted from the paper:
-	// Braun, M., Buchwald, S., Hack, S., Leißa, R., Mallon, C., Zwinkau, A. (2013). Simple and Efficient Construction of Static Single Assignment Form.
-	// In: Jhala, R., De Bosschere, K. (eds) Compiler Construction. CC 2013. Lecture Notes in Computer Science, vol 7791. Springer, Berlin, Heidelberg.
-	//
-	static variant read_variable_local(arch::mreg r, basic_block* b, insn* before, bool* fail) {
-		for (insn* ins : b->rslice(before)) {
-			// Write reg:
-			//
-			if (ins->op == opcode::write_reg && ins->opr(0).get_const().get<arch::mreg>() == r) {
-				return variant{ins->opr(1)};
-			}
-			// Possible implicit write:
-			//
-			else if (ins->desc().unk_reg_use) {
-				if (fail) {
-					*fail = true;
-					return {};
-				}
-				auto ty = enum_reflect(r.get_kind()).type;  // TODO: Might be unknown type.
-				return b->insert_after(ins, make_read_reg(ty, r)).get();
-			}
-		}
-		return {};
-	}
-	static insn* reread_variable_local(arch::mreg r, basic_block* b, insn* until) {
-		for (insn* ins : b->rslice(until)) {
-			// Read reg:
-			//
-			if (ins->op == opcode::read_reg && ins->opr(0).get_const().get<arch::mreg>() == r) {
-				return ins;
-			}
-		}
-		return nullptr;
-	}
-	static variant read_variable_recursive(arch::mreg r, basic_block* b, insn* until);
-	static variant read_variable(arch::mreg r, basic_block* b, insn* until) {
-		bool fail = false;
-		if (auto i = read_variable_local(r, b, until, &fail)) {
-			return i;
-		} else if (!fail) {
-			return read_variable_recursive(r, b, until);
-		} else {
-			return {};
-		}
-	}
-	static variant try_remove_trivial_phi(ref<insn> phi) {
-		const operand* same = nullptr;
-		for (auto& op : phi->operands()) {
-			if (!op.is_const() && op.get_value() == phi) {
-				continue;
-			}
-			if (same) {
-				if (op != *same) {
-					return phi.get();
-				}
-			} else {
-				same = &op;
-			}
-		}
-		RC_ASSERT(same);
-		variant same_v{*same};
-
-		std::vector<ref<insn>> phi_users;
-		for (auto u : phi->uses()) {
-			if (auto& i = u->user->get<insn>(); i.op == opcode::phi) {
-				phi_users.emplace_back(&i);
-			}
-		}
-		phi->replace_all_uses_with(same_v);
-		phi->erase();
-
-		for (auto& p : phi_users)
-			if (!p->is_orphan())
-				try_remove_trivial_phi(std::move(p));
-		return same_v;
-	}
-
-	static variant read_variable_recursive(arch::mreg r, basic_block* b, insn* until) {
-		auto ty = enum_reflect(r.get_kind()).type;  // TODO: Might be unknown type.
-
-		// Actually load the value if it does not exist.
-		//
-		if (b->predecessors.empty()) {
-			auto v = read_variable_local(r, b, until, nullptr);
-			if (!v) {
-				auto i = reread_variable_local(r, b, until);
-				if (!i) {
-					i = b->insert(b->begin(), make_read_reg(ty, r)).get();
-				}
-				v = i;
-			}
-			return v;
-		}
-		// No PHI needed.
-		//
-		else if (b->predecessors.size() == 1) {
-			b = b->predecessors.front().get();
-			return read_variable(r, b, b->end());
-		}
-		// Create a PHI recursively.
-		//
-		else {
-			// Create an empty phi.
-			//
-			auto phi = insn::allocate(opcode::phi, {ty}, b->predecessors.size());  // TODO :(
-			b->insert(b->begin(), phi);
-
-			// Create a temporary store to break cycles.
-			//
-			auto tmp = b->insert(b->end_phi(), make_write_reg(r, phi));
-
-			// For each predecessor, append a PHI node.
-			//
-			for (size_t n = 0; n != b->predecessors.size(); n++) {
-				auto bb = b->predecessors[n].get();
-				auto v  = read_variable(r, bb, bb->end());
-				phi->opr(n) = v;
-			}
-
-			// Delete the temporary.
-			//
-			tmp->erase();
-			return try_remove_trivial_phi(std::move(phi));
-		}
-	}
-
-	// Lowers reads of registers into PHI nodes.
-	//
-	static size_t reg_to_phi(routine* rtn) {
-		rtn->topological_sort();
-
-		// Generate PHIs to replace read_reg in every block except the entry point.
-		//
-		size_t n = 0;
-		for (auto& bb : view::reverse(rtn->blocks)) {
-			n += bb->erase_if([&](insn* ins) {
-				if (ins->op == opcode::read_reg) {
-					auto r = ins->opr(0).const_val.get<arch::mreg>();
-					auto v = read_variable(r, bb.get(), ins);
-					if (!v.is_null()) {
-						if (v.is_const() || v.get_value() != ins) {
-							if (v.get_type() != ins->get_type()) {
-								v = bb->insert(ins, make_bitcast(ins->get_type(), std::move(v))).get();
-							}
-							ins->replace_all_uses_with(std::move(v));
-							return true;
-						}
-					}
-				}
-				return false;
-			});
-		}
-
-		// Break out if theres instructions with unknown register use.
-		//
-		for (auto& bb : view::reverse(rtn->blocks)) {
-			for (auto* ins : bb->insns()) {
-				if (ins->desc().unk_reg_use)
-					return false;
-			}
-		}
-
-		// Otherwise, remove all write_regs.
-		//
-		for (auto& bb : view::reverse(rtn->blocks)) {
-			n += bb->erase_if([](auto i) { return i->op == opcode::write_reg; });
-			n += dce(bb);
-		}
-		return n;
+		return ir::opt::util::complete(rtn, n);
 	}
 };
+
+
+
+
+
+
+
+
+
+
 
 
 static std::vector<u8> compile(std::string code, const char* args) {
@@ -1040,23 +479,23 @@ void do_stuff(ref<ldr::image> img) {
 		//
 		size_t n = 0;
 		for (auto& bb : rtn->blocks) {
-			n += ir::opt::reg_move_prop(bb);
+			n += ir::opt::p0::reg_move_prop(bb);
 			n += ir::opt::const_fold(bb);
 			n += ir::opt::id_fold(bb);
 			n += ir::opt::ins_combine(bb);
 			n += ir::opt::const_fold(bb);
 			n += ir::opt::id_fold(bb);
 		}
-		n += ir::opt::apply_cc_info(rtn);
+		n += analysis::apply_cc_info(rtn);
 		for (auto& bb : rtn->blocks) {
-			n += ir::opt::reg_move_prop(bb);
+			n += ir::opt::p0::reg_move_prop(bb);
 			n += ir::opt::const_fold(bb);
 			n += ir::opt::id_fold(bb);
 			n += ir::opt::ins_combine(bb);
 			n += ir::opt::const_fold(bb);
 			n += ir::opt::id_fold(bb);
 		}
-		n += ir::opt::reg_to_phi(rtn);
+		n += ir::opt::p0::reg_to_phi(rtn);
 		for (auto& bb : rtn->blocks) {
 			n += ir::opt::const_fold(bb);
 			n += ir::opt::id_fold(bb);

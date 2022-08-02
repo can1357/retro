@@ -65,6 +65,8 @@
     <ClInclude Include="include\retro\ldr\pe.hpp" />
     <ClInclude Include="include\retro\list.hpp" />
     <ClInclude Include="include\retro\lock.hpp" />
+    <ClInclude Include="include\retro\opt\interface.hpp" />
+    <ClInclude Include="include\retro\opt\utility.hpp" />
     <ClInclude Include="include\retro\platform.hpp" />
     <ClInclude Include="include\retro\rc.hpp" />
     <ClInclude Include="include\retro\robin_hood.hpp" />
@@ -98,6 +100,11 @@
     <ClCompile Include="src\ir\z3x.cpp" />
     <ClCompile Include="src\ldr\pe.cpp" />
     <ClCompile Include="src\main.cpp" />
+    <ClCompile Include="src\opt\ins_combine.cpp" />
+    <ClCompile Include="src\opt\const_fold.cpp" />
+    <ClCompile Include="src\opt\id_fold.cpp" />
+    <ClCompile Include="src\opt\reg_prop.cpp" />
+    <ClCompile Include="src\opt\reg_to_phi.cpp" />
     <ClCompile Include="src\platform.cpp" />
   </ItemGroup>
   <PropertyGroup Label="Globals">

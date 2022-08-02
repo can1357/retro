@@ -48,6 +48,18 @@ dst = "-A"
 [[replace]]
 src = "0-A"
 dst = "-A"
+[[replace]]
+src = "(A-B)+B"
+dst = "A"
+[[replace]]
+src = "A-(-B)"
+dst = "A+B"
+[[replace]]
+src = "-(A-B)"
+dst = "B-A"
+[[replace]]
+src = "(-A)*(@B)"
+dst = "A*(-@B)"
 
 # Grouping.
 #

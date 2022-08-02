@@ -19,7 +19,7 @@ namespace retro::ir {
 
 		// Owning domain.
 		//
-		weak<analysis::domain> dom = {};
+		weak<retro::analysis::domain> dom = {};
 
 		// Entry point ip if relevant.
 		//
