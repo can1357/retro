@@ -20,6 +20,293 @@ using namespace retro;
 
 #include <retro/lock.hpp>
 #include <retro/directives/pattern.hpp>
+
+namespace retro::analysis {
+
+	struct workspace;
+
+	// Domain statistics.
+	//
+	struct domain_stats {
+		// Machine instructions diassembled.
+		//
+		std::atomic<u64> minsn_disasm = 0;
+
+		// IR instructions created to represent the disassembled instructions.
+		//
+		std::atomic<u64> insn_lifted = 0;
+
+		// Blocks parsed.
+		//
+		std::atomic<u64> block_count = 0;
+	};
+
+	// Lifter parameters.
+	//
+	struct lifter_params {
+		arch::handle					 arch = {};
+	};
+
+	// Domain represents the analysis state associated with a single image.
+	//
+	struct domain {
+		// Owning workspace.
+		//
+		weak<workspace> parent = {};
+
+		// Image details.
+		//
+		ref<ldr::image> img			  = {};
+		domain_stats	 stats		  = {};
+
+		// Loader provided defaults.
+		//
+		arch::handle					 default_arch = {};
+		const arch::call_conv_desc* default_cc	  = nullptr;
+
+		// Lifts a routine given the virtual address.
+		//
+		ref<ir::routine> lift_routine(u64 va, const lifter_params& p);
+		ref<ir::routine> lift_routine(u64 va) { return lift_routine(va, {.arch=default_arch}); }
+
+		// Given a xcall instruction or the routine determines the calling convention. 
+		//
+		const arch::call_conv_desc* get_routine_cc(ir::routine* rtn);
+		const arch::call_conv_desc* get_routine_cc(ir::insn* xcall);
+	};
+
+	// Workspace holds the document state and may represent multiple images.
+	//
+	struct workspace {
+		// Workspace list.
+		//
+		rw_lock						 domain_list_lock = {};
+		std::vector<ref<domain>> domain_list;
+
+		// Creates a new workspace.
+		//
+		static ref<workspace> create() { return make_rc<workspace>(); }
+
+		// Creates a domain for the image.
+		//
+		ref<domain> add_image(ref<ldr::image> img) {
+			std::unique_lock _g {domain_list_lock};
+
+			auto dom				= domain_list.emplace_back(make_rc<domain>());
+			dom->parent			= this;
+			dom->img				= img;
+			dom->default_arch = arch::instance::lookup(img->arch_hash);
+			if (dom->default_arch) {
+				dom->default_cc = dom->default_arch->get_cc_desc(img->default_call_conv);
+			}
+			return dom;
+		}
+	};
+
+	// Given a routine determines the calling convention.
+	//
+	const arch::call_conv_desc* domain::get_routine_cc(ir::routine* rtn) {
+		// TODO: logic.
+		RC_UNUSED(rtn);
+		return default_cc;
+	}
+	const arch::call_conv_desc* domain::get_routine_cc(ir::insn* xcall) {
+		// TODO: logic.
+		RC_UNUSED(xcall);
+		return default_cc;
+	}
+
+
+
+	static ir::basic_block* lift_block(domain* dom, ir::routine* rtn, u64 va, const lifter_params& p) {
+		// Invalid jump if out of image boundaries.
+		//
+		std::span<const u8> data = dom->img->slice(va - dom->img->base_address);
+		if (data.empty()) {
+			return nullptr;
+		}
+
+		// First check the basic block list for an already lifted range.
+		//
+		for (ir::basic_block* bbs : rtn->blocks) {
+			// Skip if not within the range.
+			//
+			if (va < bbs->ip || bbs->end_ip <= va)
+				continue;
+
+			// If exact match, no need to lift anything.
+			//
+			if (bbs->ip == va)
+				return bbs;
+
+			// Find the label.
+			//
+			for (auto* ins : bbs->insns()) {
+				if (ins->ip != va) {
+					continue;
+				}
+
+				// Split the block, add a jump from the previous block to this one.
+				//
+				auto new_block = bbs->split(ins);
+				bbs->push_jmp(new_block);
+				bbs->add_jump(new_block);
+
+				// Return it.
+				//
+				return new_block;
+			}
+
+			// Misaligned jump, sneaky! Lift as a new block.
+			//
+			fmt::println("Misaligned jump?");
+		}
+
+		// Add a new block.
+		//
+		dom->stats.block_count++;
+		auto* bb	  = rtn->add_block();
+		bb->ip	  = va;
+		bb->end_ip = va;
+		bb->arch	  = p.arch;
+		while (!data.empty()) {
+			// Diassemble the instruction, push trap on failure and break.
+			//
+			arch::minsn ins = {};
+			if (!p.arch->disasm(data, &ins)) {
+				bb->push_trap("undefined opcode")->ip = va;
+				break;
+			}
+			dom->stats.minsn_disasm++;
+
+			// Update the block range.
+			//
+			bb->end_ip = va + ins.length;
+
+			// Lift the instruction, push trap on failure and break.
+			//
+			if (auto err = p.arch->lift(bb, ins, va)) {
+				bb->push_trap("lifter error: " + err.to_string())->ip = va;
+				break;
+			}
+			if (!bb->empty()) {
+				auto it = std::prev(bb->end());
+				while (it != bb->begin() && it->prev->ip == va) {
+					--it;
+				}
+				dom->stats.insn_lifted += std::distance(it, bb->end());
+			}
+
+			// If last instruction is a terminator break out.
+			//
+			if (bb->terminator() != nullptr)
+				break;
+
+			// Skip the bytes and increment IP.
+			//
+			data = data.subspan(ins.length);
+			va += ins.length;
+		}
+
+		// Try to continue traversal.
+		//
+		z3::context ctx;
+		z3x::variable_set vs;
+
+		auto coerce_const = [&](ir::operand& op) {
+			if (op.is_const())
+				return true;
+			if (auto expr = z3x::to_expr(vs, ctx, op)) {
+				if (auto v = z3x::value_of(expr); !v.is<void>()) {
+					v.type_id = (u64) op.get_type();	 // TODO: Replace with a proper cast.
+					op			 = std::move(v);
+					return true;
+				}
+			}
+			return false;
+		};
+
+		auto* term = bb->terminator();
+		switch (term->op) {
+			case ir::opcode::xjs: {
+				// If condition cannot be coerced to a constant:
+				//
+				if (auto cc = coerce_const(term->opr(0)); !cc) {
+					ir::basic_block* bbs[2] = {nullptr, nullptr};
+					for (size_t i = 0; i != 2; i++) {
+						// Try coercing destination into a constant.
+						//
+						if (coerce_const(term->opr(i + 1))) {
+							bbs[i] = lift_block(dom, rtn, (u64) term->opr(i + 1).const_val.get<ir::pointer>(), p);
+						}
+					}
+
+					// If we managed to lift both blocks succesfully:
+					//
+					if (bbs[0] && bbs[1]) {
+						// Replace with js.
+						//
+						ir::variant cc{term->opr(0)};
+						bb->push_js(std::move(cc), bbs[0], bbs[1]);
+						term->erase();
+						bb->add_jump(bbs[0]);
+						bb->add_jump(bbs[1]);
+					}
+					break;
+				} else {
+					// Swap with a xjmp.
+					//
+					ir::variant target{term->opr(term->opr(0).const_val.get<bool>() ? 1 : 2)};
+					auto nterm = bb->push_xjmp(std::move(target));
+					std::exchange(term, nterm)->erase();
+				}
+				// Fallthrough to xjmp handler.
+				//
+				[[fallthrough]];
+			}
+			case ir::opcode::xjmp: {
+				// Try coercing destination into a constant.
+				//
+				if (coerce_const(term->opr(0))) {
+					// Lift the target block.
+					//
+					if (auto target = lift_block(dom, rtn, (u64) term->opr(0).const_val.get<ir::pointer>(), p)) {
+						// Replace with jmp if successful.
+						//
+						bb->push_jmp(target);
+						term->erase();
+						bb->add_jump(target);
+					}
+				} else {
+					fmt::println("dynamic jump, TODO.");
+				}
+				break;
+			}
+			default:
+				break;
+		}
+		return bb;
+	}
+	ref<ir::routine> domain::lift_routine(u64 va, const lifter_params& p) {
+		if (!p.arch)
+			return nullptr;
+		
+		// Create the routine.
+		//
+		ref<ir::routine> rtn = make_rc<ir::routine>();
+		rtn->dom					= this;
+		rtn->ip					= va;
+
+		// Recursively lift starting from the entry point.
+		//
+		if (!lift_block(this, rtn, va, p)) {
+			return nullptr;
+		}
+		return rtn;
+	}
+};
+
+
 namespace retro::ir::opt {
 	// Utility functions.
 	//
@@ -51,7 +338,7 @@ namespace retro::ir::opt {
 			//
 			auto ai = a->get_if<insn>();
 			auto bi = b->get_if<insn>();
-			if (ai && bi && ai->op == bi->op) {
+			if (ai && bi && ai->op == bi->op && ai->template_types == bi->template_types) {
 				// If there are side effects or instruction is not pure, assume false.
 				//
 				auto& desc = ai->desc();
@@ -119,7 +406,7 @@ namespace retro::ir::opt {
 					lp->erase();
 				}
 				lpw = true;
-				lp = ins;
+				lp	 = ins;
 			}
 			// If requires a value:
 			else if (ins->op == opcode::read_reg) {
@@ -128,9 +415,9 @@ namespace retro::ir::opt {
 				// If there's a cached producer of this value:
 				auto& [lp, lpw] = producer_map[r.uid()];
 				if (lp) {
-					ir::variant lpv;
+					variant lpv;
 					if (lpw) {
-						lpv = ir::variant{lp->opr(1)};
+						lpv = variant{lp->opr(1)};
 					} else {
 						lpv = weak<value>{lp};
 					}
@@ -151,7 +438,7 @@ namespace retro::ir::opt {
 				}
 				// Otherwise, declare ourselves as the producer to deduplicate.
 				else {
-					lp = ins;
+					lp	 = ins;
 					lpw = false;
 				}
 			}
@@ -261,7 +548,7 @@ namespace retro::ir::opt {
 
 			// Numeric rules:
 			//
-			if (ins->op == ir::opcode::binop || ins->op == ir::opcode::unop || ins->op == ir::opcode::cmp) {
+			if (ins->op == opcode::binop || ins->op == opcode::unop || ins->op == opcode::cmp) {
 				for (auto& match : directives::replace_list) {
 					pattern::match_context ctx{};
 					if (match(ins, ctx)) {
@@ -272,11 +559,12 @@ namespace retro::ir::opt {
 			}
 			// Nops.
 			//
-			else if (ins->op == ir::opcode::select) {
+			else if (ins->op == opcode::select) {
 				if (util::is_identical(ins->opr(1), ins->opr(2))) {
 					ins->replace_all_uses_with(ins->opr(1));
 				}
 			}
+
 			// TODO:
 			// cast simplification
 			// write_reg with op == read_reg
@@ -285,273 +573,290 @@ namespace retro::ir::opt {
 		// Run DCE if there were any changes, return the change count.
 		return n ? n + dce(bb) : n;
 	}
-};
 
-namespace retro::analysis {
-
-	struct workspace;
-
-	// Domain statistics.
+	// Converts xcall/xret into call/ret where possible.
 	//
-	struct domain_stats {
-		// Machine instructions diassembled.
+	static size_t apply_cc_info(routine* rtn) {
+		// Get domain for CC analysis.
 		//
-		std::atomic<u64> minsn_disasm = 0;
+		auto* dom = rtn->dom.get();
+		if (!dom)
+			return 0;
 
-		// IR instructions created to represent the disassembled instructions.
+		// For each instruction.
 		//
-		std::atomic<u64> insn_lifted = 0;
-
-		// Blocks parsed.
-		//
-		std::atomic<u64> block_count = 0;
-	};
-
-	// Lifter parameters.
-	//
-	struct lifter_params {
-		arch::handle					 arch = {};
-		const arch::call_conv_desc* cc = nullptr;
-	};
-
-	// Domain represents the analysis state associated with a single image.
-	//
-	struct domain {
-		// Owning workspace.
-		//
-		weak<workspace> parent = {};
-
-		// Image details.
-		//
-		ref<ldr::image> img			  = {};
-		domain_stats	 stats		  = {};
-
-		// Loader provided defaults.
-		//
-		arch::handle					 default_arch = {};
-		const arch::call_conv_desc* default_cc	  = nullptr;
-
-		// Lifts a routine given the virtual address.
-		//
-		ref<ir::routine> lift_routine(u64 va, const lifter_params& p);
-		ref<ir::routine> lift_routine(u64 va) { return lift_routine(va, {default_arch, default_cc}); }
-	};
-
-	// Workspace holds the document state and may represent multiple images.
-	//
-	struct workspace {
-		// Workspace list.
-		//
-		rw_lock						 domain_list_lock = {};
-		std::vector<ref<domain>> domain_list;
-
-		// Creates a new workspace.
-		//
-		static ref<workspace> create() { return make_rc<workspace>(); }
-
-		// Creates a domain for the image.
-		//
-		ref<domain> add_image(ref<ldr::image> img) {
-			std::unique_lock _g {domain_list_lock};
-
-			auto dom				= domain_list.emplace_back(make_rc<domain>());
-			dom->parent			= this;
-			dom->img				= img;
-			dom->default_arch = arch::instance::lookup(img->arch_hash);
-			if (dom->default_arch) {
-				dom->default_cc = dom->default_arch->get_cc_desc(img->default_call_conv);
-			}
-			return dom;
-		}
-	};
-
-
-
-
-	static ir::basic_block* lift_block(domain* dom, ir::routine* rtn, u64 va, const lifter_params& p) {
-		// Invalid jump if out of image boundaries.
-		//
-		std::span<const u8> data = dom->img->slice(va - dom->img->base_address);
-		if (data.empty()) {
-			return nullptr;
-		}
-
-		// First check the basic block list for an already lifted range.
-		//
-		for (ir::basic_block* bbs : rtn->blocks) {
-			// Skip if not within the range.
-			//
-			if (va < bbs->ip || bbs->end_ip <= va)
-				continue;
-
-			// If exact match, no need to lift anything.
-			//
-			if (bbs->ip == va)
-				return bbs;
-
-			// Find the label.
-			//
-			for (auto* ins : bbs->insns()) {
-				if (ins->ip != va) {
-					continue;
-				}
-
-				// Split the block, add a jump from the previous block to this one.
+		size_t n = 0;
+		for (auto& bb : rtn->blocks) {
+			n += bb->erase_if([&](insn* i){
+				// If XCALL:
 				//
-				auto new_block = bbs->split(ins);
-				bbs->push_jmp(new_block);
-				bbs->add_jump(new_block);
+				if (i->op == opcode::xcall) {
+					// Determine the calling convention.
+					//
+					auto* cc = dom->get_routine_cc(i);
+					if (!cc)
+						return false;
 
-				// Return it.
-				//
-				return bbs;
-			}
+					// First read each argument:
+					//
+					auto args = bb->insert(i, make_undef(type::context));
+					auto push_reg = [&](arch::mreg a) {
+						if (a) {
+							auto val = bb->insert(i, make_read_reg(enum_reflect(a.get_kind()).type, a));
+							args		= bb->insert(i, make_insert_context(args.get(), a, val.get()));
+						}
+					};
+					range::for_each(cc->argument_gpr, push_reg);
+					range::for_each(cc->argument_fp, push_reg);
+					push_reg(cc->fp_varg_counter);
 
-			// Misaligned jump, sneaky! Lift as a new block.
-			//
-			fmt::println("Misaligned jump?");
-		}
+					// Create the call.
+					//
+					auto res = bb->insert(i, make_call(i->opr(0), args.get()));
 
-		// Add a new block.
-		//
-		dom->stats.block_count++;
-		auto* bb	  = rtn->add_block();
-		bb->ip	  = va;
-		bb->end_ip = va;
-		while (!data.empty()) {
-			// Diassemble the instruction, push trap on failure and break.
-			//
-			arch::minsn ins = {};
-			if (!p.arch->disasm(data, &ins)) {
-				bb->push_trap("undefined opcode")->ip = va;
-				break;
-			}
-			dom->stats.minsn_disasm++;
+					// Read each result.
+					//
+					auto pop_reg = [&](arch::mreg a) {
+						if (a) {
+							auto& desc = enum_reflect(a.get_kind());
+							auto	val  = bb->insert(i, make_extract_context(desc.type, res.get(), a));
 
-			// Update the block range.
-			//
-			bb->end_ip = va + ins.length;
+							bb->insert(i, make_write_reg(a, val.get()));
 
-			// Lift the instruction, push trap on failure and break.
-			//
-			if (auto err = p.arch->lift(bb, ins, va)) {
-				bb->push_trap("lifter error: " + err.to_string())->ip = va;
-				break;
-			}
-			if (!bb->empty()) {
-				auto it = std::prev(bb->end());
-				while (it != bb->begin() && it->prev->ip == va) {
-					--it;
-				}
-				dom->stats.insn_lifted += std::distance(it, bb->end());
-			}
+							auto ainfo = i->arch->get_register_info(a);
+							i->arch->for_each_subreg(ainfo.full_reg, [&](arch::mreg sr) {
+								if (sr != a) {
+									auto sinfo	= i->arch->get_register_info(sr);
+									auto sub_ty = int_type(sinfo.bit_width);
 
-			// If last instruction is a terminator break out.
-			//
-			if (bb->terminator())
-				break;
+									// Shift and truncate.
+									//
+									insn* sub_val;
+									if (sinfo.bit_offset) {
+										sub_val = bb->insert(i, make_binop(op::bit_shr, val.get(), constant(val->get_type(), sinfo.bit_offset)));
+										sub_val = bb->insert(i, make_cast(sub_ty, sub_val));
+									} else {
+										sub_val = bb->insert(i, make_cast(sub_ty, val.get()));
+									}
 
-			// Skip the bytes and increment IP.
-			//
-			data = data.subspan(ins.length);
-			va += ins.length;
-		}
+									// Write.
+									//
+									bb->insert(i, make_write_reg(sr, sub_val));
+								}
+							});
+						}
+					};
+					range::for_each(cc->retval_gpr, pop_reg);
+					range::for_each(cc->retval_fp, pop_reg);
+					// stack if sp_caller_adjusted?
+					// eflags?
 
-		// Try to continue traversal.
-		//
-		z3::context ctx;
-		z3x::variable_set vs;
-
-		auto coerce_const = [&](ir::operand& op) {
-			if (op.is_const())
-				return true;
-			if (auto expr = z3x::to_expr(vs, ctx, op)) {
-				if (auto v = z3x::value_of(expr); !v.is<void>()) {
-					v.type_id = (u64) op.get_type();	 // TODO: Replace with a proper cast.
-					op			 = std::move(v);
 					return true;
 				}
-			}
-			return false;
-		};
-
-		auto* term = bb->terminator();
-		switch (term->op) {
-			case ir::opcode::xjs: {
-				// If condition cannot be coerced to a constant:
+				// If XRET:
 				//
-				if (auto cc = coerce_const(term->opr(0)); !cc) {
-					ir::basic_block* bbs[2] = {nullptr, nullptr};
-					for (size_t i = 0; i != 2; i++) {
-						// Try coercing destination into a constant.
-						//
-						if (coerce_const(term->opr(i + 1))) {
-							bbs[i] = lift_block(dom, rtn, (u64) term->opr(i + 1).const_val.get<ir::pointer>(), p);
+				else if (i->op == opcode::xret) {
+					// Determine the calling convention.
+					//
+					auto* cc = dom->get_routine_cc(rtn);
+					if (!cc)
+						return false;
+
+					// Read each result:
+					//
+					auto args	  = bb->insert(i, make_undef(type::context));
+					auto push_reg = [&](arch::mreg a) {
+						if (a) {
+							auto val = bb->insert(i, make_read_reg(enum_reflect(a.get_kind()).type, a));
+							args		= bb->insert(i, make_insert_context(args.get(), a, val.get()));
+						}
+					};
+					range::for_each(cc->retval_gpr, push_reg);
+					range::for_each(cc->retval_fp, push_reg);
+
+					// Create the ret.
+					//
+					bb->insert(i, make_ret(args.get()));
+					return true;
+				}
+				return false;
+			});
+		}
+		return n;
+	}
+
+
+
+
+
+
+
+	// The following algorithm is a modified version adapted from the paper:
+	// Braun, M., Buchwald, S., Hack, S., Leißa, R., Mallon, C., Zwinkau, A. (2013). Simple and Efficient Construction of Static Single Assignment Form.
+	// In: Jhala, R., De Bosschere, K. (eds) Compiler Construction. CC 2013. Lecture Notes in Computer Science, vol 7791. Springer, Berlin, Heidelberg.
+	//
+	static variant read_variable_local(arch::mreg r, basic_block* b, insn* before, bool* fail) {
+		for (insn* ins : b->rslice(before)) {
+			// Write reg:
+			//
+			if (ins->op == opcode::write_reg && ins->opr(0).get_const().get<arch::mreg>() == r) {
+				return variant{ins->opr(1)};
+			}
+			// Possible implicit write:
+			//
+			else if (ins->desc().unk_reg_use) {
+				if (fail) {
+					*fail = true;
+					return {};
+				}
+				auto ty = enum_reflect(r.get_kind()).type;  // TODO: Might be unknown type.
+				return b->insert_after(ins, make_read_reg(ty, r)).get();
+			}
+		}
+		return {};
+	}
+	static insn* reread_variable_local(arch::mreg r, basic_block* b, insn* until) {
+		for (insn* ins : b->rslice(until)) {
+			// Read reg:
+			//
+			if (ins->op == opcode::read_reg && ins->opr(0).get_const().get<arch::mreg>() == r) {
+				return ins;
+			}
+		}
+		return nullptr;
+	}
+	static variant read_variable_recursive(arch::mreg r, basic_block* b, insn* until);
+	static variant read_variable(arch::mreg r, basic_block* b, insn* until) {
+		bool fail = false;
+		if (auto i = read_variable_local(r, b, until, &fail)) {
+			return i;
+		} else if (!fail) {
+			return read_variable_recursive(r, b, until);
+		} else {
+			return {};
+		}
+	}
+	static variant try_remove_trivial_phi(ref<insn> phi) {
+		const operand* same = nullptr;
+		for (auto& op : phi->operands()) {
+			if (same) {
+				if (op != *same && (op.is_const() || op.get_value() != phi)) {
+					return phi.get();
+				}
+			} else {
+				same = &op;
+			}
+		}
+		RC_ASSERT(same);
+		variant same_v{*same};
+
+		std::vector<ref<insn>> phi_users;
+		for (auto u : phi->uses()) {
+			if (auto& i = u->user->get<insn>(); i.op == opcode::phi) {
+				phi_users.emplace_back(&i);
+			}
+		}
+		phi->replace_all_uses_with(same_v);
+		phi->erase();
+
+		for (auto& p : phi_users)
+			if (!p->is_orphan())
+				try_remove_trivial_phi(std::move(p));
+		return same_v;
+	}
+
+	static variant read_variable_recursive(arch::mreg r, basic_block* b, insn* until) {
+		auto ty = enum_reflect(r.get_kind()).type;  // TODO: Might be unknown type.
+
+		// Actually load the value if it does not exist.
+		//
+		if (b->predecessors.empty()) {
+			auto v = read_variable_local(r, b, until, nullptr);
+			if (!v) {
+				auto i = reread_variable_local(r, b, until);
+				if (!i) {
+					i = b->insert(b->begin(), make_read_reg(ty, r)).get();
+				}
+				v = i;
+			}
+			return v;
+		}
+		// No PHI needed.
+		//
+		else if (b->predecessors.size() == 1) {
+			b = b->predecessors.front().get();
+			return read_variable(r, b, b->end());
+		}
+		// Create a PHI recursively.
+		//
+		else {
+			// Create an empty phi.
+			//
+			auto phi = insn::allocate(opcode::phi, {ty}, b->predecessors.size());  // TODO :(
+			b->insert(b->begin(), phi);
+
+			// Create a temporary store to break cycles.
+			//
+			auto tmp = b->insert(b->end_phi(), make_write_reg(r, phi));
+
+			// For each predecessor, append a PHI node.
+			//
+			for (size_t n = 0; n != b->predecessors.size(); n++) {
+				auto bb = b->predecessors[n].get();
+				auto v  = read_variable(r, bb, bb->end());
+				phi->opr(n) = v;
+			}
+
+			// Delete the temporary.
+			//
+			tmp->erase();
+			return try_remove_trivial_phi(std::move(phi));
+		}
+	}
+
+	// Lowers reads of registers into PHI nodes.
+	//
+	static size_t reg_to_phi(routine* rtn) {
+		rtn->topological_sort();
+
+		// Generate PHIs to replace read_reg in every block except the entry point.
+		//
+		size_t n = 0;
+		for (auto& bb : view::reverse(rtn->blocks)) {
+			n += bb->erase_if([&](insn* ins) {
+				if (ins->op == opcode::read_reg) {
+					auto r = ins->opr(0).const_val.get<arch::mreg>();
+					auto v = read_variable(r, bb.get(), ins);
+					if (!v.is_null()) {
+						if (v.is_const() || v.get_value() != ins) {
+							if (v.get_type() != ins->get_type()) {
+								v = bb->insert(ins, make_bitcast(ins->get_type(), std::move(v))).get();
+							}
+							ins->replace_all_uses_with(std::move(v));
+							return true;
 						}
 					}
-
-					// If we managed to lift both blocks succesfully:
-					//
-					if (bbs[0] && bbs[1]) {
-						// Replace with js.
-						//
-						ir::variant cc{term->opr(0)};
-						bb->push_js(std::move(cc), bbs[0], bbs[1]);
-						term->erase();
-						bb->add_jump(bbs[0]);
-						bb->add_jump(bbs[1]);
-					}
-					break;
-				} else {
-					// Swap with a xjmp.
-					//
-					ir::variant target{term->opr(term->opr(0).const_val.get<bool>() ? 1 : 2)};
-					auto nterm = bb->push_xjmp(std::move(target));
-					std::exchange(term, nterm)->erase();
 				}
-				// Fallthrough to xjmp handler.
-				//
-				[[fallthrough]];
-			}
-			case ir::opcode::xjmp: {
-				// Try coercing destination into a constant.
-				//
-				if (coerce_const(term->opr(0))) {
-					// Lift the target block.
-					//
-					if (auto target = lift_block(dom, rtn, (u64) term->opr(0).const_val.get<ir::pointer>(), p)) {
-						// Replace with jmp if successful.
-						//
-						bb->push_jmp(target);
-						term->erase();
-						bb->add_jump(target);
-					}
-				} else {
-					fmt::println("dynamic jump, TODO.");
-				}
-				break;
-			}
-			default:
-				break;
+				return false;
+			});
 		}
-		return bb;
-	}
-	ref<ir::routine> domain::lift_routine(u64 va, const lifter_params& p) {
-		if (!p.arch)
-			return nullptr;
-		
-		// Create the routine.
-		//
-		ref<ir::routine> rtn = make_rc<ir::routine>();
-		rtn->dom					= this;
-		rtn->ip					= va;
 
-		// Recursively lift starting from the entry point.
+		// Break out if theres instructions with unknown register use.
 		//
-		if (!lift_block(this, rtn, va, p)) {
-			return nullptr;
+		for (auto& bb : view::reverse(rtn->blocks)) {
+			for (auto* ins : bb->insns()) {
+				if (ins->desc().unk_reg_use)
+					return false;
+			}
 		}
-		return rtn;
+
+		// Otherwise, remove all write_regs.
+		//
+		for (auto& bb : view::reverse(rtn->blocks)) {
+			n += bb->erase_if([](auto i) { return i->op == opcode::write_reg; });
+			n += dce(bb);
+		}
+		return n;
 	}
 };
 
@@ -578,7 +883,7 @@ int main(int argv, const char** args) {
 	
 	// Demo.
 	//
-	auto rtn = dom->lift_routine(0x1400072C0);
+	auto rtn = dom->lift_routine(0x140006FD0);
 
 	// Print statistics.
 	//
@@ -588,6 +893,7 @@ int main(int argv, const char** args) {
 	// Run simple optimizations.
 	//
 	size_t n = 0;
+	n += ir::opt::apply_cc_info(rtn);
 	for (auto& bb : rtn->blocks) {
 		n += ir::opt::reg_move_prop(bb);
 		n += ir::opt::const_fold(bb);
@@ -596,9 +902,17 @@ int main(int argv, const char** args) {
 		n += ir::opt::const_fold(bb);
 		n += ir::opt::id_fold(bb);
 	}
-	printf("Optimized %llu instructions.\n", n);
+	n += ir::opt::reg_to_phi(rtn);
+	for (auto& bb : rtn->blocks) {
+		n += ir::opt::const_fold(bb);
+		n += ir::opt::id_fold(bb);
+		n += ir::opt::ins_combine(bb);
+		n += ir::opt::const_fold(bb);
+		n += ir::opt::id_fold(bb);
+	}
+	rtn->rename_insns();
 
-
+	printf(RC_GRAY " # Optimized " RC_RED "%llu " RC_GRAY "instructions.\n", n);
 	fmt::println(rtn->to_string());
 	return 0;
 
