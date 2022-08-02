@@ -93,7 +93,6 @@ namespace retro::ir {
 		//
 		auto& info = enum_reflect(op);
 		for (size_t i = 1; i < info.templates.size(); i++) {
-			type treal = operands()[i - 1].get_type();
 			type texpc;
 			if (info.templates[i] != 0) {
 				texpc = template_types[info.templates[i] - 1];
@@ -103,6 +102,7 @@ namespace retro::ir {
 					continue;
 				}
 			}
+			type treal = operands()[i - 1].get_type();
 			if (treal != texpc) {
 				return err::insn_operand_type_mismatch(i - 1, texpc, treal, to_string());
 			}

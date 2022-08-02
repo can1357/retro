@@ -37,7 +37,7 @@ namespace retro::ir {
 
 		// Instruction meta-parameters.
 		//
-		type template_types[2] = {};
+		std::array<type, 2> template_types = {};
 
 		// Source instruction.
 		//
@@ -57,6 +57,12 @@ namespace retro::ir {
 			for (auto& op : r->operands())
 				std::construct_at(&op, r.get());
 			return r;
+		}
+		inline static ref<insn> allocate(opcode o, std::array<type, 2> tmps, size_t operand_count) {
+			auto res				  = allocate(operand_count);
+			res->op				  = o;
+			res->template_types = tmps;
+			return res;
 		}
 
 		// Gets the opcode descriptor.

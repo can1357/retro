@@ -118,6 +118,10 @@ namespace retro::ir {
 		bool operator==(const variant& other) const { return equals(other); }
 		bool operator!=(const variant& other) const { return !equals(other); }
 
+		// Cast to bool for null check.
+		//
+		explicit operator bool() const { return !is_null(); }
+
 		// Reset on destruction.
 		//
 		~variant() {

@@ -14,6 +14,9 @@ namespace retro::ir {
 	struct value_pack_t {
 		std::string to_string() const { return "(...)"; }
 	};
+	struct context_t {
+		std::string to_string() const { return "(...)"; }
+	};
 };
 
 // Finally declare the type interface.

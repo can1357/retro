@@ -176,6 +176,48 @@ templates =      [1,            0]
 names =          ["",           "Reason"]
 constexprs =     [1]
 
+#E  extract_vector<V,E> V:vector, i32:Lane
+[opcode.extract_vector]
+kind =           "@opcode_kind.data"
+is-const =       true
+is-pure =        true
+template-count = 2
+types =          ["@type.none", "@type.none", "@type.i32"]
+templates =      [2,            1,            0]
+names =          ["",           "vector",      "Lane"]
+constexprs =     [2]
+#V  insert_vector<V,E>  V:vector, i32:Lane, E:element
+[opcode.insert_vector]
+kind =           "@opcode_kind.data"
+is-const =       true
+is-pure =        true
+template-count = 2
+types =          ["@type.none", "@type.none", "@type.i32", "@type.none"]
+templates =      [1,            1,            0,           2]
+names =          ["",           "vector",     "Lane",      "element"]
+constexprs =     [2]
+
+#E  extract_context<E> context:rpack, reg:reg, i32:Lane
+[opcode.extract_context]
+kind =           "@opcode_kind.data"
+is-const =       true
+is-pure =        true
+template-count = 1
+types =          ["@type.none", "@type.context", "@type.reg"]
+templates =      [1,            0,               0]
+names =          ["",           "ctx",           "regid"]
+constexprs =     [2]
+#V  insert_context<E>  context:rpack, reg:reg, E:element
+[opcode.insert_context]
+kind =           "@opcode_kind.data"
+is-const =       true
+is-pure =        true
+template-count = 1
+types =          ["@type.context", "@type.context", "@type.reg", "@type.none"]
+templates =      [0,               0,               0,           1]
+names =          ["",              "ctx",           "regid",     "element"]
+constexprs =     [2]
+
 #Ty   cast_sx<Tx,Ty>  Tx:value
 [opcode.cast_sx]
 kind =           "@opcode_kind.cast"
@@ -256,9 +298,11 @@ templates =      [0,          0,          1,            1]
 names =          ["",         "Op", "lhs",        "rhs"]
 constexprs =     [1]
 
-#T     phi<T>     Tx...
+#T     phi<T>     Tx...:incoming
 [opcode.phi]
 kind =           "@opcode_kind.phi"
+is-const =       true
+is-pure =        true
 template-count = 1
 types =          ["@type.none", "@type.pack"]
 templates =      [1,            0]
@@ -283,6 +327,14 @@ template-count = 0
 types =          ["@type.none", "@type.pointer"]
 templates =      [0,            0]
 names =          ["",           "destination"]
+#pack  call       pointer:destination, context:ctx
+[opcode.call]
+kind =           "@opcode_kind.branch"
+side-effect    = true
+template-count = 0
+types =          ["@type.context", "@type.pointer", "@type.context"]
+templates =      [0,               0,               0]
+names =          ["",              "destination",   "ctx"]
 
 #void  xjmp      pointer:destination
 [opcode.xjmp]
@@ -292,6 +344,15 @@ terminator =     true
 bb-terminator  = true
 template-count = 0
 types =          ["@type.none", "@type.pointer"]
+templates =      [0,            0]
+names =          ["",           "destination"]
+#void  jmp       label:destination
+[opcode.jmp]
+kind =           "@opcode_kind.branch"
+side-effect    = true
+terminator =     true
+template-count = 0
+types =          ["@type.none", "@type.label"]
 templates =      [0,            0]
 names =          ["",           "destination"]
 
@@ -304,28 +365,6 @@ bb-terminator  = true
 types =          ["@type.none", "@type.i1", "@type.pointer", "@type.pointer"]
 templates =      [0,            0,          0,            0]
 names =          ["",           "cc",      "tb",          "fb"]
-
-#void  xret
-[opcode.xret]
-unk-reg-use =    true
-kind =           "@opcode_kind.external-branch"
-side-effect    = true
-terminator =     true
-bb-terminator  = true
-types =          ["@type.none"]
-templates =      [0]
-names =          [""]
-
-#void  jmp       label:destination
-[opcode.jmp]
-kind =           "@opcode_kind.branch"
-side-effect    = true
-terminator =     true
-template-count = 0
-types =          ["@type.none", "@type.label"]
-templates =      [0,            0]
-names =          ["",           "destination"]
-
 #void  js        i1:cc  label:tb label:fb
 [opcode.js]
 kind =           "@opcode_kind.branch"
@@ -335,16 +374,25 @@ types =          ["@type.none", "@type.i1", "@type.label", "@type.label"]
 templates =      [0,            0,          0,            0]
 names =          ["",           "cc",      "tb",          "fb"]
 
-#void  ret<T>    T:result
+#void  xret      Tx...:rargs
+[opcode.xret]
+unk-reg-use =    true
+kind =           "@opcode_kind.external-branch"
+side-effect    = true
+terminator =     true
+bb-terminator  = true
+types =          ["@type.none", "@type.pack"]
+templates =      [0,            0]
+names =          ["",           "rargs"]
+#void  ret       context:ctx
 [opcode.ret]
 kind =           "@opcode_kind.branch"
 side-effect    = true
 terminator =     true
 bb-terminator  = true
-template-count = 1
-types =          ["@type.none", "@type.none"]
-templates =      [0,            1]
-names =          ["",           "result"]
+types =          ["@type.none", "@type.context"]
+templates =      [0,            0]
+names =          ["",           "ctx"]
 
 #void  trap      str:Reason
 [opcode.trap]

@@ -54,6 +54,9 @@ for l in SIMD_WIDTHS:
 [type.pack]
 pseudo      = true
 VisitorArgs = ["retro::ir::value_pack_t"]
+[type.context]
+pseudo      = true
+VisitorArgs = ["retro::ir::context_t"]
 [type.reg]
 VisitorArgs = ["retro::arch::mreg"]
 [type.op]
