@@ -9,7 +9,19 @@
 				"${vcpkgRoot}/x64-windows-static-md/include",
 				"${vcpkgRoot}/x86-windows/include"
 			],
-			"defines": ["_DEBUG", "UNICODE", "_UNICODE", "EXPORT="],
+			"defines": [
+				"_DEBUG",
+				"UNICODE",
+				"_UNICODE",
+				"EXPORT=",
+				"sinkptr=",
+				"sinkull=",
+				"sinkll=",
+				"sinku=",
+				"sinki=",
+				"sinkf=",
+				"sinkl="
+			],
 			"windowsSdkVersion": "10.0.22000.0",
 			"compilerPath": "C:/Program Files/Microsoft Visual Studio/2022/Enterprise/VC/Tools/MSVC/14.31.31103/bin/Hostx64/x64/cl.exe",
 			"cStandard": "c17",

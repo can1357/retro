@@ -409,22 +409,36 @@ namespace retro::analysis {
 
 
 
-
-
+static const char code_prefix[] =
+#if RC_WINDOWS
+	 "#define EXPORT __declspec(dllexport)\n"
+#else
+	 "#define EXPORT __attribute__((visibility(\"default\")))\n"
+#endif
+	 R"(
+__attribute__((noinline)) static void sinkptr(void* _) { asm volatile(""); }
+__attribute__((noinline)) static void sinkull(unsigned long long _) { asm volatile(""); }
+__attribute__((noinline)) static void sinkll(long long _) { asm volatile(""); }
+__attribute__((noinline)) static void sinku(unsigned int _) { asm volatile(""); }
+__attribute__((noinline)) static void sinki(int _) { asm volatile(""); }
+__attribute__((noinline)) static void sinkf(float _) { asm volatile(""); }
+__attribute__((noinline)) static void sinkl(double _) { asm volatile(""); }
+int main() {}
+)";
 
 
 static std::vector<u8> compile(std::string code, const char* args) {
-#if RC_WINDOWS
-	code.insert(0, "#define EXPORT __declspec(dllexport)\nint main() {}\n");
-#else
-	code.insert(0, "#define EXPORT __attribute__((visibility(\"default\")))\nint main() {}\n")
-#endif
+	code.insert(0, code_prefix);
 
 	// Create the temporary paths.
 	//
 	auto tmp_dir  = std::filesystem::temp_directory_path();
 	auto in		  = tmp_dir / "retrotmp.c";
 	auto out		  = tmp_dir / "retrotmp.exe";
+
+	std::error_code ec;
+	std::filesystem::remove(in, ec);
+	std::filesystem::remove(out, ec);
 
 	// Write the file.
 	//
