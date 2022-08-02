@@ -45,8 +45,8 @@ namespace retro::arch {
 
 		// Register information.
 		//
-		bool test_reg_alias(mreg a, mreg b);
-		bool is_subreg(mreg a);
+		mreg_info get_register_info(mreg r);
+		void		 for_each_subreg(mreg r, function_view<void(mreg)> f);
 
 		// Lifting and disassembly.
 		//

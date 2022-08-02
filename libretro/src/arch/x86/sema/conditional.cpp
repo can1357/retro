@@ -33,7 +33,7 @@ static diag::lazy make_cmovcc(SemaContext) {
 	auto ty		= ir::int_type(ins.effective_width);
 	auto lhs		= read(sema_context(), 0, ty);
 	auto rhs		= read(sema_context(), 1, ty);
-	auto result = bb->push_select(test_Z(sema_context()), rhs, lhs);
+	auto result = bb->push_select(Cc(sema_context()), rhs, lhs);
 	write(sema_context(), 0, result);
 	return diag::ok;
 }
@@ -42,7 +42,7 @@ static diag::lazy make_cmovccn(SemaContext) {
 	auto ty		= ir::int_type(ins.effective_width);
 	auto lhs		= read(sema_context(), 0, ty);
 	auto rhs		= read(sema_context(), 1, ty);
-	auto result = bb->push_select(test_Z(sema_context()), lhs, rhs);
+	auto result = bb->push_select(Cc(sema_context()), lhs, rhs);
 	write(sema_context(), 0, result);
 	return diag::ok;
 }

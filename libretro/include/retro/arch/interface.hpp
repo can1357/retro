@@ -7,6 +7,8 @@
 #include <retro/arch/mreg.hpp>
 #include <retro/arch/minsn.hpp>
 #include <retro/ir/types.hpp>
+#include <retro/ir/value.hpp>
+#include <retro/func.hpp>
 #include <bit>
 
 namespace retro::ir {
@@ -32,8 +34,8 @@ namespace retro::arch {
 
 		// Register information.
 		//
-		virtual bool test_reg_alias(mreg a, mreg b) = 0;
-		virtual bool is_subreg(mreg a)				  = 0;
+		virtual mreg_info get_register_info(mreg r) { return {r}; }
+		virtual void		for_each_subreg(mreg r, function_view<void(mreg)> f) {}
 
 		// Lifting and disassembly.
 		//

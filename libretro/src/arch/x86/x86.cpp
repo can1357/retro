@@ -53,14 +53,22 @@ namespace retro::arch {
 	}
 	// Register information.
 	//
-	bool x86arch::test_reg_alias(mreg a, mreg b) {
-		auto& desc_a = enum_reflect(x86::reg(a.id));
-		auto& desc_b = enum_reflect(x86::reg(b.id));
-		auto	full_a = (desc_a.super != x86::reg::none ? desc_a.super : x86::reg(a.id));
-		auto	full_b = (desc_b.super != x86::reg::none ? desc_b.super : x86::reg(b.id));
-		return full_a == full_b;
+	mreg_info x86arch::get_register_info(mreg r) {
+		auto& desc = enum_reflect(x86::reg(r.id));
+		mreg_info info{r, desc.offset, desc.width};
+		// TODO: Fix for x86 non 64-bit.
+		if (desc.super != x86::reg::none) {
+			info.full_reg = desc.super;
+		}
+		return info;
 	}
-	bool x86arch::is_subreg(mreg a) { return enum_reflect(x86::reg(a.id)).super != x86::reg::none; }
+	void x86arch::for_each_subreg(mreg r, function_view<void(mreg)> f) {
+		auto i  = get_register_info(r);
+		// TODO: Fix for x86 non 64-bit.
+		for (auto& p : enum_reflect(x86::reg(i.full_reg.id)).subregs) {
+			f(p);
+		}
+	}
 
 	// Lifting and disassembly.
 	//

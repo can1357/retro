@@ -54,4 +54,12 @@ namespace retro::arch {
 		std::string_view name(instance* i = nullptr) const;
 		std::string		  to_string(instance* i = nullptr) const;
 	};
+
+	// Register info.
+	//
+	struct mreg_info {
+		mreg full_reg	 = {};
+		u32  bit_offset = 0;
+		u32  bit_width	 = 0;
+	};
 };
