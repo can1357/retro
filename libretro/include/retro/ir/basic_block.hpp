@@ -5,8 +5,11 @@
 #include <retro/ir/types.hpp>
 #include <retro/ir/value.hpp>
 #include <retro/ir/insn.hpp>
+#include <retro/graph/naive.hpp>
 
 namespace retro::ir {
+	RC_DEF_ERR(insn_ref_invalid, "instruction references value declared after itself: %")
+
 	// Basic block type.
 	//
 	struct routine;
@@ -20,6 +23,10 @@ namespace retro::ir {
 		u32 name = 0;
 		u64 ip	  = NO_LABEL;
 		u64 end_ip = NO_LABEL;
+
+		// Archtecture.
+		//
+		arch::handle arch = {};
 
 		// Temporary for algorithms.
 		//
@@ -114,6 +121,21 @@ namespace retro::ir {
 			for (auto&& ins : insns()) {
 				if (auto err = ins->validate()) {
 					return err;
+				}
+				for (auto& op : ins->operands()) {
+					if (!op.is_const()) {
+						if (auto* iref = op.get_value()->get_if<insn>()) {
+							if (iref->block == this) {
+								for (auto&& ins2 : slice(ins->next)) {
+									if (ins2 == iref) {
+										return err::insn_ref_invalid(ins->to_string());
+									}
+								}
+							}
+							// TODO: DOM check.
+							// TODO: Phi validation.
+						}
+					}
 				}
 			}
 			return diag::ok;
