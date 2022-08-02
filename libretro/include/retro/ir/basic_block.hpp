@@ -8,8 +8,6 @@
 #include <retro/graph/naive.hpp>
 
 namespace retro::ir {
-	RC_DEF_ERR(insn_ref_invalid, "instruction references value declared after itself: %")
-
 	// Basic block type.
 	//
 	struct routine;

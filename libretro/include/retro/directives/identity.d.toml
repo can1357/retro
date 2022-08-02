@@ -10,6 +10,9 @@ dst = "A"
 src = "A|A"
 dst = "A"
 [[replace]]
+src = "A|0"
+dst = "A"
+[[replace]]
 src = "A&A"
 dst = "A"
 [[replace]]

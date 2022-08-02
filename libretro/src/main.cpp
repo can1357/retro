@@ -628,16 +628,31 @@ namespace retro::ir::opt {
 						// If no information lost during middle translation:
 						//
 						if (ti1.bit_size >= ti0.bit_size) {
-							// [e.g. i32->i32]
+							// [e.g. i16->i32->i16]
 							//
 							if (ti2.bit_size == ti0.bit_size) {
 								n += 1 + ins->replace_all_uses_with(val);
 								ins->erase();
 								continue;
 							}
-							// [e.g. i16->i32]
+							// [e.g. i16->i32->i16]
 							//
 							else if (ti2.bit_size < ti0.bit_size) {
+								ins->template_types[0] = val.get_type();
+								rhsv						  = val;
+								continue;
+							}
+							// [e.g. i16->i32->i64]
+							//
+							else if (ti2.bit_size >= ti1.bit_size && sx0_1 == sx1_2) {
+								ins->template_types[0] = val.get_type();
+								rhsv						  = val;
+								continue;
+							}
+						} else {
+							// [e.g. i32->i16->i8]
+							//
+							if (ti2.bit_size <= ti1.bit_size) {
 								ins->template_types[0] = val.get_type();
 								rhsv						  = val;
 								continue;

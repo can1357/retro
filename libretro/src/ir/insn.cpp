@@ -1,6 +1,9 @@
 #include <retro/ir/insn.hpp>
 
 namespace retro::ir {
+	RC_DEF_ERR(insn_operand_type_mismatch, "expected operand #% to be of type '%', got '%' instead: %")
+	RC_DEF_ERR(insn_constexpr_mismatch, "expected operand #% to be constexpr got '%' instead: %")
+
 	// Erases an operand.
 	//
 	void insn::erase_operand(size_t i) {

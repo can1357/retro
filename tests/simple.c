@@ -5,5 +5,5 @@ EXPORT int test(int a, int b) {
 		a *= b;
 		b--;
 	}
-	return a;
+	return a == 1337;
 }

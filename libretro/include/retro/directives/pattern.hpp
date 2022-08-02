@@ -78,7 +78,7 @@ namespace retro::pattern {
 	RC_INLINE static bool match_imm(auto val, ir::operand* o, match_context& ctx) {
 		if (!o->is_const())
 			return false;
-		return o->const_val.equals(val);
+		return o->const_val.equals(ir::constant(o->const_val.get_type(), val));
 	}
 
 	// Operators.

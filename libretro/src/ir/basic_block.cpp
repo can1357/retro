@@ -2,6 +2,10 @@
 #include <retro/ir/routine.hpp>
 
 namespace retro::ir {
+	RC_DEF_ERR(insn_ref_invalid, "instruction references value declared after itself: %")
+	RC_DEF_ERR(insn_phi_order,   "phi instruction after non-phi instruction: %")
+	RC_DEF_ERR(insn_after_term,  "instruction after terminator: %")
+
 	// Insertion.
 	//
 	list::iterator<insn> basic_block::insert(list::iterator<insn> position, ref<insn> v) {
@@ -104,11 +108,31 @@ namespace retro::ir {
 	// Validation.
 	//
 	diag::lazy basic_block::validate() const {
+
+		bool terminated = false;
+		bool got_non_phi = false;
 		for (auto&& ins : insns()) {
+			// Order validation:
+			//
+			if (ins->op != opcode::phi) {
+				got_non_phi = true;
+			} else if (got_non_phi) {
+				return err::insn_phi_order(ins->to_string());
+			}
+			if (terminated) {
+				return err::insn_after_term(ins->to_string());
+			} else if (ins->desc().terminator) {
+				terminated = true;
+			}
+
+			// Instruction specific validation:
+			//
 			if (auto err = ins->validate()) {
 				return err;
 			}
 
+			// Value ordering checks.
+			//
 			if (ins->op == opcode::phi) {
 				// TODO: Phi validation.
 			} else {
