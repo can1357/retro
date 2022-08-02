@@ -377,7 +377,7 @@ namespace retro::analysis {
 					auto* cc = dom->get_routine_cc(rtn);
 					if (!cc)
 						return false;
-
+				
 					// Read each result:
 					//
 					auto args	  = bb->insert(i, ir::make_undef(ir::type::context));
@@ -390,6 +390,8 @@ namespace retro::analysis {
 					range::for_each(cc->retval_gpr, push_reg);
 					range::for_each(cc->retval_fp, push_reg);
 
+					// TODO: assert retptr == [rsp] from entry point??
+
 					// Create the ret.
 					//
 					bb->insert(i, ir::make_ret(args.get()));
@@ -399,6 +401,26 @@ namespace retro::analysis {
 			});
 		}
 		return ir::opt::util::complete(rtn, n);
+	}
+
+	//
+	//
+	static void auto_cc(ir::routine* rtn) {
+
+		// Split blocks at xcall boundaries.
+		//
+		//graph::bfs(rtn->get_entry(), [](ir::basic_block* bb) {
+		//	auto it = range::find_if(bb->insns(), [&](ir::insn* ins) { return ins->op == ir::opcode::xcall; });
+		//	if (it != bb->end() && std::next(it).get() != bb->back()) {
+		//		auto nb = bb->split(std::next(it));
+		//		RC_ASSERT(nb);
+		//		bb->push_jmp(nb);
+		//		bb->add_jump(nb);
+		//	}
+		//});
+		//
+		//fmt::println(rtn->to_string());
+		//fmt::println(rtn->to_string());
 	}
 };
 
@@ -411,9 +433,9 @@ namespace retro::analysis {
 
 static const char code_prefix[] =
 #if RC_WINDOWS
-	 "#define EXPORT __declspec(dllexport)\n"
+	 "#define EXPORT __attribute__((noinline)) __declspec(dllexport)\n"
 #else
-	 "#define EXPORT __attribute__((visibility(\"default\")))\n"
+	 "#define EXPORT __attribute__((noinline)) __attribute__((visibility(\"default\")))\n"
 #endif
 	 R"(
 __attribute__((noinline)) static void sinkptr(void* _) { asm volatile(""); }
@@ -479,6 +501,9 @@ void do_stuff(ref<ldr::image> img) {
 	auto dom = ws->add_image(std::move(img));
 
 	for (auto& sym : dom->img->symbols) {
+		if (sym.name.starts_with("_"))
+			continue;
+
 		// Demo.
 		//
 		auto rtn = dom->lift_routine(sym.rva);
@@ -500,23 +525,23 @@ void do_stuff(ref<ldr::image> img) {
 			n += ir::opt::const_fold(bb);
 			n += ir::opt::id_fold(bb);
 		}
-		n += analysis::apply_cc_info(rtn);
-		for (auto& bb : rtn->blocks) {
-			n += ir::opt::p0::reg_move_prop(bb);
-			n += ir::opt::const_fold(bb);
-			n += ir::opt::id_fold(bb);
-			n += ir::opt::ins_combine(bb);
-			n += ir::opt::const_fold(bb);
-			n += ir::opt::id_fold(bb);
-		}
-		n += ir::opt::p0::reg_to_phi(rtn);
-		for (auto& bb : rtn->blocks) {
-			n += ir::opt::const_fold(bb);
-			n += ir::opt::id_fold(bb);
-			n += ir::opt::ins_combine(bb);
-			n += ir::opt::const_fold(bb);
-			n += ir::opt::id_fold(bb);
-		}
+		// n += analysis::apply_cc_info(rtn);
+		// for (auto& bb : rtn->blocks) {
+		//	n += ir::opt::p0::reg_move_prop(bb);
+		//	n += ir::opt::const_fold(bb);
+		//	n += ir::opt::id_fold(bb);
+		//	n += ir::opt::ins_combine(bb);
+		//	n += ir::opt::const_fold(bb);
+		//	n += ir::opt::id_fold(bb);
+		// }
+		// n += ir::opt::p0::reg_to_phi(rtn);
+		// for (auto& bb : rtn->blocks) {
+		//	n += ir::opt::const_fold(bb);
+		//	n += ir::opt::id_fold(bb);
+		//	n += ir::opt::ins_combine(bb);
+		//	n += ir::opt::const_fold(bb);
+		//	n += ir::opt::id_fold(bb);
+		// }
 		rtn->rename_insns();
 		printf(RC_GRAY " # Optimized " RC_RED "%llu " RC_GRAY "instructions.\n", n);
 		fmt::println(rtn->to_string());
@@ -527,41 +552,6 @@ void do_stuff(ref<ldr::image> img) {
 
 int main(int argv, const char** args) {
 	platform::setup_ansi_escapes();
-
-	/*
-			  $0: [140001010 => 140001016]
-					 %0 = read_reg.i32 edx
-					 %1 = read_reg.i32 ecx
-					 %2 = read_reg.i64 rdx
-					 %3 = read_reg.i8x16 xmm0
-					 %4 = cast.i32.i64 %1                 ; 0000000140001010
-					 %5 = cast.i64.i32 %4
-					 %6 = cmp.i32 eq, %0, 0               ; 0000000140001012
-					 js %6, $2, $1                        ; 0000000140001014
-		  $1: [140001016 => 140001027]
-					 %8 = phi.i32 %13, %0
-					 %9 = phi.i32 %10, %5
-					 %b = cast.i32.i64 %9                 ; 0000000140001020
-					 %c = cast.i32.i64 %8
-					 %d = binop.i64 mul, %b, %c
-					 %e = cast.i64.i32 %d <--- missed opt
-					 %f = cast.i32.i64 %e <--- missed opt
-					 %10 = cast.i64.i32 %f <--- missed opt
-					 %11 = binop.i32 sub, %8, 1           ; 0000000140001023
-					 %12 = cast.i32.i64 %11
-					 %13 = cast.i64.i32 %12
-					 %14 = cmp.i32 eq, %11, 0
-					 js %14, $2, $1                       ; 0000000140001025
-		  $2: [140001027 => 140001028]
-					 %17 = phi.i64 %12, %2
-					 %18 = phi.i64 %f, %4
-					 %19 = undef.context
-					 %1a = insert_context.i64 %19, rax, %18
-					 %1b = insert_context.i64 %1a, rdx, %17
-					 %1c = insert_context.i8x16 %1b, xmm0, %16 <--- missed opt
-					 ret %1c
-
-	*/
 
 	std::string test_file = "S:\\Projects\\Retro\\tests\\simple.c";
 	if (argv > 1) {
@@ -577,61 +567,4 @@ int main(int argv, const char** args) {
 	auto bin = compile(utf::convert<char>(code), "-O1");
 	do_stuff(ldr::load_from_memory(bin).value());
 	return 0;
-
-
-
-	//z3::context c;
-	//auto			termcc = bb->back()->opr(0).get_value();
-	//fmt::println(termcc->to_string());
-	//
-	//bb->push_nop();
-	//list::iterator insert_here_plz = bb->push_nop();
-	//
-	//bb->push_nop();
-	//bb->push_nop();
-	//bb->push_nop();
-	//
-	//{
-	//	auto a = c.bv_const("a", 64);
-	//	auto b = c.bv_const("b", 64);
-	//
-	//	auto sl = a < 0;
-	//	auto sr	= b < 0;
-	//	auto sf	= (a - b) < 0;
-	//	auto of	= (sl != sr) & (sl != sf);
-	//
-	//	z3::solver s(c);
-	//	//s.add((of != sf) == (a < b));
-	//	switch (s.check()) {
-	//		case z3::unsat:
-	//			printf("unsat\n");
-	//			break;
-	//		case z3::sat:
-	//			printf("sat\n");
-	//			break;
-	//		case z3::unknown:
-	//			printf("unknown\n");
-	//			break;
-	//	}
-	//}
-	//
-	//
-	//z3x::variable_set vs;
-	//if (auto expr = z3x::to_expr(vs, c, termcc)) {
-	//	fmt::println(expr);
-	//	fmt::println("------------");
-	//	expr = expr.simplify();
-	//	fmt::println(expr);
-	//
-	//	//z3::tactic tac(c, "ctx-simplify");
-	//	z3::tactic tac(c, "ctx-solver-simplify");
-	//	z3::goal	  g(c);
-	//	g.add(expr);
-	//	auto res = tac(g);
-	//	fmt::println(res[0].as_expr());
-	//
-	//	fmt::println(z3x::from_expr(vs, expr, bb, insert_here_plz));
-	//}
-	//
-	//fmt::println(bb->to_string());
 }

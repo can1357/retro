@@ -19,16 +19,22 @@ DECL_SEMA(JMP) {
 	return diag::ok;
 }
 DECL_SEMA(RET) {
-	// RET imm16:
-	if (ins.operand_count) {
-		// SP = SP + Imm.
-		auto rsp		 = reg_sp(mach);
-		auto pty		 = mach->ptr_type();
-		auto prev_sp = read_reg(sema_context(), rsp, pty);
-		auto new_sp	 = bb->push_binop(ir::op::add, prev_sp, ir::constant(pty, ins.op[0].i.s));
-		write_reg(sema_context(), rsp, new_sp);
-	}
-	bb->push_xret();
+	auto	rsp	  = reg_sp(mach);
+	auto	pty	  = mach->ptr_type();
+	auto	prev_sp = read_reg(sema_context(), rsp, pty);
+
+	// Retptr = [SP]
+	auto* retptr  = bb->push_load_mem(ir::type::pointer, ir::segment::NO_SEGMENT, bb->push_bitcast(ir::type::pointer, prev_sp));
+	
+	// SP = SP + Imm + sizeof Ptr.
+	i64 sp_delta = mach->ptr_width / 8;
+	if (ins.operand_count)
+		sp_delta += ins.op[0].i.s;
+	auto new_sp = bb->push_binop(ir::op::add, prev_sp, ir::constant(pty, sp_delta));
+	write_reg(sema_context(), rsp, new_sp);
+
+	// XRET(retptr)
+	bb->push_xret(retptr);
 	return diag::ok;
 }
 DECL_SEMA(NOP) { return diag::ok; }

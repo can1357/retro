@@ -1,14 +1,17 @@
 # Group constants.
 #
 [[replace]]
+src = "A-@B"
+dst = "A+(-@B)"
+[[replace]]
 src = "(A+@B)+@C"
 dst = "A+(@B+@C)"
 [[replace]]
+src = "(A+@B)-@C"
+dst = "A+(@B-@C)"
+[[replace]]
 src = "(A*@B)*@C"
 dst = "A*(@B*@C)"
-[[replace]]
-src = "(A-@B)-@C"
-dst = "A-(@B+@C)"
 [[replace]]
 src = "(A-@B)==@C"
 dst = "A==(@B+@C)"

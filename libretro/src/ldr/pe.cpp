@@ -175,6 +175,10 @@ namespace retro::ldr {
 							out.symbols[i].name = fmt::str("Ordinal%x", (u32) (i + exp->base));
 						}
 					}
+
+					// Sort by RVA.
+					//
+					range::sort(out.symbols, [](auto& a, auto& b) { return a.rva < b.rva; });
 				}
 			}
 		}

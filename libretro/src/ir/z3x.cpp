@@ -585,6 +585,8 @@ namespace retro::z3x {
 					}
 				}
 			}
+			// TODO: opcode::bitcast
+			// 
 			// Implement very simple local register propagation here to avoid having to modify
 			// the basic block to resolve jump targets.
 			//
@@ -783,7 +785,6 @@ namespace retro::z3x {
 					it		  = bb->insert(it, ir::make_cast(ty, std::move(args[0])));
 					return ret_and_cache(it++);
 				}
-				// TODO: Wheres BV -> FP?
 
 				// Boolean logic.
 				//

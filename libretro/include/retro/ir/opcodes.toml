@@ -374,16 +374,16 @@ types =          ["@type.none", "@type.i1", "@type.label", "@type.label"]
 templates =      [0,            0,          0,            0]
 names =          ["",           "cc",      "tb",          "fb"]
 
-#void  xret      Tx...:rargs
+#void  xret      pointer:ptr
 [opcode.xret]
 unk-reg-use =    true
 kind =           "@opcode_kind.external-branch"
 side-effect    = true
 terminator =     true
 bb-terminator  = true
-types =          ["@type.none", "@type.pack"]
+types =          ["@type.none", "@type.pointer"]
 templates =      [0,            0]
-names =          ["",           "rargs"]
+names =          ["",           "ptr"]
 #void  ret       context:ctx
 [opcode.ret]
 kind =           "@opcode_kind.branch"
