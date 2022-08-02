@@ -18,7 +18,6 @@ using namespace retro;
 
 
 
-#include <retro/lock.hpp>
 
 namespace retro::analysis {
 
@@ -114,8 +113,6 @@ namespace retro::analysis {
 		RC_UNUSED(xcall);
 		return default_cc;
 	}
-
-
 
 	static ir::basic_block* lift_block(domain* dom, ir::routine* rtn, u64 va, const lifter_params& p) {
 		// Invalid jump if out of image boundaries.
@@ -480,6 +477,31 @@ static std::vector<u8> compile(std::string code, const char* args) {
 	return result;
 }
 
+
+
+static constexpr u8 alloca_probe_code[] = {
+	 0x48, 0x83, 0xEC, 0x10,										  //  sub     rsp, 10h
+	 0x4C, 0x89, 0x14, 0x24,										  //  mov     [rsp+10h+var_10], r10
+	 0x4C, 0x89, 0x5C, 0x24, 0x08,								  //  mov     [rsp+10h+var_8], r11
+	 0x4D, 0x33, 0xDB,												  //  xor     r11, r11
+	 0x4C, 0x8D, 0x54, 0x24, 0x18,								  //  lea     r10, [rsp+10h+arg_0]
+	 0x4C, 0x2B, 0xD0,												  //  sub     r10, rax
+	 0x4D, 0x0F, 0x42, 0xD3,										  //  cmovb   r10, r11
+	 0x65, 0x4C, 0x8B, 0x1C, 0x25, 0x10, 0x00, 0x00, 0x00,  //  mov     r11, gs:10h
+	 0x4D, 0x3B, 0xD3,												  //  cmp     r10, r11
+	 0x73, 0x16,														  //  jnb     short cs20
+	 0x66, 0x41, 0x81, 0xE2, 0x00, 0xF0,						  //  and     r10w, 0F000h
+	 0x4D, 0x8D, 0x9B, 0x00, 0xF0, 0xFF, 0xFF,				  //  lea     r11, [r11-1000h]
+	 0x41, 0xC6, 0x03, 0x00,										  //  mov     byte ptr [r11], 0
+	 0x4D, 0x3B, 0xD3,												  //  cmp     r10, r11
+	 0x75, 0xF0,														  //  jnz     short cs10
+	 0x4C, 0x8B, 0x14, 0x24,										  //  mov     r10, [rsp+10h+var_10]
+	 0x4C, 0x8B, 0x5C, 0x24, 0x08,								  //  mov     r11, [rsp+10h+var_8]
+	 0x48, 0x83, 0xC4, 0x10,										  //  add     rsp, 10h
+	 0xC3																	  //  retn
+};
+
+
 void do_stuff(ref<ldr::image> img) {
 	// Create the workspace.
 	//
@@ -513,6 +535,25 @@ void do_stuff(ref<ldr::image> img) {
 		printf(RC_WHITE " ----- Routine '%s' -------\n", sym.name.data());
 		printf(RC_GRAY " # Successfully lifted " RC_VIOLET "%llu" RC_GRAY " instructions into " RC_GREEN "%llu" RC_RED " (avg: ~%llu/ins) #\n" RC_RESET,
 			 dom->stats.minsn_disasm.load(), dom->stats.insn_lifted.load(), dom->stats.insn_lifted.load() / dom->stats.minsn_disasm.load());
+
+		// Replace call to crt!__alloca_probe with nop.
+		//
+		for (auto& bb : rtn->blocks) {
+			for (auto&& i : bb->insns()) {
+				if (i->op == ir::opcode::xcall) {
+					if (i->opr(0).is_const()) {
+						auto va = (u64)i->opr(0).get_const().get<ir::pointer>();
+						auto data = dom->img->slice(va - dom->img->base_address);
+						if (data.size() > sizeof(alloca_probe_code)) {
+							if (!memcmp(data.data(), alloca_probe_code, sizeof(alloca_probe_code))) {
+								i->erase();
+								break;
+							}
+						}
+					}
+				}
+			}
+		}
 
 		// Run simple optimizations.
 		//

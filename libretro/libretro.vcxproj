@@ -70,6 +70,7 @@
     <ClInclude Include="include\retro\platform.hpp" />
     <ClInclude Include="include\retro\rc.hpp" />
     <ClInclude Include="include\retro\robin_hood.hpp" />
+    <ClInclude Include="include\retro\task.hpp" />
     <ClInclude Include="include\retro\utf.hpp" />
   </ItemGroup>
   <ItemGroup>
@@ -106,6 +107,7 @@
     <ClCompile Include="src\opt\reg_prop.cpp" />
     <ClCompile Include="src\opt\reg_to_phi.cpp" />
     <ClCompile Include="src\platform.cpp" />
+    <ClCompile Include="src\task.cpp" />
   </ItemGroup>
   <PropertyGroup Label="Globals">
     <VCProjectVersion>16.0</VCProjectVersion>

@@ -53,6 +53,14 @@ namespace retro::arch {
 	}
 	// Register information.
 	//
+	mreg x86arch::get_stack_register() {
+		if (is_64())
+			return x86::reg::rsp;
+		else if (is_32())
+			return x86::reg::esp;
+		else
+			return x86::reg::sp;
+	}
 	mreg_info x86arch::get_register_info(mreg r) {
 		auto& desc = enum_reflect(x86::reg(r.id));
 		mreg_info info{r, desc.offset, desc.width};

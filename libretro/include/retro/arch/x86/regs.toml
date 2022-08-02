@@ -109,9 +109,8 @@ kind  =  "@reg_kind.gpr8"
 super =  "@reg.rbx"
 offset = 8
 [reg.spl]
-kind  =  "@reg_kind.stack"
+kind  =  "@reg_kind.gpr8"
 super =  "@reg.rsp"
-width =  8
 [reg.bpl]
 kind  =  "@reg_kind.gpr8"
 super =  "@reg.rbp"
@@ -160,9 +159,8 @@ super =  "@reg.rdx"
 kind  =  "@reg_kind.gpr16"
 super =  "@reg.rbx"
 [reg.sp]
-kind  =  "@reg_kind.stack"
+kind  =  "@reg_kind.gpr16"
 super =  "@reg.rsp"
-width =  16
 [reg.bp]
 kind  =  "@reg_kind.gpr16"
 super =  "@reg.rbp"
@@ -211,9 +209,8 @@ super =  "@reg.rdx"
 kind  =  "@reg_kind.gpr32"
 super =  "@reg.rbx"
 [reg.esp]
-kind  =  "@reg_kind.stack"
+kind  =  "@reg_kind.gpr32"
 super =  "@reg.rsp"
-width =  32
 [reg.ebp]
 kind  =  "@reg_kind.gpr32"
 super =  "@reg.rbp"
@@ -258,8 +255,7 @@ kind  =  "@reg_kind.gpr64"
 [reg.rbx]
 kind  =  "@reg_kind.gpr64"
 [reg.rsp]
-kind  =  "@reg_kind.stack"
-width =  64
+kind  =  "@reg_kind.gpr64"
 [reg.rbp]
 kind  =  "@reg_kind.gpr64"
 [reg.rsi]

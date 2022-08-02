@@ -34,6 +34,7 @@ namespace retro::arch {
 
 		// Register information.
 		//
+		virtual mreg		get_stack_register() = 0;
 		virtual mreg_info get_register_info(mreg r) { return {r}; }
 		virtual void		for_each_subreg(mreg r, function_view<void(mreg)> f) {}
 		virtual ir::insn* explode_write_reg(ir::insn* i) { return i; }

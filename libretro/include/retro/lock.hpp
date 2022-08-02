@@ -26,11 +26,11 @@ namespace retro {
 			std::atomic<u16> value = 0;
 			RC_COLD void wait() {
 				value.store(1, std::memory_order::relaxed);
-				value.wait(1);
+				value.wait(1, std::memory_order::relaxed);
 			}
 			RC_COLD void emit() {
+				value.store(0);
 				value.notify_all();
-				value.store(0, std::memory_order::relaxed);
 			}
 			RC_INLINE void clear() {
 				if (value.load(std::memory_order::relaxed)) [[unlikely]] {

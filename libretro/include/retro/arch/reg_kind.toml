@@ -49,9 +49,6 @@ type  = "@ir::type.i8x64"
 
 # Pointer registers.
 #
-[reg_kind.stack]
-is_pointer =    true
-type  =         "@ir::type.pointer"
 [reg_kind.instruction]
 is_pointer =    true
 type  =         "@ir::type.pointer"
