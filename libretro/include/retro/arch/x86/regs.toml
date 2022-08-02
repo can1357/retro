@@ -41,10 +41,10 @@ for k, v in regs.items():
 	if "super" in v:
 		super_reg = v["super"][5:]
 		assert not ("super" in regs[super_reg])
-		if not("subregs" in regs[super_reg]):
-			regs[super_reg]["subregs"] = ["@reg." + k]
+		if not("parts" in regs[super_reg]):
+			regs[super_reg]["parts"] = ["@reg." + k, "@reg." + super_reg]
 		else:
-			regs[super_reg]["subregs"].append("@reg." + k)
+			regs[super_reg]["parts"].append("@reg." + k)
 
 # Add the zydis enum in the visitor list.
 #

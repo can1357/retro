@@ -47,6 +47,7 @@ namespace retro::arch {
 		//
 		mreg_info get_register_info(mreg r);
 		void		 for_each_subreg(mreg r, function_view<void(mreg)> f);
+		ir::insn* explode_write_reg(ir::insn* i);
 
 		// Lifting and disassembly.
 		//

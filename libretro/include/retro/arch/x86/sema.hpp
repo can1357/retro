@@ -205,6 +205,80 @@ namespace retro::arch::x86 {
 		// Push read_reg.
 		return bb->push_read_reg(type, r);
 	}
+
+	inline ir::insn* explode_write_reg(arch::x86arch* mach, ir::insn* write) {
+		reg	r	  = (reg) write->opr(0).get_const().get<arch::mreg>().id;
+		auto* desc = &enum_reflect(r);
+
+		ir::variant value{write->opr(1)};
+		auto push = [&, bb = write->block](ref<ir::insn> ref) -> ir::insn* {
+			write = bb->insert_after(write, std::move(ref));
+			return write;
+		};
+
+		// If GPR:
+		//
+		if (reg_kind::gpr8 <= desc->kind && desc->kind <= reg_kind::gpr64) {
+			// For each part effected:
+			//
+			auto& subreg_list	 = desc->super != reg::none ? enum_reflect(desc->super).parts : desc->parts;
+			auto	write_offset = desc->offset;
+			auto	write_mask	 = bit_mask(desc->width, write_offset);
+			for (reg sub : subreg_list) {
+				// Skip if we already wrote to it.
+				//
+				if (sub == r)
+					continue;
+
+				auto& sub_desc	  = enum_reflect(sub);
+				auto	sub_ty	  = ir::int_type(sub_desc.width);
+				auto	sub_offset = sub_desc.offset;
+				auto	sub_mask	  = bit_mask(sub_desc.width, sub_offset);
+
+				// If no alias, skip.
+				//
+				if (!(sub_mask & write_mask)) {
+					continue;
+				}
+
+				// Determine the written value.
+				//
+				ir::insn* wrt_val = nullptr;
+				i32		 shift	= sub_offset - write_offset;
+				if (shift > 0) {
+					wrt_val = push(ir::make_binop(ir::op::bit_shr, value, ir::constant(value.get_type(), shift)));
+					wrt_val = push(ir::make_cast(sub_ty, wrt_val));
+				} else if (shift < 0) {
+					wrt_val = push(ir::make_binop(ir::op::bit_shl, value, ir::constant(value.get_type(), -shift)));
+					wrt_val = push(ir::make_cast(sub_ty, wrt_val));
+				} else {
+					wrt_val = push(ir::make_cast(sub_ty, value));
+				}
+
+				// If write does not clear the value out entirely:
+				//
+				u64 leftover_mask = sub_mask & ~write_mask;
+				if (leftover_mask) {
+					// Read the value.
+					auto sub_val = push(ir::make_read_reg(sub_ty, sub));
+					// Mask to the remaining value.
+					sub_val = push(ir::make_binop(ir::op::bit_and, sub_val, ir::constant(sub_ty, leftover_mask >> sub_offset)));
+					// Or with the write value.
+					wrt_val = push(ir::make_binop(ir::op::bit_or, wrt_val, sub_val));
+				}
+
+				// Write.
+				//
+				push(ir::make_write_reg(sub, wrt_val));
+			}
+		}
+		// If vector:
+		//
+		else if (reg_kind::simd64 <= desc->kind && desc->kind <= reg_kind::simd512) {
+		}
+		return write;
+	}
+
 	inline ir::insn* write_reg(SemaContext, mreg _r, ir::variant&& value, bool implicit_zero = true) {
 		reg	r	  = (reg) _r.id;
 		auto* desc = &enum_reflect(r);
@@ -212,47 +286,18 @@ namespace retro::arch::x86 {
 		RC_ASSERT(r != reg::rip && r != reg::eip && r != reg::ip);
 		RC_ASSERT(r != reg::rflags && r != reg::eflags && r != reg::flags);
 
-		// Long mode moves to 32-bit register zeroes the upper part.
+		// Long mode moves to 32-bit register always zeroes the upper part.
 		//
-		if (implicit_zero && desc->kind == reg_kind::gpr32 && mach->is_64()) {
-			// Cast to i64 and swap with parent.
-			//
-			value = bb->push_cast(ir::type::i64, std::move(value));
-			r		= desc->super;
-			desc	= &enum_reflect(r);
-		}
-		// TODO: VEX/EVEX for zeroing.
-		else {
+		if (desc->kind == reg_kind::gpr32 && mach->is_64()) {
+			auto write = bb->push_write_reg(desc->super, bb->push_cast(ir::type::i64, value));
+			return explode_write_reg(mach, write);
+		} else if (implicit_zero) {
+			// TODO: VEX/EVEX for zeroing.
 		}
 
-		// Write sub registers.
+		// Write to the original register, forward to explode.
 		//
-		if (reg_kind::gpr16 <= desc->kind && desc->kind <= reg_kind::gpr64) {
-			// For each part effected:
-			//
-			for (reg sub : desc->subregs) {
-				auto& sub_desc = enum_reflect(sub);
-				auto	sub_ty	= ir::int_type(sub_desc.width);
-
-				// Shift and truncate.
-				//
-				ir::insn* sub_val;
-				if (sub_desc.offset) {
-					sub_val = bb->push_binop(ir::op::bit_shr, value, ir::constant(value.get_type(), sub_desc.offset));
-					sub_val = bb->push_cast(sub_ty, sub_val);
-				} else {
-					sub_val = bb->push_cast(sub_ty, value);
-				}
-				
-				// Write.
-				//
-				bb->push_write_reg(sub, sub_val);
-			}
-		}
-
-		// Finally write to the register and return.
-		//
-		return bb->push_write_reg(r, std::move(value));
+		return explode_write_reg(mach, bb->push_write_reg(r, value));
 	}
 
 	// Address generation helper.

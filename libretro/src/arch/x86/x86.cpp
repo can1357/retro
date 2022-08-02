@@ -65,10 +65,11 @@ namespace retro::arch {
 	void x86arch::for_each_subreg(mreg r, function_view<void(mreg)> f) {
 		auto i  = get_register_info(r);
 		// TODO: Fix for x86 non 64-bit.
-		for (auto& p : enum_reflect(x86::reg(i.full_reg.id)).subregs) {
+		for (auto& p : enum_reflect(x86::reg(i.full_reg.id)).parts) {
 			f(p);
 		}
 	}
+	ir::insn* x86arch::explode_write_reg(ir::insn* i) { return x86::explode_write_reg(this, i); }
 
 	// Lifting and disassembly.
 	//

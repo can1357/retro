@@ -7,12 +7,12 @@
 #include <retro/arch/mreg.hpp>
 #include <retro/arch/minsn.hpp>
 #include <retro/ir/types.hpp>
-#include <retro/ir/value.hpp>
 #include <retro/func.hpp>
 #include <bit>
 
 namespace retro::ir {
 	struct basic_block;
+	struct insn;
 };
 
 namespace retro::arch {
@@ -36,6 +36,7 @@ namespace retro::arch {
 		//
 		virtual mreg_info get_register_info(mreg r) { return {r}; }
 		virtual void		for_each_subreg(mreg r, function_view<void(mreg)> f) {}
+		virtual ir::insn* explode_write_reg(ir::insn* i) { return i; }
 
 		// Lifting and disassembly.
 		//
