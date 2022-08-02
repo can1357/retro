@@ -8,7 +8,7 @@
 namespace retro::arch::x86 {
 	inline constexpr call_conv_desc cc_msabi_x86_64 = {
 		 .name							 = "msabi-x86_64",
-		 .retval_gpr					 = {reg::rax, reg::rdx},
+		 .retval_gpr					 = {reg::rax},//+TODO: rdx
 		 .retval_fp						 = {reg::xmm0},
 		 .argument_gpr					 = {reg::rcx, reg::rdx, reg::r8, reg::r9},
 		 .argument_fp					 = {reg::xmm0, reg::xmm1, reg::xmm2, reg::xmm3},
@@ -22,7 +22,7 @@ namespace retro::arch::x86 {
 	};
 	inline constexpr call_conv_desc cc_sysv_x86_64 = {
 		 .name							 = "sysv-x86_64",
-		 .retval_gpr					 = {reg::rax, reg::rdx},
+		 .retval_gpr					 = {reg::rax},//+TODO: rcx,rdx
 		 .retval_fp						 = {reg::xmm0},
 		 .argument_gpr					 = {reg::rdi, reg::rsi, reg::rdx, reg::rcx, reg::r8, reg::r9},
 		 .argument_fp					 = {reg::xmm0, reg::xmm1, reg::xmm2, reg::xmm3, reg::xmm4, reg::xmm5, reg::xmm6, reg::xmm7},

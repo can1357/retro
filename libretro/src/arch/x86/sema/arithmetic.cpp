@@ -298,9 +298,9 @@ static diag::lazy imul_2_3op(SemaContext) {
 		rhs = read(sema_context(), 2, ty);
 	}
 
-	auto lhsx	  = bb->push_cast(tyx, lhs);
-	auto rhsx	  = bb->push_cast(tyx, rhs);
-	auto resultx  = bb->push_binop(ir::op::mul, lhsx, rhsx);
+	auto lhsx	 = bb->push_cast_sx(tyx, lhs);
+	auto rhsx	 = bb->push_cast_sx(tyx, rhs);
+	auto resultx = bb->push_binop(ir::op::mul, lhsx, rhsx);
 	write(sema_context(), 0, bb->push_cast(ty, resultx));
 
 	// For the two- and three-operand forms of the instruction, the CF and OF flags are set when the result must be truncated to fit in the destination operand size and cleared when

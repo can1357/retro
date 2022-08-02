@@ -559,6 +559,99 @@ namespace retro::ir::opt {
 					}
 				}
 			}
+			// Casts.
+			//
+			else if (ins->op == opcode::bitcast) {
+				// If cast between same types, no op.
+				//
+				auto ty1 = ins->template_types[0];
+				auto ty2 = ins->template_types[1];
+				if (ty1 == ty2) {
+					ins->replace_all_uses_with(ins->opr(0));
+					ins->erase();
+					n++;
+					continue;
+				}
+
+				// If RHS is not an instruction, nothing else to match.
+				//
+				auto& rhsv = ins->opr(0);
+				if (rhsv.is_const())
+					continue;
+				auto rhs = rhsv.get_value()->get_if<insn>();
+				if (!rhs)
+					continue;
+
+				// If RHS is also a bitcast, propagate.
+				//
+				if (rhs->op == opcode::bitcast) {
+					ins->template_types[0] = rhs->opr(0).get_type();
+					ins->opr(0)				  = rhs->opr(0);
+					n++;
+				}
+			}
+			else if (ins->op == opcode::cast || ins->op == opcode::cast_sx) {
+				// If cast between same types, no op.
+				//
+				auto ty1 = ins->template_types[0];
+				auto ty2 = ins->template_types[1];
+				if (ty1 == ty2) {
+					n += 1 + ins->replace_all_uses_with(ins->opr(0));
+					ins->erase();
+					continue;
+				}
+
+				// If RHS is not an instruction, nothing else to match.
+				//
+				auto& rhsv = ins->opr(0);
+				if (rhsv.is_const())
+					continue;
+				auto rhs = rhsv.get_value()->get_if<insn>();
+				if (!rhs)
+					continue;
+
+				// If RHS is also a cast:
+				//
+				if (rhs->op == opcode::cast || rhs->op == opcode::cast_sx) {
+					auto& val = rhs->opr(0);
+					auto	ty0  = rhs->template_types[0];
+					auto& ti0 = enum_reflect(ty0);
+					auto& ti1 = enum_reflect(ty1);
+					auto& ti2 = enum_reflect(ty2);
+
+					// If cast between same type kinds:
+					//
+					if (ti0.kind == ti1.kind && ti1.kind == ti2.kind && ti0.lane_width == ti1.lane_width && ti1.lane_width == ti2.lane_width) {
+						bool sx0_1 = rhs->op == opcode::cast_sx;
+						bool sx1_2 = ins->op == opcode::cast_sx;
+
+						// If no information lost during middle translation:
+						//
+						if (ti1.bit_size >= ti0.bit_size) {
+							// [e.g. i32->i32]
+							//
+							if (ti2.bit_size == ti0.bit_size) {
+								n += 1 + ins->replace_all_uses_with(val);
+								ins->erase();
+								continue;
+							}
+							// [e.g. i16->i32]
+							//
+							else if (ti2.bit_size < ti0.bit_size) {
+								ins->template_types[0] = val.get_type();
+								rhsv						  = val;
+								continue;
+							}
+						}
+
+						//fmt::println(rhs->to_string());
+						//fmt::println(ins->to_string());
+						//fmt::println(ty0, sx0_1 ? "->s" : "->", ty1, sx1_2 ? "->s" : "->", ty2);
+					}
+				} else {
+					// TODO: convert unop/binop s
+				}
+			}
 			// Nops.
 			//
 			else if (ins->op == opcode::select) {
@@ -980,7 +1073,6 @@ int main(int argv, const char** args) {
 		  $1: [140001016 => 140001027]
 					 %8 = phi.i32 %13, %0
 					 %9 = phi.i32 %10, %5
-					 %a = phi.i8x16 %a, %3 <--- missed opt
 					 %b = cast.i32.i64 %9                 ; 0000000140001020
 					 %c = cast.i32.i64 %8
 					 %d = binop.i64 mul, %b, %c
@@ -993,7 +1085,6 @@ int main(int argv, const char** args) {
 					 %14 = cmp.i32 eq, %11, 0
 					 js %14, $2, $1                       ; 0000000140001025
 		  $2: [140001027 => 140001028]
-					 %16 = phi.i8x16 %a, %3 <--- missed opt
 					 %17 = phi.i64 %12, %2
 					 %18 = phi.i64 %f, %4
 					 %19 = undef.context
