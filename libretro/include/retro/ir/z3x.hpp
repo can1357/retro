@@ -1,4 +1,6 @@
 #pragma once
+#define Z3_THROW(...) retro::fmt::abort((__VA_ARGS__).what())
+#include <retro/format.hpp>
 #include <z3++.h>
 #include <retro/ir/ops.hxx>
 #include <retro/ir/types.hpp>
