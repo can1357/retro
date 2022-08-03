@@ -204,7 +204,11 @@ namespace retro::interface {
 		//
 		virtual ~base() = default;
 	};
+#if RC_VA_OPT_SUPPORT(?)
 	#define RC_ADD_INTERFACE(name, type, ...) RC_INITIALIZER { type::register_as<type>(name __VA_OPT__(,) __VA_ARGS__); };
+#else
+	#define RC_ADD_INTERFACE(name, type, ...) RC_INITIALIZER { type::register_as<type>(name, __VA_ARGS__); };
+#endif
 };
 
 namespace retro {

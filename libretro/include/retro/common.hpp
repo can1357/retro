@@ -38,6 +38,9 @@
 #ifndef __has_include
 	#define __has_include(...) 0
 #endif
+#define RC_VA_ARG1(A0, A1, ...) A1
+#define RC_VA_EMPTY(...)		  RC_VA_ARG1(__VA_OPT__(, ) 0, 1, )
+#define RC_VA_OPT_SUPPORT		  !RC_VA_EMPTY
 
 // Detect architecture.
 //
