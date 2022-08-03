@@ -379,7 +379,9 @@ namespace retro::z3x {
 				return c.fpa_sort<32>();
 			case ir::type::f64:
 				return c.fpa_sort<64>();
-			// TODO: fp80?
+			case ir::type::f80:
+				// TODO:
+				return c;
 			default: return c;
 		}
 	}
@@ -408,7 +410,9 @@ namespace retro::z3x {
 				return (f32) expr.as_double();
 			case ir::type::f64:
 				return (f64)expr.as_double();
-			// TODO: fp80?
+			case ir::type::f80:
+				// TODO:
+				return std::nullopt;
 			default:
 				return std::nullopt;
 		}
@@ -425,11 +429,16 @@ namespace retro::z3x {
 				return c.bv_val(v.get<i32>(), 32);
 			case ir::type::i64:
 				return c.bv_val(v.get<i64>(), 64);
-			// todo: i128
+			case ir::type::i128:
+				// TODO:
+				return c;
 			case ir::type::f32:
 				return c.fpa_val(v.get<f32>());
 			case ir::type::f64:
 				return c.fpa_val(v.get<f64>());
+			case ir::type::f80:
+				// TODO:
+				return c;
 			default:
 				return c;
 		}
@@ -448,11 +457,16 @@ namespace retro::z3x {
 						return c.bv_val(((i32*) v.address())[lane], 32);
 					case ir::type::i64:
 						return c.bv_val(((i64*) v.address())[lane], 64);
-					// todo: i128
+					case ir::type::i128:
+						// TODO:
+						return c;
 					case ir::type::f32:
 						return c.fpa_val(((f32*) v.address())[lane]);
 					case ir::type::f64:
 						return c.fpa_val(((f64*) v.address())[lane]);
+					case ir::type::f80:
+						// TODO:
+						return c;
 					default:
 						return c;
 				}
@@ -584,9 +598,15 @@ namespace retro::z3x {
 						return val;
 					}
 				}
+			} else if (i->op == ir::opcode::bitcast) {
+				// Pointer cast is trivial.
+				//
+				if (i->template_types[0] == ir::type::pointer || i->template_types[1] == ir::type::pointer) {
+					return to_expr(vs, c, i->opr(0), max_depth);
+				} else {
+					// TODO: Floating point / Vector casts.
+				}
 			}
-			// TODO: opcode::bitcast
-			// 
 			// Implement very simple local register propagation here to avoid having to modify
 			// the basic block to resolve jump targets.
 			//
@@ -889,6 +909,7 @@ namespace retro::z3x {
 					it = bb->insert(++it, ir::make_unop(ir::op::bit_not, it.get()));
 					return ret_and_cache(it++);
 				}
+				// TODO:
 				//case Z3_OP_REPEAT:
 				//case Z3_OP_BREDOR:
 				//case Z3_OP_BREDAND:
@@ -896,7 +917,7 @@ namespace retro::z3x {
 				//case Z3_OP_BIT2BOOL:
 
 				// Floating point.
-				//
+				// TODO:
 				//case Z3_OP_FPA_FMA:
 				//case Z3_OP_FPA_ROUND_TO_INTEGRAL:
 				//case Z3_OP_FPA_IS_NAN:

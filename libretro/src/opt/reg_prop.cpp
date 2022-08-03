@@ -10,7 +10,7 @@ namespace retro::ir::opt::p0 {
 
 		// For each instruction:
 		//
-		robin_hood::unordered_flat_map<u32, std::pair<ref<insn>, bool>> producer_map = {};
+		flat_umap<u32, std::pair<ref<insn>, bool>> producer_map = {};
 		for (auto* ins : bb->insns()) {
 			// If producing a value:
 			if (ins->op == opcode::write_reg) {

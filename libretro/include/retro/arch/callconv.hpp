@@ -1,23 +1,24 @@
 #pragma once
 #include <retro/common.hpp>
 #include <retro/arch/mreg.hpp>
+#include <vector>
 
 namespace retro::arch {
 	// Call convention enumerator.
 	//
-	enum class call_conv : i8 {
-		preserve_none = -3,	// None of the callee registers are preserved (except stack pointer).
-		interrupt	  = -2,	// Same semantics as preserve all except the stack data on entry, which differs based on architecture.
-		preserve_all  = -1,	// Preserves all registers.
-		unknown		  = 0,	// Unknown.
+	enum class call_conv : u8 {
+		unknown = 0,  // Unknown.
 
-		// Positive range (including values not defined here) are reserved for architecture specific conventions.
+		// Architecture specific conventions.
 		//
 		msabi_x86_64 = 1,
 		sysv_x86_64	 = 2,
 	};
 
 	// Describes an architecture specific calling convention.
+	// - Volatility information is not included as more and more compilers optimize calling conventions
+	//   at link time based for hot/cold calls and access to a volatile register after a call would be
+	//   treated the same as a conditionally nonvolatile one as it'd be upgraded based on call-site information.
 	//
 	struct call_conv_desc {
 		// Name of the calling convention.
@@ -33,11 +34,6 @@ namespace retro::arch {
 		//
 		small_array<mreg> argument_gpr = {};
 		small_array<mreg> argument_fp	 = {};
-
-		// Non-volatile registers.
-		//
-		small_array<mreg> nonvolatile_gpr = {};
-		small_array<mreg> nonvolatile_fp	 = {};
 
 		// Register holding the count of FP registers used by the caller upon calling a vararg function, or none if not relevant.
 		//
@@ -59,5 +55,8 @@ namespace retro::arch {
 		//
 		u32 home_size	  = 0;
 		u32 sp_alignment = 0;
+
+		// TODO: ABI information, eg: pass by ref or breakdown or structures, etc.
+		//
 	};
 }

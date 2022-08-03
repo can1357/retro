@@ -1,6 +1,5 @@
 #include <retro/opt/interface.hpp>
 #include <retro/opt/utility.hpp>
-#include <retro/robin_hood.hpp>
 
 namespace retro::ir::opt::p0 {
 

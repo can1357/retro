@@ -28,6 +28,11 @@ namespace retro::ir {
 	//
 	void routine::topological_sort() {
 		u32 tmp = narrow_cast<u32>(blocks.size());
+		for (auto& bb : blocks) {
+			if (bb->predecessors.empty() && bb.get() != get_entry()) {
+				bb->name = --tmp;
+			}
+		}
 
 		basic_block* ep = get_entry();
 		graph::dfs(ep, [&](basic_block* b) { b->name = --tmp; });
