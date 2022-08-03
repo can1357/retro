@@ -67,7 +67,7 @@ DECL_SEMA(RDPID) {
 	return diag::ok;
 }
 DECL_SEMA(CPUID) {
-	auto res = bb->push_volatile_intrinsic(ir::intrinsic::ia32_cpuid, read_reg(sema_context(), reg::eax), read_reg(sema_context(), reg::ecx));
+	auto res = bb->push_sideeffect_intrinsic(ir::intrinsic::ia32_cpuid, read_reg(sema_context(), reg::eax), read_reg(sema_context(), reg::ecx));
 	write_reg(sema_context(), reg::eax, bb->push_extract(ir::type::i32, res, 0));
 	write_reg(sema_context(), reg::ebx, bb->push_extract(ir::type::i32, res, 1));
 	write_reg(sema_context(), reg::ecx, bb->push_extract(ir::type::i32, res, 2));
@@ -75,53 +75,53 @@ DECL_SEMA(CPUID) {
 	return diag::ok;
 }
 DECL_SEMA(XGETBV) {
-	auto res = bb->push_volatile_intrinsic(ir::intrinsic::ia32_xgetbv, read_reg(sema_context(), reg::ecx));
+	auto res = bb->push_sideeffect_intrinsic(ir::intrinsic::ia32_xgetbv, read_reg(sema_context(), reg::ecx));
 	res		= bb->push_extract(ir::type::i64, res, 0);
 	write_pair(sema_context(), reg::edx, reg::eax, std::move(res));
 	return diag::ok;
 }
 DECL_SEMA(XSETBV) {
 	auto val = read_pair(sema_context(), reg::edx, reg::eax);
-	bb->push_volatile_intrinsic(ir::intrinsic::ia32_xsetbv, read_reg(sema_context(), reg::ecx), std::move(val));
+	bb->push_sideeffect_intrinsic(ir::intrinsic::ia32_xsetbv, read_reg(sema_context(), reg::ecx), std::move(val));
 	return diag::ok;
 }
 DECL_SEMA(RDMSR) {
-	auto res = bb->push_volatile_intrinsic(ir::intrinsic::ia32_rdmsr, read_reg(sema_context(), reg::ecx));
+	auto res = bb->push_sideeffect_intrinsic(ir::intrinsic::ia32_rdmsr, read_reg(sema_context(), reg::ecx));
 	res		= bb->push_extract(ir::type::i64, res, 0);
 	write_pair(sema_context(), reg::edx, reg::eax, std::move(res));
 	return diag::ok;
 }
 DECL_SEMA(WRMSR) {
 	auto val = read_pair(sema_context(), reg::edx, reg::eax);
-	bb->push_volatile_intrinsic(ir::intrinsic::ia32_wrmsr, read_reg(sema_context(), reg::ecx), std::move(val));
+	bb->push_sideeffect_intrinsic(ir::intrinsic::ia32_wrmsr, read_reg(sema_context(), reg::ecx), std::move(val));
 	return diag::ok;
 }
 DECL_SEMA(PREFETCH) {
-	bb->push_volatile_intrinsic(ir::intrinsic::prefetch, agen(sema_context(), ins.op[0].m, true).first);
+	bb->push_sideeffect_intrinsic(ir::intrinsic::prefetch, agen(sema_context(), ins.op[0].m, true).first);
 	return diag::ok;
 }
 DECL_SEMA(PREFETCHNTA) {
-	bb->push_volatile_intrinsic(ir::intrinsic::ia32_prefetchnta, agen(sema_context(), ins.op[0].m, true).first);
+	bb->push_sideeffect_intrinsic(ir::intrinsic::ia32_prefetchnta, agen(sema_context(), ins.op[0].m, true).first);
 	return diag::ok;
 }
 DECL_SEMA(PREFETCHT0) {
-	bb->push_volatile_intrinsic(ir::intrinsic::ia32_prefetcht0, agen(sema_context(), ins.op[0].m, true).first);
+	bb->push_sideeffect_intrinsic(ir::intrinsic::ia32_prefetcht0, agen(sema_context(), ins.op[0].m, true).first);
 	return diag::ok;
 }
 DECL_SEMA(PREFETCHT1) {
-	bb->push_volatile_intrinsic(ir::intrinsic::ia32_prefetcht1, agen(sema_context(), ins.op[0].m, true).first);
+	bb->push_sideeffect_intrinsic(ir::intrinsic::ia32_prefetcht1, agen(sema_context(), ins.op[0].m, true).first);
 	return diag::ok;
 }
 DECL_SEMA(PREFETCHT2) {
-	bb->push_volatile_intrinsic(ir::intrinsic::ia32_prefetcht2, agen(sema_context(), ins.op[0].m, true).first);
+	bb->push_sideeffect_intrinsic(ir::intrinsic::ia32_prefetcht2, agen(sema_context(), ins.op[0].m, true).first);
 	return diag::ok;
 }
 DECL_SEMA(PREFETCHW) {
-	bb->push_volatile_intrinsic(ir::intrinsic::ia32_prefetchw, agen(sema_context(), ins.op[0].m, true).first);
+	bb->push_sideeffect_intrinsic(ir::intrinsic::ia32_prefetchw, agen(sema_context(), ins.op[0].m, true).first);
 	return diag::ok;
 }
 DECL_SEMA(PREFETCHWT1) {
-	bb->push_volatile_intrinsic(ir::intrinsic::ia32_prefetchwt1, agen(sema_context(), ins.op[0].m, true).first);
+	bb->push_sideeffect_intrinsic(ir::intrinsic::ia32_prefetchwt1, agen(sema_context(), ins.op[0].m, true).first);
 	return diag::ok;
 }
 // TODO: INT / INTO

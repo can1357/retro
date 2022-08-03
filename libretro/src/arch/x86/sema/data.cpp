@@ -61,7 +61,7 @@ static diag::lazy make_stos(SemaContext) {
 		auto call_ptr = bb->push_bitcast(ir::type::pointer, tmp1);
 		auto call_arg = delta < 4 ? bb->push_cast(ir::type::i32, datav) : datav;
 		auto call_cnt = mach->is_64() ? cntv : bb->push_cast(ir::type::i64, cntv);
-		bb->push_volatile_intrinsic(intr, call_ptr, call_arg, call_cnt);
+		bb->push_sideeffect_intrinsic(intr, call_ptr, call_arg, call_cnt);
 
 		// Tmp2 = DI + ByteCnt
 		auto tmp2 = bb->push_binop(ir::op::add, dstv, bcntv);
@@ -120,7 +120,7 @@ static diag::lazy make_movs(SemaContext) {
 		auto call_dst = bb->push_bitcast(ir::type::pointer, tmp1d);
 		auto call_src = bb->push_bitcast(ir::type::pointer, tmp1s);
 		auto call_cnt = mach->is_64() ? bcntv : bb->push_cast(ir::type::i64, bcntv);
-		bb->push_volatile_intrinsic(ir::intrinsic::memcpy, call_dst, call_src, call_cnt);
+		bb->push_sideeffect_intrinsic(ir::intrinsic::memcpy, call_dst, call_src, call_cnt);
 
 		// Tmp2(d/s) = DI/SI + ByteCnt
 		auto tmp2d = bb->push_binop(ir::op::add, dstv, bcntv);
@@ -132,7 +132,7 @@ static diag::lazy make_movs(SemaContext) {
 		// DV = DF ? -delta : +delta
 		auto dv = bb->push_select(df, ir::constant(dstv->get_type(), -delta), ir::constant(dstv->get_type(), +delta));
 		// memcpy(DEST, SRC, Delta)
-		bb->push_volatile_intrinsic(ir::intrinsic::memcpy, bb->push_bitcast(ir::type::pointer, dstv), bb->push_bitcast(ir::type::pointer, srcv), (i64)delta);
+		bb->push_sideeffect_intrinsic(ir::intrinsic::memcpy, bb->push_bitcast(ir::type::pointer, dstv), bb->push_bitcast(ir::type::pointer, srcv), (i64)delta);
 		// DI += DV
 		write_reg(sema_context(), dst, bb->push_binop(ir::op::add, dstv, dv));
 	}

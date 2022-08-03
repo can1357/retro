@@ -366,8 +366,8 @@ types =          ["@type.pack",    "@type.intrinsic", "@type.pack"]
 templates =      [0,               0,                 0]
 names =          ["",              "function",        "args"]
 constexprs =     [1]
-#pack    volatile_intrinsic   constexpr intrinsic:Function, Tx:Args...
-[opcode.volatile_intrinsic]
+#pack    sideeffect_intrinsic constexpr intrinsic:Function, Tx:Args...
+[opcode.sideeffect_intrinsic]
 kind =           "@opcode_kind.intrinsic"
 side-effect    = true
 template-count = 0
