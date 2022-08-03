@@ -10,6 +10,7 @@ DECL_SEMA(MOV) {
 	// Pattern: [mov reg, reg] <=> [nop]
 	if (ins.op[0].type == arch::mop_type::reg && ins.op[1].type == arch::mop_type::reg) {
 		if (ins.op[0].r == ins.op[1].r) {
+			bb->push_nop();
 			return diag::ok;
 		}
 	}
@@ -127,6 +128,7 @@ DECL_SEMA(XCHG) {
 	else {
 		// Pattern: [xchg reg, reg] <=> [nop]
 		if (ins.op[0].r == ins.op[1].r) {
+			bb->push_nop();
 			return diag::ok;
 		}
 

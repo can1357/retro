@@ -16,7 +16,8 @@ using namespace retro;
 
 #include <retro/ir/z3x.hpp>
 
-
+#include <retro/opt/interface.hpp>
+#include <retro/opt/utility.hpp>
 
 
 namespace retro::analysis {
@@ -59,13 +60,13 @@ namespace retro::analysis {
 
 		// Loader provided defaults.
 		//
-		arch::handle					 default_arch = {};
+		arch::handle					 arch = {};
 		const arch::call_conv_desc* default_cc	  = nullptr;
 
 		// Lifts a routine given the RVA.
 		//
 		ref<ir::routine> lift_routine(u64 rva, const lifter_params& p);
-		ref<ir::routine> lift_routine(u64 rva) { return lift_routine(rva, {.arch=default_arch}); }
+		ref<ir::routine> lift_routine(u64 rva) { return lift_routine(rva, {.arch = arch}); }
 
 		// Given a xcall instruction or the routine determines the calling convention. 
 		//
@@ -93,9 +94,9 @@ namespace retro::analysis {
 			auto dom				= domain_list.emplace_back(make_rc<domain>());
 			dom->parent			= this;
 			dom->img				= img;
-			dom->default_arch = arch::instance::lookup(img->arch_hash);
-			if (dom->default_arch) {
-				dom->default_cc = dom->default_arch->get_cc_desc(img->default_call_conv);
+			dom->arch			= arch::instance::lookup(img->arch_hash);
+			if (dom->arch) {
+				dom->default_cc = dom->arch->get_cc_desc(img->default_call_conv);
 			}
 			return dom;
 		}
@@ -185,6 +186,8 @@ namespace retro::analysis {
 			//
 			if (auto err = p.arch->lift(bb, ins, va)) {
 				bb->push_trap("lifter error: " + err.to_string())->ip = va;
+				// TODO: Log
+				fmt::println(err.to_string());
 				break;
 			}
 			if (!bb->empty()) {
@@ -242,6 +245,8 @@ namespace retro::analysis {
 					// If we managed to lift both blocks succesfully:
 					//
 					if (bbs[0] && bbs[1]) {
+						bb = term->block;
+
 						// Replace with js.
 						//
 						ir::variant cc{term->opr(0)};
@@ -269,6 +274,8 @@ namespace retro::analysis {
 					// Lift the target block.
 					//
 					if (auto target = lift_block(dom, rtn, (u64) term->opr(0).const_val.get<ir::pointer>(), p)) {
+						bb = term->block;
+
 						// Replace with jmp if successful.
 						//
 						bb->push_jmp(target);
@@ -303,10 +310,6 @@ namespace retro::analysis {
 		return rtn;
 	}
 };
-
-
-#include <retro/opt/interface.hpp>
-#include <retro/opt/utility.hpp>
 
 
 namespace retro::analysis {
@@ -502,13 +505,277 @@ static constexpr u8 alloca_probe_code[] = {
 };
 
 
-void do_stuff(ref<ldr::image> img) {
+#include <retro/robin_hood.hpp>
+
+
+struct stack_analysis {
+	// Difference in stack pointer after a call to this function.
+	//
+	i32 stack_delta = 0;
+
+	// Frame register if any used and difference from initial SP.
+	//
+	arch::mreg frame_reg			= {};
+	i32		  frame_reg_delta = 0;
+
+	// Min/Max of non-indexed accesses.
+	//
+	i32 min_access = 0;
+	i32 max_access = 0;
+
+	// Layout of registers saved on the stack frame.
+	//
+	flat_umap<i32, arch::mreg> save_area_layout = {};
+};
+
+struct function_analysis {
+	// Analysis information.
+	//
+	std::optional<stack_analysis> stack_analysis = {};
+
+	// Flags.
+	//
+	u32 is_noreturn : 1 = false;
+	u32 is_const : 1	  = false;
+};
+
+static void phase0(ref<ir::routine> rtn) {
+	auto& dom = rtn->dom;
+
+	// Replace call to crt!__alloca_probe with nop.
+	//
+	for (auto& bb : rtn->blocks) {
+		for (auto&& i : bb->insns()) {
+			if (i->op == ir::opcode::xcall) {
+				if (i->opr(0).is_const()) {
+					auto va	 = (u64) i->opr(0).get_const().get<ir::pointer>();
+					auto data = dom->img->slice(va - dom->img->base_address);
+					if (data.size() > sizeof(alloca_probe_code)) {
+						if (!memcmp(data.data(), alloca_probe_code, sizeof(alloca_probe_code))) {
+							i->erase();
+							break;
+						}
+					}
+				}
+			}
+		}
+	}
+
+
+	// TODO: Call $0 => push jmp
+
+	// Apply simple optimizations.
+	//
+	size_t n = 0;
+	for (auto& bb : rtn->blocks) {
+		n += ir::opt::p0::reg_move_prop(bb);
+		n += ir::opt::const_fold(bb);
+		n += ir::opt::id_fold(bb);
+		n += ir::opt::ins_combine(bb);
+		n += ir::opt::const_fold(bb);
+		n += ir::opt::id_fold(bb);
+		// TODO: Cfg optimization
+	}
+
+	// Sort topologically and rename all instructions.
+	//
+	rtn->topological_sort();
+	rtn->rename_insns();
+	printf(RC_GRAY " # Optimized " RC_RED "%llu " RC_GRAY "instructions.\n" RC_RESET, n);
+
+	// Map of all registers with offset from SP.
+	//
+	constexpr i32		  no_offset			 = INT32_MAX;
+	auto					  i_sp_offset_list = std::make_unique<i32[]>(rtn->next_ins_name + 1);
+	flat_umap<u32, i32> r_sp_offset_map	 = {}; 
+
+	// Analyze entry point.
+	//
+	auto sp = dom->arch->get_stack_register();
+
+	for (auto& bb : rtn->blocks) {
+		printf("--- block $%x --- \n", bb->name);
+
+		r_sp_offset_map.clear();
+		r_sp_offset_map[sp.uid()] = 0;
+
+		r_sp_offset_map[arch::mreg(arch::x86::reg::rbp).uid()] = -24;
+
+		for (auto* i : bb->insns()) {
+			i_sp_offset_list[i->name] = no_offset;
+
+			// Read reg => imap[i] := rmap[i]
+			//
+			if (i->op == ir::opcode::read_reg) {
+				auto r = i->opr(0).get_const().get<arch::mreg>();
+				if (auto it = r_sp_offset_map.find(r.uid()); it != r_sp_offset_map.end()) {
+					i_sp_offset_list[i->name] = it->second;
+				} else {
+					i_sp_offset_list[i->name] = no_offset;
+				}
+				continue;
+			}
+
+			// Bit cast.
+			//
+			if (i->op == ir::opcode::bitcast) {
+				if (i->template_types[0] == ir::type::pointer || i->template_types[1] == ir::type::pointer) {
+						auto& v = i->opr(0);
+						if (!v.is_const()) {
+							if (auto* in = v.get_value()->get_if<ir::insn>()) {
+								i_sp_offset_list[i->name] = i_sp_offset_list[in->name];
+								continue;
+							}
+						}
+				}
+			}
+
+			// Write reg => rmap[r] := imap[i]
+			//
+			if (i->op == ir::opcode::write_reg) {
+				auto	r = i->opr(0).get_const().get<arch::mreg>();
+				auto& v = i->opr(1);
+				if (!v.is_const()) {
+					if (auto* in = v.get_value()->get_if<ir::insn>()) {
+						if (i32 o = i_sp_offset_list[in->name]; o != no_offset) {
+							r_sp_offset_map[r.uid()] = o;
+						} else {
+
+							if (in->op == ir::opcode::load_mem) {
+								auto& seg = in->opr(0);
+								auto& ptr = in->opr(1);
+								if (!ptr.is_const() && ptr.get_value()->is<ir::insn>()) {
+									if (i32 o = i_sp_offset_list[ptr.get_value()->get<ir::insn>().name]; o != no_offset) {
+										fmt::println(r.to_string(dom->arch), " = {$sp + ", o, "}");
+									}
+								}
+							} 
+
+							r_sp_offset_map.erase(r.uid());
+						}
+						continue;
+					}
+				}
+			}
+
+			// Write to memory.
+			//
+			if (i->op == ir::opcode::store_mem) {
+				auto& seg = i->opr(0);
+				auto& ptr = i->opr(1);
+				auto& val = i->opr(2);
+
+				if (!ptr.is_const() && ptr.get_value()->is<ir::insn>()) {
+					if (i32 o = i_sp_offset_list[ptr.get_value()->get<ir::insn>().name]; o != no_offset) {
+						fmt::println("storing to {$sp + ", o, "} = ", val);
+					}
+				}
+				// noseg ptr
+			}
+
+			// XCALL.
+			//
+			if (i->op == ir::opcode::xcall) {
+				auto cc = dom->get_routine_cc(i);
+				for (auto it = r_sp_offset_map.begin(); it != r_sp_offset_map.end();) {
+					if (range::find(cc->retval_gpr, retro::bit_cast<arch::mreg>(it->first)) != cc->retval_gpr.end()) {
+						it = r_sp_offset_map.erase(it);
+					} else {
+						++it;
+					}
+				}
+				// TODO:
+			}
+
+			// Add/Sub.
+			//
+			if (i->op == ir::opcode::binop) {
+				auto op = i->opr(0).get_const().get<ir::op>();
+				if (op == ir::op::add || op == ir::op::sub) {
+					auto* o1 = &i->opr(1);
+					auto* o2 = &i->opr(2);
+
+					if (op == ir::op::add && o1->is_const())
+						std::swap(o1, o2);
+
+					if (!o1->is_const() && o2->is_const()) {
+						if (auto* in = o1->get_value()->get_if<ir::insn>()) {
+							if (i32 o = i_sp_offset_list[in->name]; o != no_offset) {
+								i64 delta = o2->const_val.get<i64>();	// TODO: Wrong for ptr = 32
+								if (op == ir::op::add) {
+									o += delta;
+								} else {
+									o -= delta;
+								}
+								i_sp_offset_list[i->name] = o;
+								continue;
+							}
+						}
+					}
+				}
+			}
+		}
+
+		for (auto& [reg, offset] : r_sp_offset_map) {
+			fmt::println("'", retro::bit_cast<arch::mreg>(reg).to_string(dom->arch), "' => $sp +", offset);
+		}
+	}
+}
+
+
+static ref<ir::routine> analysis_test(analysis::domain* dom, const std::string& name, u64 rva) {
+	// Demo.
+	//
+	auto rtn = dom->lift_routine(rva);
+
+	// Print statistics.
+	//
+	printf(RC_WHITE " ----- Routine '%s' -------\n", name.data());
+	printf(RC_GRAY " # Successfully lifted " RC_VIOLET "%llu" RC_GRAY " instructions into " RC_GREEN "%llu" RC_RED " (avg: ~%llu/ins) #\n" RC_RESET, dom->stats.minsn_disasm.load(),
+		 dom->stats.insn_lifted.load(), dom->stats.insn_lifted.load() / dom->stats.minsn_disasm.load());
+
+	range::sort(rtn->blocks, [](auto& a, auto& b) { return a->ip < b->ip; });
+	for (auto& bb : rtn->blocks) {
+		std::string result = fmt::str(RC_CYAN "$%x:" RC_RESET, name);
+		result += fmt::str(RC_GRAY " [%llx => %llx]" RC_RESET, bb->ip, bb->end_ip);
+		fmt::println(result);
+		fmt::println("\t", bb->terminator()->to_string());
+	}
+
+	phase0(rtn);
+	return rtn;
+}
+
+// Demo wrappers.
+//
+static void analysis_test_from_image_va(std::filesystem::path path, u64 va) {
+	// Load the binary.
+	//
+	auto img = ldr::load_from_file(path).value();
+
 	// Create the workspace.
 	//
-	auto ws = analysis::workspace::create();
+	auto ws		 = analysis::workspace::create();
+	auto machine = arch::instance::lookup(img->arch_hash);
+	auto loader	 = ldr::instance::lookup(img->ldr_hash);
+	RC_ASSERT(loader && machine);
+	fmt::println("-> loader:  ", loader->get_name());
+	fmt::println("-> machine: ", machine->get_name());
 
-	// Load the image.
+	// Call the demo code.
 	//
+	auto dom = ws->add_image(std::move(img));
+	analysis_test(dom, fmt::str("sub_%llx", va), va - dom->img->base_address);
+}
+static void analysis_test_from_source(std::string src) {
+	// Compile the source code.
+	//
+	auto bin = compile(src, "-O1");
+	auto img = ldr::load_from_memory(bin).value();
+
+	// Create the workspace.
+	//
+	auto ws		 = analysis::workspace::create();
 	auto machine = arch::instance::lookup(img->arch_hash);
 	auto loader	 = ldr::instance::lookup(img->ldr_hash);
 	RC_ASSERT(loader && machine);
@@ -521,91 +788,37 @@ void do_stuff(ref<ldr::image> img) {
 		img->symbols.push_back({img->base_address, "entry point"});
 	}
 	auto dom = ws->add_image(std::move(img));
-
 	for (auto& sym : dom->img->symbols) {
 		if (sym.name.starts_with("_"))
 			continue;
-
-		// Demo.
-		//
-		auto rtn = dom->lift_routine(sym.rva);
-
-		// Print statistics.
-		//
-		printf(RC_WHITE " ----- Routine '%s' -------\n", sym.name.data());
-		printf(RC_GRAY " # Successfully lifted " RC_VIOLET "%llu" RC_GRAY " instructions into " RC_GREEN "%llu" RC_RED " (avg: ~%llu/ins) #\n" RC_RESET,
-			 dom->stats.minsn_disasm.load(), dom->stats.insn_lifted.load(), dom->stats.insn_lifted.load() / dom->stats.minsn_disasm.load());
-
-		// Replace call to crt!__alloca_probe with nop.
-		//
-		for (auto& bb : rtn->blocks) {
-			for (auto&& i : bb->insns()) {
-				if (i->op == ir::opcode::xcall) {
-					if (i->opr(0).is_const()) {
-						auto va = (u64)i->opr(0).get_const().get<ir::pointer>();
-						auto data = dom->img->slice(va - dom->img->base_address);
-						if (data.size() > sizeof(alloca_probe_code)) {
-							if (!memcmp(data.data(), alloca_probe_code, sizeof(alloca_probe_code))) {
-								i->erase();
-								break;
-							}
-						}
-					}
-				}
-			}
-		}
-
-		// Run simple optimizations.
-		//
-		size_t n = 0;
-		for (auto& bb : rtn->blocks) {
-			n += ir::opt::p0::reg_move_prop(bb);
-			n += ir::opt::const_fold(bb);
-			n += ir::opt::id_fold(bb);
-			n += ir::opt::ins_combine(bb);
-			n += ir::opt::const_fold(bb);
-			n += ir::opt::id_fold(bb);
-		}
-		// n += analysis::apply_cc_info(rtn);
-		// for (auto& bb : rtn->blocks) {
-		//	n += ir::opt::p0::reg_move_prop(bb);
-		//	n += ir::opt::const_fold(bb);
-		//	n += ir::opt::id_fold(bb);
-		//	n += ir::opt::ins_combine(bb);
-		//	n += ir::opt::const_fold(bb);
-		//	n += ir::opt::id_fold(bb);
-		// }
-		// n += ir::opt::p0::reg_to_phi(rtn);
-		// for (auto& bb : rtn->blocks) {
-		//	n += ir::opt::const_fold(bb);
-		//	n += ir::opt::id_fold(bb);
-		//	n += ir::opt::ins_combine(bb);
-		//	n += ir::opt::const_fold(bb);
-		//	n += ir::opt::id_fold(bb);
-		// }
-		rtn->rename_insns();
-		printf(RC_GRAY " # Optimized " RC_RED "%llu " RC_GRAY "instructions.\n", n);
-		fmt::println(rtn->to_string());
+		auto r = analysis_test(dom, sym.name, sym.rva);
+		fmt::println(r->to_string());
 	}
 }
 
-#include <retro/utf.hpp>
 
+#include <retro/utf.hpp>
 int main(int argv, const char** args) {
 	platform::setup_ansi_escapes();
 
-	std::string test_file = "S:\\Projects\\Retro\\tests\\simple.c";
-	if (argv > 1) {
-		test_file = args[1];
+	// Large function test:
+	//
+	if (true) {
+		analysis_test_from_image_va("S:\\Dumps\\ntoskrnl_2004.exe", 0x140A1AEE4);
 	}
-
-	bool ok;
-	auto code = platform::read_file(test_file, ok);
-	if (!ok) {
-		fmt::abort("failed to read the file.");
+	// Small C file test:
+	//
+	else {
+		std::string test_file = "S:\\Projects\\Retro\\tests\\simple.c";
+		if (argv > 1) {
+			test_file = args[1];
+		}
+		bool ok;
+		auto code = platform::read_file(test_file, ok);
+		if (!ok) {
+			fmt::abort("failed to read the file.");
+		}
+		analysis_test_from_source(utf::convert<char>(code));
 	}
-
-	auto bin = compile(utf::convert<char>(code), "-O1");
-	do_stuff(ldr::load_from_memory(bin).value());
 	return 0;
 }
