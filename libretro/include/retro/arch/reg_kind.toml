@@ -63,7 +63,7 @@ type  = "@ir::type.i1"
 #
 [reg_kind.segment]
 width = 16
-type  = "@ir::type.segment"
+type  = "@ir::type.i16"
 
 # Control registers.
 #

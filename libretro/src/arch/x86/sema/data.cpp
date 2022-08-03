@@ -32,8 +32,8 @@ static diag::lazy make_stos(SemaContext) {
 		dst = reg::di, cnt = reg::cx;
 	auto dstv = read_reg(sema_context(), dst);
 
-	i32		  delta;
-	arch::mreg data;
+	i32			  delta;
+	arch::mreg	  data;
 	ir::intrinsic intr;
 	if (ins.mnemonic == ZYDIS_MNEMONIC_STOSB)
 		data = reg::al, delta = 1, intr = ir::intrinsic::memset;
@@ -45,11 +45,10 @@ static diag::lazy make_stos(SemaContext) {
 		data = reg::rax, delta = 8, intr = ir::intrinsic::memset64;
 	auto datav = read_reg(sema_context(), data);
 
-	
 	auto df = bb->push_read_reg(ir::type::i1, reg::flag_df);
 	if (ins.modifiers & (ZYDIS_ATTRIB_HAS_REP | ZYDIS_ATTRIB_HAS_REPE | ZYDIS_ATTRIB_HAS_REPNE)) {
 		// ByteCnt = Cnt * N
-		auto cntv = read_reg(sema_context(), cnt);
+		auto cntv  = read_reg(sema_context(), cnt);
 		auto bcntv = bb->push_binop(ir::op::mul, cntv, ir::constant(cntv->get_type(), delta));
 
 		// Tmp0 = DF ? ByteCnt : 0
@@ -69,7 +68,7 @@ static diag::lazy make_stos(SemaContext) {
 		write_reg(sema_context(), dst, bb->push_select(df, tmp1, tmp2));
 	} else {
 		// DEST <- *
-		bb->push_store_mem(map_seg(reg::es), bb->push_bitcast(ir::type::pointer, dstv), datav);
+		bb->push_store_mem(bb->push_bitcast(ir::type::pointer, dstv), datav);
 		// DI += DF ? -delta : +delta
 		auto dv = bb->push_select(df, ir::constant(dstv->get_type(), -delta), ir::constant(dstv->get_type(), +delta));
 		write_reg(sema_context(), dst, bb->push_binop(ir::op::add, dstv, dv));
@@ -94,7 +93,7 @@ static diag::lazy make_movs(SemaContext) {
 	auto srcv = read_reg(sema_context(), src);
 	auto dstv = read_reg(sema_context(), dst);
 
-	i32			  delta;
+	i32 delta;
 	if (ins.mnemonic == ZYDIS_MNEMONIC_MOVSB)
 		delta = 1;
 	else if (ins.mnemonic == ZYDIS_MNEMONIC_MOVSW)
@@ -132,7 +131,7 @@ static diag::lazy make_movs(SemaContext) {
 		// DV = DF ? -delta : +delta
 		auto dv = bb->push_select(df, ir::constant(dstv->get_type(), -delta), ir::constant(dstv->get_type(), +delta));
 		// memcpy(DEST, SRC, Delta)
-		bb->push_sideeffect_intrinsic(ir::intrinsic::memcpy, bb->push_bitcast(ir::type::pointer, dstv), bb->push_bitcast(ir::type::pointer, srcv), (i64)delta);
+		bb->push_sideeffect_intrinsic(ir::intrinsic::memcpy, bb->push_bitcast(ir::type::pointer, dstv), bb->push_bitcast(ir::type::pointer, srcv), (i64) delta);
 		// DI += DV
 		write_reg(sema_context(), dst, bb->push_binop(ir::op::add, dstv, dv));
 	}
@@ -151,8 +150,8 @@ DECL_SEMA(CMPXCHG16B) {
 	auto				comperand_val = read_pair(sema_context(), reg::rdx, reg::rax);
 	ir::variant		prev;
 	if (ins.modifiers & ZYDIS_ATTRIB_HAS_LOCK) {
-		auto [adr, seg] = agen(sema_context(), ins.op[0].m);
-		auto previ		 = bb->push_atomic_cmpxchg(seg, std::move(adr), comperand_val, desired);
+		auto adr	  = agen(sema_context(), ins.op[0].m);
+		auto previ = bb->push_atomic_cmpxchg(std::move(adr), comperand_val, desired);
 		bb->push_write_reg(reg::flag_zf, bb->push_cmp(ir::op::eq, previ, comperand_val));
 		prev = previ;
 	} else {
@@ -172,10 +171,10 @@ DECL_SEMA(CMPXCHG8B) {
 	constexpr auto ty				  = ir::type::i64;
 	auto				desired		  = read_pair(sema_context(), reg::ecx, reg::ebx);
 	auto				comperand_val = read_pair(sema_context(), reg::edx, reg::eax);
-	ir::variant prev;
+	ir::variant		prev;
 	if (ins.modifiers & ZYDIS_ATTRIB_HAS_LOCK) {
-		auto [adr, seg] = agen(sema_context(), ins.op[0].m);
-		auto previ		 = bb->push_atomic_cmpxchg(seg, std::move(adr), comperand_val, desired);
+		auto adr	  = agen(sema_context(), ins.op[0].m);
+		auto previ = bb->push_atomic_cmpxchg(std::move(adr), comperand_val, desired);
 		bb->push_write_reg(reg::flag_zf, bb->push_cmp(ir::op::eq, previ, comperand_val));
 		prev = previ;
 	} else {
@@ -210,14 +209,14 @@ DECL_SEMA(CMPXCHG) {
 			RC_UNREACHABLE();
 	}
 
-	auto ty = ir::int_type(ins.effective_width);
+	auto ty				 = ir::int_type(ins.effective_width);
 	auto desired		 = read_reg(sema_context(), ins.op[1].r, ty);
 	auto comperand_val = read_reg(sema_context(), comperand, ty);
 
 	ir::variant prev;
 	if (ins.modifiers & ZYDIS_ATTRIB_HAS_LOCK) {
-		auto [adr, seg] = agen(sema_context(), ins.op[0].m);
-		auto previ = bb->push_atomic_cmpxchg(seg, std::move(adr), comperand_val, desired);
+		auto adr	  = agen(sema_context(), ins.op[0].m);
+		auto previ = bb->push_atomic_cmpxchg(std::move(adr), comperand_val, desired);
 		bb->push_write_reg(reg::flag_zf, bb->push_cmp(ir::op::eq, previ, comperand_val));
 		prev = previ;
 	} else {
@@ -242,8 +241,8 @@ DECL_SEMA(XCHG) {
 		auto& reg = ins.op[ins.op[0].type == arch::mop_type::mem ? 1 : 0].r;
 		auto& mem = ins.op[ins.op[0].type == arch::mop_type::mem ? 0 : 1].m;
 
-		auto [adr, seg] = agen(sema_context(), mem);
-		auto prev = bb->push_atomic_xchg(seg, std::move(adr), read_reg(sema_context(), reg, ty));
+		auto adr	 = agen(sema_context(), mem);
+		auto prev = bb->push_atomic_xchg(std::move(adr), read_reg(sema_context(), reg, ty));
 		write_reg(sema_context(), reg, prev);
 	}
 	// reg, reg swap.
@@ -278,7 +277,7 @@ DECL_SEMA(PUSH) {
 	write_reg(sema_context(), rsp, new_sp);
 
 	// Write the value.
-	bb->push_store_mem(ir::NO_SEGMENT, bb->push_bitcast(ir::type::pointer, new_sp), std::move(value));
+	bb->push_store_mem(bb->push_bitcast(ir::type::pointer, new_sp), std::move(value));
 	return diag::ok;
 }
 DECL_SEMA(POP) {
@@ -289,7 +288,7 @@ DECL_SEMA(POP) {
 	auto prev_sp = read_reg(sema_context(), rsp, pty);
 
 	// Read the value.
-	auto value = bb->push_load_mem(ty, ir::NO_SEGMENT, bb->push_bitcast(ir::type::pointer, prev_sp));
+	auto value = bb->push_load_mem(ty, bb->push_bitcast(ir::type::pointer, prev_sp));
 
 	// Update SP.
 	auto new_sp = bb->push_binop(ir::op::add, prev_sp, ir::constant(pty, dif));

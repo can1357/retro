@@ -13,13 +13,13 @@ DECL_SEMA(JMP) {
 	return diag::ok;
 }
 DECL_SEMA(RET) {
-	auto	rsp	  = reg_sp(mach);
-	auto	pty	  = mach->ptr_type();
-	auto	prev_sp = read_reg(sema_context(), rsp, pty);
+	auto rsp		 = reg_sp(mach);
+	auto pty		 = mach->ptr_type();
+	auto prev_sp = read_reg(sema_context(), rsp, pty);
 
 	// Retptr = [SP]
-	auto* retptr  = bb->push_load_mem(ir::type::pointer, ir::segment::NO_SEGMENT, bb->push_bitcast(ir::type::pointer, prev_sp));
-	
+	auto* retptr = bb->push_load_mem(ir::type::pointer, bb->push_bitcast(ir::type::pointer, prev_sp));
+
 	// SP = SP + Imm + sizeof Ptr.
 	i64 sp_delta = mach->ptr_width / 8;
 	if (ins.operand_count)
@@ -47,7 +47,7 @@ DECL_SEMA(INT1) {
 }
 DECL_SEMA(RDTSC) {
 	auto res = bb->push_intrinsic(ir::intrinsic::readcyclecounter);
-	res = bb->push_extract(ir::type::i64, res, 0);
+	res		= bb->push_extract(ir::type::i64, res, 0);
 	write_pair(sema_context(), reg::edx, reg::eax, std::move(res));
 	return diag::ok;
 }
@@ -97,31 +97,31 @@ DECL_SEMA(WRMSR) {
 	return diag::ok;
 }
 DECL_SEMA(PREFETCH) {
-	bb->push_sideeffect_intrinsic(ir::intrinsic::prefetch, agen(sema_context(), ins.op[0].m, true).first);
+	bb->push_sideeffect_intrinsic(ir::intrinsic::prefetch, agen(sema_context(), ins.op[0].m, true));
 	return diag::ok;
 }
 DECL_SEMA(PREFETCHNTA) {
-	bb->push_sideeffect_intrinsic(ir::intrinsic::ia32_prefetchnta, agen(sema_context(), ins.op[0].m, true).first);
+	bb->push_sideeffect_intrinsic(ir::intrinsic::ia32_prefetchnta, agen(sema_context(), ins.op[0].m, true));
 	return diag::ok;
 }
 DECL_SEMA(PREFETCHT0) {
-	bb->push_sideeffect_intrinsic(ir::intrinsic::ia32_prefetcht0, agen(sema_context(), ins.op[0].m, true).first);
+	bb->push_sideeffect_intrinsic(ir::intrinsic::ia32_prefetcht0, agen(sema_context(), ins.op[0].m, true));
 	return diag::ok;
 }
 DECL_SEMA(PREFETCHT1) {
-	bb->push_sideeffect_intrinsic(ir::intrinsic::ia32_prefetcht1, agen(sema_context(), ins.op[0].m, true).first);
+	bb->push_sideeffect_intrinsic(ir::intrinsic::ia32_prefetcht1, agen(sema_context(), ins.op[0].m, true));
 	return diag::ok;
 }
 DECL_SEMA(PREFETCHT2) {
-	bb->push_sideeffect_intrinsic(ir::intrinsic::ia32_prefetcht2, agen(sema_context(), ins.op[0].m, true).first);
+	bb->push_sideeffect_intrinsic(ir::intrinsic::ia32_prefetcht2, agen(sema_context(), ins.op[0].m, true));
 	return diag::ok;
 }
 DECL_SEMA(PREFETCHW) {
-	bb->push_sideeffect_intrinsic(ir::intrinsic::ia32_prefetchw, agen(sema_context(), ins.op[0].m, true).first);
+	bb->push_sideeffect_intrinsic(ir::intrinsic::ia32_prefetchw, agen(sema_context(), ins.op[0].m, true));
 	return diag::ok;
 }
 DECL_SEMA(PREFETCHWT1) {
-	bb->push_sideeffect_intrinsic(ir::intrinsic::ia32_prefetchwt1, agen(sema_context(), ins.op[0].m, true).first);
+	bb->push_sideeffect_intrinsic(ir::intrinsic::ia32_prefetchwt1, agen(sema_context(), ins.op[0].m, true));
 	return diag::ok;
 }
 DECL_SEMA(MFENCE) {
@@ -137,7 +137,6 @@ DECL_SEMA(LFENCE) {
 	return diag::ok;
 }
 // TODO: INT / INTO
-
 
 /*
 pushfq

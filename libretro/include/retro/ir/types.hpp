@@ -8,9 +8,6 @@
 //
 namespace retro::ir {
 	enum pointer : u64 {};
-	enum segment : u16 {
-		NO_SEGMENT = 0
-	};
 	struct value_pack_t {
 		std::string to_string() const { return "(...)"; }
 	};

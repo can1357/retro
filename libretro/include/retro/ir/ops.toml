@@ -298,6 +298,24 @@ symbol = "__builtin_prefetech"
 args   = ["@type.pointer"]
 ret =    "@type.none"
 
+[intrinsic.ia32-rdgsbase32]
+symbol = "__builtin_ia32_rdgsbase32"
+args   = []
+ret =    "@type.i32"
+[intrinsic.ia32-rdgsbase64]
+symbol = "__builtin_ia32_rdgsbase64"
+args   = []
+ret =    "@type.i64"
+[intrinsic.ia32-rdfsbase32]
+symbol = "__builtin_ia32_rdfsbase32"
+args   = []
+ret =    "@type.i32"
+[intrinsic.ia32-rdfsbase64]
+symbol = "__builtin_ia32_rdfsbase64"
+args   = []
+ret =    "@type.i64"
+
+
 [intrinsic.ia32-readpid]
 symbol = "__builtin_ia32_readpid"
 args   = []

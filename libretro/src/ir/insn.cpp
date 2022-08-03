@@ -68,16 +68,6 @@ namespace retro::ir {
 							continue;
 						}
 					}
-					if (cv.is<ir::segment>()) {
-						if (auto s = cv.get<ir::segment>()) {
-							result += fmt::str("seg(%x)", u32(s));
-							result += RC_RESET ", ";
-						} else {
-							result += RC_NAVY_BLUE "global";
-							result += RC_RESET ", ";
-						}
-						continue;
-					}
 				}
 				result += op.to_string(fmt_style::concise);
 				result += RC_RESET ", ";

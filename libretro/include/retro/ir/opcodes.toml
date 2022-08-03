@@ -136,25 +136,25 @@ templates =      [0,            0,           1]
 names =          ["",           "regid",     "value"]
 constexprs =     [1]
 
-#T    load_mem<T>  segment:Seg pointer:adr	
+#T    load_mem<T>   pointer:adr	
 [opcode.load_mem]
 kind =           "@opcode_kind.memory"
 is-pure =        true
 template-count = 1
-types =          ["@type.none", "@type.segment", "@type.pointer"]
-templates =      [1,            0,               0]
-names =          ["",           "segment",       "pointer"]
-constexprs =     [1]
+types =          ["@type.none", "@type.pointer"]
+templates =      [1,            0]
+names =          ["",           "pointer"]
+constexprs =     []
 
-#void store_mem<T> segment:Seg pointer:adr	T:value
+#void store_mem<T>  pointer:adr	T:value
 [opcode.store_mem]
 kind =           "@opcode_kind.memory"
 side-effect    = true
 template-count = 1
-types =          ["@type.none", "@type.segment", "@type.pointer", "@type.none"]
-templates =      [0,            0,               0,             1]
-names =          ["",           "segment",       "pointer",     "value"]
-constexprs =     [1]
+types =          ["@type.none", "@type.pointer", "@type.none"]
+templates =      [0,            0,             1]
+names =          ["",           "pointer",     "value"]
+constexprs =     []
 
 #T    undef<T>
 [opcode.undef]
@@ -269,44 +269,44 @@ templates =      [1,            0,          1]
 names =          ["",           "Op",       "rhs"]
 constexprs =     [1]
 
-#T    atomic_cmpxchg<T>  segment:Seg  pointer:ptr T:expected T:desired
+#T    atomic_cmpxchg<T>    pointer:ptr T:expected T:desired
 [opcode.atomic_cmpxchg]
 kind =           "@opcode_kind.memory-rmw"
 side-effect    = true
 template-count = 1
-types =          ["@type.none", "@type.segment", "@type.pointer", "@type.none", "@type.none"]
-templates =      [1,            0,               0,               1,            1]
-names =          ["",           "segment",       "ptr",           "expected",   "desired"]
-constexprs =     [1]
-#T    atomic_xchg<T>  segment:Seg  pointer:ptr T:desired
+types =          ["@type.none", "@type.pointer", "@type.none", "@type.none"]
+templates =      [1,            0,               1,            1]
+names =          ["",           "ptr",           "expected",   "desired"]
+constexprs =     []
+#T    atomic_xchg<T>    pointer:ptr T:desired
 [opcode.atomic_xchg]
 kind =           "@opcode_kind.memory-rmw"
 side-effect    = true
 template-count = 1
-types =          ["@type.none", "@type.segment", "@type.pointer", "@type.none"]
-templates =      [1,            0,               0,               1]
-names =          ["",           "segment",       "ptr",           "desired"]
-constexprs =     [1]
+types =          ["@type.none", "@type.pointer", "@type.none"]
+templates =      [1,            0,               1]
+names =          ["",           "ptr",           "desired"]
+constexprs =     []
 
-#T    atomic_binop<T>     Op:Operator  segment:Seg  pointer:lhs_ptr T:rhs
+#T    atomic_binop<T>     Op:Operator    pointer:lhs_ptr T:rhs
 [opcode.atomic_binop]
 kind =           "@opcode_kind.numeric-rmw"
 side-effect    = true
 template-count = 1
-types =          ["@type.none", "@type.op", "@type.segment", "@type.pointer", "@type.none"]
-templates =      [1,            0,          0,               0,               1]
-names =          ["",           "Op",       "segment",       "lhs_ptr",       "rhs"]
-constexprs =     [1, 2]
+types =          ["@type.none", "@type.op", "@type.pointer", "@type.none"]
+templates =      [1,            0,          0,               1]
+names =          ["",           "Op",       "lhs_ptr",       "rhs"]
+constexprs =     [1]
 
-#T    atomic_unop<T>     Op:Operator  segment:Seg  pointer:rhs_ptr
+#T    atomic_unop<T>     Op:Operator    pointer:rhs_ptr
 [opcode.atomic_unop]
 kind =           "@opcode_kind.numeric-rmw"
 side-effect    = true
 template-count = 1
-types =          ["@type.none", "@type.op", "@type.segment", "@type.pointer"]
-templates =      [1,            0,          0,               0]
-names =          ["",           "Op",       "segment",       "rhs_ptr"]
-constexprs =     [1, 2]
+types =          ["@type.none", "@type.op", "@type.pointer"]
+templates =      [1,            0,          0]
+names =          ["",           "Op",       "rhs_ptr"]
+constexprs =     [1]
 
 #i1    cmp<T>     Op:Operator  T:lhs  T:rhs
 [opcode.cmp]

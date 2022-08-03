@@ -117,7 +117,3 @@ VisitorArgs = ["f80"]
 kind     =    "@type_kind.memory"
 bit_size =    64
 VisitorArgs = ["retro::ir::pointer"]
-[type.segment]
-kind     =    "@type_kind.memory"
-bit_size =    16
-VisitorArgs = ["retro::ir::segment"]

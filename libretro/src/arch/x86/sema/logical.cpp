@@ -12,9 +12,9 @@ static diag::lazy logical(SemaContext) {
 	ir::insn*	result;
 	ir::variant lhs;
 	if (ins.modifiers & ZYDIS_ATTRIB_HAS_LOCK) {
-		auto [ptr, seg] = agen(sema_context(), ins.op[0].m, true);
-		lhs				 = bb->push_atomic_binop(Operation, seg, std::move(ptr), rhs);
-		result			 = bb->push_binop(Operation, lhs, rhs);
+		auto ptr = agen(sema_context(), ins.op[0].m, true);
+		lhs		= bb->push_atomic_binop(Operation, std::move(ptr), rhs);
+		result	= bb->push_binop(Operation, lhs, rhs);
 	} else {
 		lhs	 = read(sema_context(), 0, ty);
 		result = bb->push_binop(Operation, lhs, rhs);
@@ -61,9 +61,9 @@ DECL_SEMA(NOT) {
 	ir::insn*	result;
 	ir::variant lhs;
 	if (ins.modifiers & ZYDIS_ATTRIB_HAS_LOCK) {
-		auto [ptr, seg] = agen(sema_context(), ins.op[0].m, true);
-		lhs				 = bb->push_atomic_unop(ty, ir::op::bit_not, seg, std::move(ptr));
-		result			 = bb->push_unop(ir::op::bit_not, lhs);
+		auto ptr = agen(sema_context(), ins.op[0].m, true);
+		lhs		= bb->push_atomic_unop(ty, ir::op::bit_not, std::move(ptr));
+		result	= bb->push_unop(ir::op::bit_not, lhs);
 	} else {
 		lhs	 = read(sema_context(), 0, ty);
 		result = bb->push_unop(ir::op::bit_not, lhs);
@@ -133,7 +133,7 @@ DECL_SEMA(TEST) {
 //
 template<auto Operation>
 static diag::lazy do_bt_rmw(SemaContext) {
-	auto ty	= ir::int_type(ins.effective_width);
+	auto ty = ir::int_type(ins.effective_width);
 
 	// count = rhs & mask
 	auto count = bb->push_binop(ir::op::bit_and, read(sema_context(), 1, ty), ir::constant(ty, ins.effective_width - 1));
@@ -143,9 +143,9 @@ static diag::lazy do_bt_rmw(SemaContext) {
 	ir::insn*	result;
 	ir::variant lhs;
 	if (ins.modifiers & ZYDIS_ATTRIB_HAS_LOCK) {
-		auto [ptr, seg] = agen(sema_context(), ins.op[0].m, true);
-		lhs				 = bb->push_atomic_binop(Operation, seg, std::move(ptr), rhs);
-		result			 = bb->push_binop(Operation, lhs, rhs);
+		auto ptr = agen(sema_context(), ins.op[0].m, true);
+		lhs		= bb->push_atomic_binop(Operation, std::move(ptr), rhs);
+		result	= bb->push_binop(Operation, lhs, rhs);
 	} else {
 		lhs	 = read(sema_context(), 0, ty);
 		result = bb->push_binop(Operation, lhs, rhs);
@@ -174,9 +174,9 @@ DECL_SEMA(BTS) {
 	ir::insn*	result;
 	ir::variant lhs;
 	if (ins.modifiers & ZYDIS_ATTRIB_HAS_LOCK) {
-		auto [ptr, seg] = agen(sema_context(), ins.op[0].m, true);
-		lhs				 = bb->push_atomic_binop(ir::op::bit_or, seg, std::move(ptr), rhs);
-		result			 = bb->push_binop(ir::op::bit_or, lhs, rhs);
+		auto ptr = agen(sema_context(), ins.op[0].m, true);
+		lhs		= bb->push_atomic_binop(ir::op::bit_or, std::move(ptr), rhs);
+		result	= bb->push_binop(ir::op::bit_or, lhs, rhs);
 	} else {
 		lhs	 = read(sema_context(), 0, ty);
 		result = bb->push_binop(ir::op::bit_or, lhs, rhs);
@@ -205,9 +205,9 @@ DECL_SEMA(BTR) {
 	ir::insn*	result;
 	ir::variant lhs;
 	if (ins.modifiers & ZYDIS_ATTRIB_HAS_LOCK) {
-		auto [ptr, seg] = agen(sema_context(), ins.op[0].m, true);
-		lhs				 = bb->push_atomic_binop(ir::op::bit_and, seg, std::move(ptr), rhs);
-		result			 = bb->push_binop(ir::op::bit_and, lhs, rhs);
+		auto ptr = agen(sema_context(), ins.op[0].m, true);
+		lhs		= bb->push_atomic_binop(ir::op::bit_and, std::move(ptr), rhs);
+		result	= bb->push_binop(ir::op::bit_and, lhs, rhs);
 	} else {
 		lhs	 = read(sema_context(), 0, ty);
 		result = bb->push_binop(ir::op::bit_and, lhs, rhs);
@@ -235,9 +235,9 @@ DECL_SEMA(BTC) {
 	ir::insn*	result;
 	ir::variant lhs;
 	if (ins.modifiers & ZYDIS_ATTRIB_HAS_LOCK) {
-		auto [ptr, seg] = agen(sema_context(), ins.op[0].m, true);
-		lhs				 = bb->push_atomic_binop(ir::op::bit_xor, seg, std::move(ptr), rhs);
-		result			 = bb->push_binop(ir::op::bit_xor, lhs, rhs);
+		auto ptr = agen(sema_context(), ins.op[0].m, true);
+		lhs		= bb->push_atomic_binop(ir::op::bit_xor, std::move(ptr), rhs);
+		result	= bb->push_binop(ir::op::bit_xor, lhs, rhs);
 	} else {
 		lhs	 = read(sema_context(), 0, ty);
 		result = bb->push_binop(ir::op::bit_xor, lhs, rhs);

@@ -641,8 +641,7 @@ static void phase0(ref<ir::routine> rtn) {
 						} else {
 
 							if (in->op == ir::opcode::load_mem) {
-								auto& seg = in->opr(0);
-								auto& ptr = in->opr(1);
+								auto& ptr = in->opr(0);
 								if (!ptr.is_const() && ptr.get_value()->is<ir::insn>()) {
 									if (i32 o = i_sp_offset_list[ptr.get_value()->get<ir::insn>().name]; o != no_offset) {
 										fmt::println(r.to_string(dom->arch), " = {$sp + ", o, "}");
@@ -660,9 +659,8 @@ static void phase0(ref<ir::routine> rtn) {
 			// Write to memory.
 			//
 			if (i->op == ir::opcode::store_mem) {
-				auto& seg = i->opr(0);
-				auto& ptr = i->opr(1);
-				auto& val = i->opr(2);
+				auto& ptr = i->opr(0);
+				auto& val = i->opr(1);
 
 				if (!ptr.is_const() && ptr.get_value()->is<ir::insn>()) {
 					if (i32 o = i_sp_offset_list[ptr.get_value()->get<ir::insn>().name]; o != no_offset) {

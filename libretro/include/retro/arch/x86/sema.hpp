@@ -150,16 +150,8 @@ namespace retro::arch::x86 {
 	// (SF≠OF or ZF=1)
 	static ir::insn* test_LE(SemaContext) { return bb->push_binop(ir::op::bit_or, test_L(sema_context()), test_Z(sema_context())); }
 
-	// Segment/Register mappings.
+	// Register mappings.
 	//
-	static ir::segment map_seg(mreg seg) {
-		if (seg.id == (u32) reg::gs) {
-			return ir::segment(1);
-		} else if (seg.id == (u32) reg::fs) {
-			return ir::segment(2);
-		}
-		return ir::NO_SEGMENT;
-	}
 	static mreg reg_ip(x86arch* mach) {
 		if (mach->is_64()) {
 			return reg::rip;
@@ -202,8 +194,6 @@ namespace retro::arch::x86 {
 			//
 			else if (type == ir::type::pointer) {
 				type = mach->ptr_type();
-			} else if (type == ir::type::segment) {
-				type = ir::type::i16;
 			}
 		} else {
 			auto type2 = enum_reflect(enum_reflect(r).kind).type;
@@ -332,7 +322,7 @@ namespace retro::arch::x86 {
 
 	// Address generation helper.
 	//
-	inline std::pair<ir::variant, ir::segment> agen(SemaContext, mem m, bool as_ptr = true) {
+	inline ir::variant agen(SemaContext, mem m, bool as_ptr = true) {
 		auto pty = mach->ptr_type();
 
 		// Handle RIP.
@@ -364,28 +354,44 @@ namespace retro::arch::x86 {
 		if (!result) {
 			// gsbase/fsbase requires fs:|gs: instead of value, so this will always map to uniform memory under x86_64.
 			//
-			return {ir::constant(as_ptr ? ir::type::pointer : pty, m.disp), map_seg(m.segr)};
+			return ir::constant(as_ptr ? ir::type::pointer : pty, m.disp);
 		} else if (m.disp) {
 			result = bb->push_binop(ir::op::add, result, ir::constant(pty, m.disp));
 		}
+
+
+		if (mach->is_16()) {
+			// TODO:.
+		} else {
+			ir::insn* base = nullptr;
+			if (m.segr == reg::fs) {
+				base = bb->push_intrinsic(mach->is_64() ? ir::intrinsic::ia32_rdfsbase64 : ir::intrinsic::ia32_rdfsbase32);
+			} else if (m.segr == reg::gs) {
+				base = bb->push_intrinsic(mach->is_64() ? ir::intrinsic::ia32_rdgsbase64 : ir::intrinsic::ia32_rdgsbase32);
+			}
+			if (base) {
+				result = bb->push_binop(ir::op::add, result, base);
+			}
+		}
+
 
 		// Finally cast to pointer and return.
 		//
 		if (as_ptr) {
 			result = bb->push_cast(ir::type::pointer, result);
 		}
-		return {result, map_seg(m.segr)};
+		return result;
 	}
 
 	// Memory read/write helper.
 	//
 	inline ir::insn* read_mem(SemaContext, mem m, ir::type ty) {
-		auto [ptr, seg] = agen(sema_context(), m);
-		return bb->push_load_mem(ty, seg, std::move(ptr));
+		auto ptr = agen(sema_context(), m);
+		return bb->push_load_mem(ty, std::move(ptr));
 	}
 	inline ir::insn* write_mem(SemaContext, mem m, ir::variant&& value) {
-		auto [ptr, seg] = agen(sema_context(), m);
-		return bb->push_store_mem(seg, std::move(ptr), std::move(value));
+		auto ptr = agen(sema_context(), m);
+		return bb->push_store_mem(std::move(ptr), std::move(value));
 	}
 
 	// Common read/write helper.

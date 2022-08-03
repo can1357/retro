@@ -14,7 +14,7 @@ DECL_SEMA(LEA) {
 			return diag::ok;
 		}
 	}
-	auto [ptr, seg] = agen(sema_context(), ins.op[1].m, false);
+	auto ptr = agen(sema_context(), ins.op[1].m, false);
 	write_reg(sema_context(), ins.op[0].r, std::move(ptr));
 	return diag::ok;
 }
@@ -25,9 +25,9 @@ DECL_SEMA(ADD) {
 	ir::insn*	result;
 	ir::variant lhs;
 	if (ins.modifiers & ZYDIS_ATTRIB_HAS_LOCK) {
-		auto [ptr, seg] = agen(sema_context(), ins.op[0].m, true);
-		lhs				 = bb->push_atomic_binop(ir::op::add, seg, std::move(ptr), rhs);
-		result			 = bb->push_binop(ir::op::add, lhs, rhs);
+		auto ptr = agen(sema_context(), ins.op[0].m, true);
+		lhs		= bb->push_atomic_binop(ir::op::add, std::move(ptr), rhs);
+		result	= bb->push_binop(ir::op::add, lhs, rhs);
 	} else {
 		lhs	 = read(sema_context(), 0, ty);
 		result = bb->push_binop(ir::op::add, lhs, rhs);
@@ -49,9 +49,9 @@ DECL_SEMA(XADD) {
 	ir::insn*	result;
 	ir::variant lhs;
 	if (ins.modifiers & ZYDIS_ATTRIB_HAS_LOCK) {
-		auto [ptr, seg] = agen(sema_context(), ins.op[0].m, true);
-		auto lhsi		 = bb->push_atomic_binop(ir::op::add, seg, std::move(ptr), rhs);
-		result			 = bb->push_binop(ir::op::add, lhsi, rhs);
+		auto ptr	 = agen(sema_context(), ins.op[0].m, true);
+		auto lhsi = bb->push_atomic_binop(ir::op::add, std::move(ptr), rhs);
+		result	 = bb->push_binop(ir::op::add, lhsi, rhs);
 		write(sema_context(), 1, lhsi);
 		lhs = lhsi;
 	} else {
@@ -76,9 +76,9 @@ DECL_SEMA(SUB) {
 	ir::insn*	result;
 	ir::variant lhs;
 	if (ins.modifiers & ZYDIS_ATTRIB_HAS_LOCK) {
-		auto [ptr, seg] = agen(sema_context(), ins.op[0].m, true);
-		lhs				 = bb->push_atomic_binop(ir::op::sub, seg, std::move(ptr), rhs);
-		result			 = bb->push_binop(ir::op::sub, lhs, rhs);
+		auto ptr = agen(sema_context(), ins.op[0].m, true);
+		lhs		= bb->push_atomic_binop(ir::op::sub, std::move(ptr), rhs);
+		result	= bb->push_binop(ir::op::sub, lhs, rhs);
 	} else {
 		lhs	 = read(sema_context(), 0, ty);
 		result = bb->push_binop(ir::op::sub, lhs, rhs);
@@ -100,9 +100,9 @@ DECL_SEMA(INC) {
 	ir::insn*	result;
 	ir::variant lhs;
 	if (ins.modifiers & ZYDIS_ATTRIB_HAS_LOCK) {
-		auto [ptr, seg] = agen(sema_context(), ins.op[0].m, true);
-		lhs				 = bb->push_atomic_binop(ir::op::add, seg, std::move(ptr), rhs);
-		result			 = bb->push_binop(ir::op::add, lhs, rhs);
+		auto ptr = agen(sema_context(), ins.op[0].m, true);
+		lhs		= bb->push_atomic_binop(ir::op::add, std::move(ptr), rhs);
+		result	= bb->push_binop(ir::op::add, lhs, rhs);
 	} else {
 		lhs	 = read(sema_context(), 0, ty);
 		result = bb->push_binop(ir::op::add, lhs, rhs);
@@ -123,9 +123,9 @@ DECL_SEMA(DEC) {
 	ir::insn*	result;
 	ir::variant lhs;
 	if (ins.modifiers & ZYDIS_ATTRIB_HAS_LOCK) {
-		auto [ptr, seg] = agen(sema_context(), ins.op[0].m, true);
-		lhs				 = bb->push_atomic_binop(ir::op::sub, seg, std::move(ptr), rhs);
-		result			 = bb->push_binop(ir::op::sub, lhs, rhs);
+		auto ptr = agen(sema_context(), ins.op[0].m, true);
+		lhs		= bb->push_atomic_binop(ir::op::sub, std::move(ptr), rhs);
+		result	= bb->push_binop(ir::op::sub, lhs, rhs);
 	} else {
 		lhs	 = read(sema_context(), 0, ty);
 		result = bb->push_binop(ir::op::sub, lhs, rhs);
@@ -145,9 +145,9 @@ DECL_SEMA(NEG) {
 	ir::insn*	result;
 	ir::variant lhs;
 	if (ins.modifiers & ZYDIS_ATTRIB_HAS_LOCK) {
-		auto [ptr, seg] = agen(sema_context(), ins.op[0].m, true);
-		lhs				 = bb->push_atomic_unop(ty, ir::op::neg, seg, std::move(ptr));
-		result			 = bb->push_unop(ir::op::neg, lhs);
+		auto ptr = agen(sema_context(), ins.op[0].m, true);
+		lhs		= bb->push_atomic_unop(ty, ir::op::neg, std::move(ptr));
+		result	= bb->push_unop(ir::op::neg, lhs);
 	} else {
 		lhs	 = read(sema_context(), 0, ty);
 		result = bb->push_unop(ir::op::neg, lhs);
@@ -158,7 +158,6 @@ DECL_SEMA(NEG) {
 	set_sf(bb, result);
 	set_zf(bb, result);
 	set_pf(bb, result);
-
 
 	bb->push_write_reg(reg::flag_cf, bb->push_cmp(ir::op::ne, lhs, ir::constant(ty, 0)));
 	set_of_sub(bb, ir::constant(ty, 0), lhs, result);
@@ -181,7 +180,7 @@ DECL_SEMA(CMP) {
 // Add/Sub with Carry.
 //
 DECL_SEMA(ADC) {
-	auto ty	= ir::int_type(ins.effective_width);
+	auto ty = ir::int_type(ins.effective_width);
 
 	auto rhs_o = read(sema_context(), 1, ty);
 	auto rhs_c = bb->push_cast(ty, bb->push_read_reg(ir::type::i1, reg::flag_cf));
@@ -190,12 +189,12 @@ DECL_SEMA(ADC) {
 	ir::insn*	result_c;
 	ir::variant lhs;
 	if (ins.modifiers & ZYDIS_ATTRIB_HAS_LOCK) {
-		auto [ptr, seg] = agen(sema_context(), ins.op[0].m, true);
-		lhs				 = bb->push_atomic_binop(ir::op::add, seg, std::move(ptr), bb->push_binop(ir::op::add, rhs_o, rhs_c));
+		auto ptr = agen(sema_context(), ins.op[0].m, true);
+		lhs		= bb->push_atomic_binop(ir::op::add, std::move(ptr), bb->push_binop(ir::op::add, rhs_o, rhs_c));
 		result_o = bb->push_binop(ir::op::add, lhs, rhs_o);
 		result_c = bb->push_binop(ir::op::add, result_o, rhs_c);
 	} else {
-		lhs	 = read(sema_context(), 0, ty);
+		lhs		= read(sema_context(), 0, ty);
 		result_o = bb->push_binop(ir::op::add, lhs, rhs_o);
 		result_c = bb->push_binop(ir::op::add, result_o, rhs_c);
 		write(sema_context(), 0, result_c);
@@ -223,10 +222,10 @@ DECL_SEMA(SBB) {
 	ir::insn*	result_c;
 	ir::variant lhs;
 	if (ins.modifiers & ZYDIS_ATTRIB_HAS_LOCK) {
-		auto [ptr, seg] = agen(sema_context(), ins.op[0].m, true);
-		lhs				 = bb->push_atomic_binop(ir::op::sub, seg, std::move(ptr), bb->push_binop(ir::op::add, rhs_o, rhs_c));
-		result_o			 = bb->push_binop(ir::op::sub, lhs, rhs_o);
-		result_c			 = bb->push_binop(ir::op::sub, result_o, rhs_c);
+		auto ptr = agen(sema_context(), ins.op[0].m, true);
+		lhs		= bb->push_atomic_binop(ir::op::sub, std::move(ptr), bb->push_binop(ir::op::add, rhs_o, rhs_c));
+		result_o = bb->push_binop(ir::op::sub, lhs, rhs_o);
+		result_c = bb->push_binop(ir::op::sub, result_o, rhs_c);
 	} else {
 		lhs		= read(sema_context(), 0, ty);
 		result_o = bb->push_binop(ir::op::sub, lhs, rhs_o);
@@ -246,7 +245,6 @@ DECL_SEMA(SBB) {
 	set_of_sub(bb, std::move(lhs), std::move(rhs_o), result_c);
 	return diag::ok;
 }
-
 
 // Division and mulitplication.
 //
@@ -347,9 +345,10 @@ static diag::lazy imul_1op(SemaContext) {
 		write_reg(sema_context(), outlo, bb->push_cast(ty, resultx));
 		write_reg(sema_context(), outhi, resulthi);
 	}
-	
-	// For the one operand form of the instruction, the CF and OF flags are set when significant bits are carried into the upper half of the result and cleared when the result fits exactly in the lower half of the result.
-	// The OF and CF flags are set to 0 if the upper half of the result is 0; otherwise, they are set to 1. The SF, ZF, AF, and PF flags are undefined.
+
+	// For the one operand form of the instruction, the CF and OF flags are set when significant bits are carried into the upper half of the result and cleared when the result fits
+	// exactly in the lower half of the result. The OF and CF flags are set to 0 if the upper half of the result is 0; otherwise, they are set to 1. The SF, ZF, AF, and PF flags are
+	// undefined.
 	auto of = bb->push_cmp(ir::op::ne, resultx, bb->push_cast_sx(tyx, bb->push_cast(ty, resultx)));
 	bb->push_write_reg(reg::flag_of, of);
 	bb->push_write_reg(reg::flag_cf, of);
@@ -389,7 +388,6 @@ DECL_SEMA(IMUL) {
 	}
 }
 
-
 static std::array<arch::mreg, 4> select_div_regs(u16 w) {
 	arch::mreg inlo = {};
 	arch::mreg inhi = {};
@@ -398,9 +396,9 @@ static std::array<arch::mreg, 4> select_div_regs(u16 w) {
 	switch (w) {
 		case 8: {
 			// AL&AH <| AX /% OP1
-			outq	= reg::al;
-			outr	= reg::ah;
-			inlo	= reg::ax;
+			outq = reg::al;
+			outr = reg::ah;
+			inlo = reg::ax;
 			break;
 		}
 		case 16: {
