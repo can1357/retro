@@ -11,8 +11,12 @@ namespace retro::arch {
 
 		// Architecture specific conventions.
 		//
-		msabi_x86_64 = 1,
-		sysv_x86_64	 = 2,
+		msabi_x86_64	 = 1,
+		sysv_x86_64		 = 2,
+		cdecl_i386		 = 3,
+		stdcall_i386	 = 4,
+		thiscall_i386	 = 5,
+		msfastcall_i386 = 6,
 	};
 
 	// Describes an architecture specific calling convention.
@@ -21,9 +25,10 @@ namespace retro::arch {
 	//   treated the same as a conditionally nonvolatile one as it'd be upgraded based on call-site information.
 	//
 	struct call_conv_desc {
-		// Name of the calling convention.
+		// Name of the calling convention and attribute name if not default.
 		//
 		std::string_view name = {};
+		std::string_view attribute = {};
 
 		// Return value registers.
 		//

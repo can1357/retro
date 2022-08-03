@@ -43,7 +43,8 @@ namespace retro::ldr {
 		//
 		switch (nt->file_header.machine) {
 			case win::machine_id::i386: {
-				out.arch_hash = arch::x86_32;
+				out.arch_hash = arch::i386;
+				out.default_call_conv = arch::call_conv::cdecl_i386;
 				break;
 			}
 			case win::machine_id::amd64: {
