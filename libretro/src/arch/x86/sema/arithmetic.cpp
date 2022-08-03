@@ -376,10 +376,7 @@ DECL_SEMA(IDIV) {
 	//
 	ir::insn* lhsx;
 	if (inhi) {
-		auto lhslo = bb->push_cast(tyx, read_reg(sema_context(), inlo, ty));
-		auto lhshi = bb->push_cast(tyx, read_reg(sema_context(), inhi, ty));
-		lhshi		  = bb->push_binop(ir::op::bit_shl, lhshi, ir::constant(tyx, ins.effective_width));
-		lhsx		  = bb->push_binop(ir::op::bit_or, lhshi, lhslo);
+		lhsx = read_pair(sema_context(), inhi, inlo);
 	} else {
 		lhsx = read_reg(sema_context(), inlo, tyx);
 	}
@@ -408,10 +405,7 @@ DECL_SEMA(DIV) {
 	//
 	ir::insn* lhsx;
 	if (inhi) {
-		auto lhslo = bb->push_cast(tyx, read_reg(sema_context(), inlo, ty));
-		auto lhshi = bb->push_cast(tyx, read_reg(sema_context(), inhi, ty));
-		lhshi		  = bb->push_binop(ir::op::bit_shl, lhshi, ir::constant(tyx, ins.effective_width));
-		lhsx		  = bb->push_binop(ir::op::bit_or, lhshi, lhslo);
+		lhsx = read_pair(sema_context(), inhi, inlo);
 	} else {
 		lhsx = read_reg(sema_context(), inlo, tyx);
 	}
@@ -425,3 +419,5 @@ DECL_SEMA(DIV) {
 	write_reg(sema_context(), outr, bb->push_cast(ty, rr));
 	return diag::ok;
 }
+
+// TODO: SBB/ADC

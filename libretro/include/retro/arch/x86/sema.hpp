@@ -205,7 +205,6 @@ namespace retro::arch::x86 {
 		// Push read_reg.
 		return bb->push_read_reg(type, r);
 	}
-
 	inline ir::insn* explode_write_reg(arch::x86arch* mach, ir::insn* write) {
 		reg	r	  = (reg) write->opr(0).get_const().get<arch::mreg>().id;
 		auto* desc = &enum_reflect(r);
@@ -278,7 +277,6 @@ namespace retro::arch::x86 {
 		}
 		return write;
 	}
-
 	inline ir::insn* write_reg(SemaContext, mreg _r, ir::variant&& value, bool implicit_zero = true) {
 		reg	r	  = (reg) _r.id;
 		auto* desc = &enum_reflect(r);
@@ -299,6 +297,29 @@ namespace retro::arch::x86 {
 		//
 		return explode_write_reg(mach, bb->push_write_reg(r, value));
 	}
+
+	// Helpers for reading/writing register pairs.
+	//
+	inline void write_pair(SemaContext, mreg high, mreg low, ir::variant&& value) {
+		u32  width = enum_reflect(low.get_kind()).width;
+		auto ty	  = ir::int_type(width);
+		auto tyx	  = ir::int_type(width * 2);
+
+		write_reg(sema_context(), low, bb->push_cast(ty, value));
+		write_reg(sema_context(), high, bb->push_cast(ty, bb->push_binop(ir::op::bit_shr, std::move(value), width)));
+	}
+	inline ir::insn* read_pair(SemaContext, mreg high, mreg low) {
+		u32  width = enum_reflect(low.get_kind()).width;
+		auto ty	  = ir::int_type(width);
+		auto tyx	  = ir::int_type(width * 2);
+
+		auto l = bb->push_cast(tyx, read_reg(sema_context(), low, ty));
+		auto h = bb->push_cast(tyx, read_reg(sema_context(), high, ty));
+
+		auto hh = bb->push_binop(ir::op::bit_shl, h, ir::constant(tyx, width));
+		return bb->push_binop(ir::op::bit_or, hh, l);
+	}
+
 
 	// Address generation helper.
 	//

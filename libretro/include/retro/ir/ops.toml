@@ -284,6 +284,11 @@ ret =    "@type.pointer"
 symbol = "__builtin_readcyclecounter"
 args   = []
 ret =    "@type.i64"
+[intrinsic.prefetch]
+symbol = "__builtin_prefetech"
+args   = ["@type.pointer"]
+ret =    "@type.none"
+
 [intrinsic.ia32-readpid]
 symbol = "__builtin_ia32_readpid"
 args   = []
@@ -308,6 +313,31 @@ ret =    "@type.i64"
 symbol = "__wrmsr"
 args   = ["@type.i32", "@type.i64"]
 ret =    "@type.none"
+[intrinsic.ia32-prefetcht0]
+symbol = "_m_prefetcht0"
+args   = ["@type.pointer"]
+ret =    "@type.none"
+[intrinsic.ia32-prefetcht1]
+symbol = "_m_prefetcht1"
+args   = ["@type.pointer"]
+ret =    "@type.none"
+[intrinsic.ia32-prefetcht2]
+symbol = "_m_prefetcht2"
+args   = ["@type.pointer"]
+ret =    "@type.none"
+[intrinsic.ia32-prefetchnta]
+symbol = "_m_prefetchnta"
+args   = ["@type.pointer"]
+ret =    "@type.none"
+[intrinsic.ia32-prefetchw]
+symbol = "_m_prefetchw"
+args   = ["@type.pointer"]
+ret =    "@type.none"
+[intrinsic.ia32-prefetchwt1]
+symbol = "_m_prefetchwt1"
+args   = ["@type.pointer"]
+ret =    "@type.none"
+
 [intrinsic.retaddr]
 symbol = "_ReturnAddress"
 args =   []

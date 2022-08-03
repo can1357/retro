@@ -19,6 +19,125 @@ DECL_SEMA(MOV) {
 	return diag::ok;
 }
 
+// Atomic data transfer.
+//
+DECL_SEMA(CMPXCHG16B) {
+	constexpr auto ty				  = ir::type::i128;
+	auto				desired		  = read_pair(sema_context(), reg::rcx, reg::rbx);
+	auto				comperand_val = read_pair(sema_context(), reg::rdx, reg::rax);
+	ir::variant		prev;
+	if (ins.modifiers & ZYDIS_ATTRIB_HAS_LOCK) {
+		auto [adr, seg] = agen(sema_context(), ins.op[0].m);
+		auto previ		 = bb->push_atomic_cmpxchg(seg, std::move(adr), comperand_val, desired);
+		bb->push_write_reg(reg::flag_zf, bb->push_cmp(ir::op::eq, previ, comperand_val));
+		prev = previ;
+	} else {
+		// Read dst, check if equal to comperand.
+		prev			= read(sema_context(), 0, ty);
+		auto was_eq = bb->push_cmp(ir::op::eq, prev, comperand_val);
+		// [dst] := eq ? desired : prev
+		write(sema_context(), 0, bb->push_select(was_eq, desired, prev));
+		// zf :=    was eq.
+		bb->push_write_reg(reg::flag_zf, was_eq);
+	}
+	// comperand := prev
+	write_pair(sema_context(), reg::rdx, reg::rax, std::move(prev));
+	return diag::ok;
+}
+DECL_SEMA(CMPXCHG8B) {
+	constexpr auto ty				  = ir::type::i64;
+	auto				desired		  = read_pair(sema_context(), reg::ecx, reg::ebx);
+	auto				comperand_val = read_pair(sema_context(), reg::edx, reg::eax);
+	ir::variant prev;
+	if (ins.modifiers & ZYDIS_ATTRIB_HAS_LOCK) {
+		auto [adr, seg] = agen(sema_context(), ins.op[0].m);
+		auto previ		 = bb->push_atomic_cmpxchg(seg, std::move(adr), comperand_val, desired);
+		bb->push_write_reg(reg::flag_zf, bb->push_cmp(ir::op::eq, previ, comperand_val));
+		prev = previ;
+	} else {
+		// Read dst, check if equal to comperand.
+		prev			= read(sema_context(), 0, ty);
+		auto was_eq = bb->push_cmp(ir::op::eq, prev, comperand_val);
+		// [dst] := eq ? desired : prev
+		write(sema_context(), 0, bb->push_select(was_eq, desired, prev));
+		// zf :=    was eq.
+		bb->push_write_reg(reg::flag_zf, was_eq);
+	}
+	// comperand := prev
+	write_pair(sema_context(), reg::edx, reg::eax, std::move(prev));
+	return diag::ok;
+}
+DECL_SEMA(CMPXCHG) {
+	arch::mreg comperand;
+	switch (ins.effective_width) {
+		case 8:
+			comperand = reg::al;
+			break;
+		case 16:
+			comperand = reg::ax;
+			break;
+		case 32:
+			comperand = reg::eax;
+			break;
+		case 64:
+			comperand = reg::rax;
+			break;
+		default:
+			RC_UNREACHABLE();
+	}
+
+	auto ty = ir::int_type(ins.effective_width);
+	auto desired		 = read_reg(sema_context(), ins.op[1].r, ty);
+	auto comperand_val = read_reg(sema_context(), comperand, ty);
+
+	ir::variant prev;
+	if (ins.modifiers & ZYDIS_ATTRIB_HAS_LOCK) {
+		auto [adr, seg] = agen(sema_context(), ins.op[0].m);
+		auto previ = bb->push_atomic_cmpxchg(seg, std::move(adr), comperand_val, desired);
+		bb->push_write_reg(reg::flag_zf, bb->push_cmp(ir::op::eq, previ, comperand_val));
+		prev = previ;
+	} else {
+		// Read dst, check if equal to comperand.
+		prev			= read(sema_context(), 0, ty);
+		auto was_eq = bb->push_cmp(ir::op::eq, prev, comperand_val);
+		// [dst] := eq ? desired : prev
+		write(sema_context(), 0, bb->push_select(was_eq, desired, prev));
+		// zf :=    was eq.
+		bb->push_write_reg(reg::flag_zf, was_eq);
+	}
+	// comperand := prev
+	write_reg(sema_context(), comperand, std::move(prev));
+	return diag::ok;
+}
+DECL_SEMA(XCHG) {
+	auto ty = ir::int_type(ins.effective_width);
+
+	// mem, reg swap.
+	//
+	if (ins.op[0].type == arch::mop_type::mem || ins.op[1].type == arch::mop_type::mem) {
+		auto& reg = ins.op[ins.op[0].type == arch::mop_type::mem ? 1 : 0].r;
+		auto& mem = ins.op[ins.op[0].type == arch::mop_type::mem ? 0 : 1].m;
+
+		auto [adr, seg] = agen(sema_context(), mem);
+		auto prev = bb->push_atomic_xchg(seg, std::move(adr), read_reg(sema_context(), reg, ty));
+		write_reg(sema_context(), reg, prev);
+	}
+	// reg, reg swap.
+	//
+	else {
+		// Pattern: [xchg reg, reg] <=> [nop]
+		if (ins.op[0].r == ins.op[1].r) {
+			return diag::ok;
+		}
+
+		auto o0 = read(sema_context(), 0, ty);
+		auto o1 = read(sema_context(), 1, ty);
+		write(sema_context(), 0, std::move(o1));
+		write(sema_context(), 1, std::move(o0));
+	}
+	return diag::ok;
+}
+
 // Stack.
 //
 DECL_SEMA(PUSH) {

@@ -98,6 +98,7 @@ for k,v in insns.items():
 
 opcode_kind = [
 	"memory",
+	"memory-rmw",
 	"arch",
 	
 	"data",
@@ -266,6 +267,25 @@ template-count = 1
 types =          ["@type.none", "@type.op", "@type.none"]
 templates =      [1,            0,          1]
 names =          ["",           "Op",       "rhs"]
+constexprs =     [1]
+
+#T    atomic_cmpxchg<T>  segment:Seg  pointer:ptr T:expected T:desired
+[opcode.atomic_cmpxchg]
+kind =           "@opcode_kind.memory-rmw"
+side-effect    = true
+template-count = 1
+types =          ["@type.none", "@type.segment", "@type.pointer", "@type.none", "@type.none"]
+templates =      [1,            0,               0,               1,            1]
+names =          ["",           "segment",       "ptr",           "expected",   "desired"]
+constexprs =     [1]
+#T    atomic_xchg<T>  segment:Seg  pointer:ptr T:desired
+[opcode.atomic_xchg]
+kind =           "@opcode_kind.memory-rmw"
+side-effect    = true
+template-count = 1
+types =          ["@type.none", "@type.segment", "@type.pointer", "@type.none"]
+templates =      [1,            0,               0,               1]
+names =          ["",           "segment",       "ptr",           "desired"]
 constexprs =     [1]
 
 #T    atomic_binop<T>     Op:Operator  segment:Seg  pointer:lhs_ptr T:rhs

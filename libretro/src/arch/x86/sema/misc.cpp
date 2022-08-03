@@ -48,8 +48,7 @@ DECL_SEMA(INT1) {
 DECL_SEMA(RDTSC) {
 	auto res = bb->push_intrinsic(ir::intrinsic::readcyclecounter);
 	res = bb->push_extract(ir::type::i64, res, 0);
-	write_reg(sema_context(), reg::eax, bb->push_cast(ir::type::i32, res));
-	write_reg(sema_context(), reg::edx, bb->push_cast(ir::type::i32, bb->push_binop(ir::op::bit_shr, res, (i64)32)));
+	write_pair(sema_context(), reg::edx, reg::eax, std::move(res));
 	return diag::ok;
 }
 DECL_SEMA(RDTSCP) {
@@ -78,31 +77,51 @@ DECL_SEMA(CPUID) {
 DECL_SEMA(XGETBV) {
 	auto res = bb->push_volatile_intrinsic(ir::intrinsic::ia32_xgetbv, read_reg(sema_context(), reg::ecx));
 	res		= bb->push_extract(ir::type::i64, res, 0);
-	write_reg(sema_context(), reg::eax, bb->push_cast(ir::type::i32, res));
-	write_reg(sema_context(), reg::edx, bb->push_cast(ir::type::i32, bb->push_binop(ir::op::bit_shr, res, (i64) 32)));
+	write_pair(sema_context(), reg::edx, reg::eax, std::move(res));
 	return diag::ok;
 }
 DECL_SEMA(XSETBV) {
-	auto a  = bb->push_cast(ir::type::i64, read_reg(sema_context(), reg::eax));
-	auto d  = bb->push_cast(ir::type::i64, read_reg(sema_context(), reg::eax));
-	d		  = bb->push_binop(ir::op::bit_shl, d, (i64) 32);
-	auto da = bb->push_binop(ir::op::bit_or, d, a);
-	bb->push_volatile_intrinsic(ir::intrinsic::ia32_xsetbv, read_reg(sema_context(), reg::ecx), da);
+	auto val = read_pair(sema_context(), reg::edx, reg::eax);
+	bb->push_volatile_intrinsic(ir::intrinsic::ia32_xsetbv, read_reg(sema_context(), reg::ecx), std::move(val));
 	return diag::ok;
 }
 DECL_SEMA(RDMSR) {
 	auto res = bb->push_volatile_intrinsic(ir::intrinsic::ia32_rdmsr, read_reg(sema_context(), reg::ecx));
 	res		= bb->push_extract(ir::type::i64, res, 0);
-	write_reg(sema_context(), reg::eax, bb->push_cast(ir::type::i32, res));
-	write_reg(sema_context(), reg::edx, bb->push_cast(ir::type::i32, bb->push_binop(ir::op::bit_shr, res, (i64) 32)));
+	write_pair(sema_context(), reg::edx, reg::eax, std::move(res));
 	return diag::ok;
 }
 DECL_SEMA(WRMSR) {
-	auto a  = bb->push_cast(ir::type::i64, read_reg(sema_context(), reg::eax));
-	auto d  = bb->push_cast(ir::type::i64, read_reg(sema_context(), reg::eax));
-	d		  = bb->push_binop(ir::op::bit_shl, d, (i64) 32);
-	auto da = bb->push_binop(ir::op::bit_or, d, a);
-	bb->push_volatile_intrinsic(ir::intrinsic::ia32_wrmsr, read_reg(sema_context(), reg::ecx), da);
+	auto val = read_pair(sema_context(), reg::edx, reg::eax);
+	bb->push_volatile_intrinsic(ir::intrinsic::ia32_wrmsr, read_reg(sema_context(), reg::ecx), std::move(val));
+	return diag::ok;
+}
+DECL_SEMA(PREFETCH) {
+	bb->push_volatile_intrinsic(ir::intrinsic::prefetch, agen(sema_context(), ins.op[0].m, true).first);
+	return diag::ok;
+}
+DECL_SEMA(PREFETCHNTA) {
+	bb->push_volatile_intrinsic(ir::intrinsic::ia32_prefetchnta, agen(sema_context(), ins.op[0].m, true).first);
+	return diag::ok;
+}
+DECL_SEMA(PREFETCHT0) {
+	bb->push_volatile_intrinsic(ir::intrinsic::ia32_prefetcht0, agen(sema_context(), ins.op[0].m, true).first);
+	return diag::ok;
+}
+DECL_SEMA(PREFETCHT1) {
+	bb->push_volatile_intrinsic(ir::intrinsic::ia32_prefetcht1, agen(sema_context(), ins.op[0].m, true).first);
+	return diag::ok;
+}
+DECL_SEMA(PREFETCHT2) {
+	bb->push_volatile_intrinsic(ir::intrinsic::ia32_prefetcht2, agen(sema_context(), ins.op[0].m, true).first);
+	return diag::ok;
+}
+DECL_SEMA(PREFETCHW) {
+	bb->push_volatile_intrinsic(ir::intrinsic::ia32_prefetchw, agen(sema_context(), ins.op[0].m, true).first);
+	return diag::ok;
+}
+DECL_SEMA(PREFETCHWT1) {
+	bb->push_volatile_intrinsic(ir::intrinsic::ia32_prefetchwt1, agen(sema_context(), ins.op[0].m, true).first);
 	return diag::ok;
 }
 // TODO: INT / INTO
@@ -112,9 +131,7 @@ DECL_SEMA(WRMSR) {
 pushfq
 popfq
 
-xchg -> 4 0.018925%
 movsd -> 85 0.402157%
-cmpxchg -> 1 0.004731%
 
 cqo -> 8 0.037850%
 sbb -> 5 0.023656%
