@@ -42,21 +42,30 @@ namespace retro::arch {
 	// ABI information.
 	//
 	const call_conv_desc* x86arch::get_cc_desc(call_conv cc) {
-		switch (cc) {
-			case arch::call_conv::msabi_x86_64:
-				return &x86::cc_msabi_x86_64;
-			case arch::call_conv::sysv_x86_64:
-				return &x86::cc_sysv_x86_64;
-			case arch::call_conv::cdecl_i386:
-				return &x86::cc_cdecl_i386;
-			case arch::call_conv::stdcall_i386:
-				return &x86::cc_stdcall_i386;
-			case arch::call_conv::thiscall_i386:
-				return &x86::cc_thiscall_i386;
-			case arch::call_conv::msfastcall_i386:
-				return &x86::cc_msfastcall_i386;
-			default:
-				return nullptr;
+		if (is_64()) {
+			switch (cc) {
+				case arch::call_conv::msabi_x86_64:
+					return &x86::cc_msabi_x86_64;
+				case arch::call_conv::sysv_x86_64:
+					return &x86::cc_sysv_x86_64;
+				default:
+					return nullptr;
+			}
+		} else {
+			switch (cc) {
+				case arch::call_conv::cdecl_i386:
+					return &x86::cc_cdecl_i386;
+				case arch::call_conv::stdcall_i386:
+					return &x86::cc_stdcall_i386;
+				case arch::call_conv::thiscall_i386:
+					return &x86::cc_thiscall_i386;
+				case arch::call_conv::msthiscall_i386:
+					return &x86::cc_msthiscall_i386;
+				case arch::call_conv::msfastcall_i386:
+					return &x86::cc_msfastcall_i386;
+				default:
+					return nullptr;
+			}
 		}
 	}
 	// Register information.
