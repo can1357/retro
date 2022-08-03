@@ -93,6 +93,7 @@
     <ClCompile Include="src\arch\x86\sema\logical.cpp" />
     <ClCompile Include="src\arch\x86\sema\misc.cpp" />
     <ClCompile Include="src\arch\x86\sema\data.cpp" />
+    <ClCompile Include="src\arch\x86\sema\vector.cpp" />
     <ClCompile Include="src\arch\x86\x86.cpp" />
     <ClCompile Include="src\ir\basic_block.cpp" />
     <ClCompile Include="src\ir\insn.cpp" />
@@ -214,14 +215,14 @@
     <LinkIncremental>false</LinkIncremental>
     <OutDir>$(SolutionDir)\build\$(ProjectName)\$(Platform)\$(Configuration)\</OutDir>
     <IntDir>$(SolutionDir)\build\$(ProjectName)-tmp\$(Platform)\$(Configuration)\</IntDir>
-    <IncludePath>$(ProjectDir)include;$(SolutionDir)zydis\dependencies\zycore\include;$(SolutionDir)zydis\include;$(SolutionDir)z3\build\install-x64\include;$(SolutionDir)linux-pe\includes;$(VC_IncludePath);$(WindowsSDK_IncludePath)</IncludePath>
+    <IncludePath>$(ProjectDir)include;$(SolutionDir)zydis\dependencies\zycore\include;$(SolutionDir)zydis\include;$(SolutionDir)z3\build\install-x64-release\include;$(SolutionDir)linux-pe\includes;$(VC_IncludePath);$(WindowsSDK_IncludePath)</IncludePath>
     <PublicIncludeDirectories>$(ProjectDir)include;</PublicIncludeDirectories>
   </PropertyGroup>
   <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Release-LLVM|x64'">
     <LinkIncremental>false</LinkIncremental>
     <OutDir>$(SolutionDir)\build\$(ProjectName)\$(Platform)\$(Configuration)\</OutDir>
     <IntDir>$(SolutionDir)\build\$(ProjectName)-tmp\$(Platform)\$(Configuration)\</IntDir>
-    <IncludePath>$(ProjectDir)include;$(SolutionDir)zydis\dependencies\zycore\include;$(SolutionDir)zydis\include;$(SolutionDir)z3\build\install-x64\include;$(SolutionDir)linux-pe\includes;$(LLVM_PATH)\lib\clang\$(LLVMToolsVersion)\include;$(VC_IncludePath);$(WindowsSDK_IncludePath)</IncludePath>
+    <IncludePath>$(ProjectDir)include;$(SolutionDir)zydis\dependencies\zycore\include;$(SolutionDir)zydis\include;$(SolutionDir)z3\build\install-x64-release\include;$(SolutionDir)linux-pe\includes;$(LLVM_PATH)\lib\clang\$(LLVMToolsVersion)\include;$(VC_IncludePath);$(WindowsSDK_IncludePath)</IncludePath>
     <PublicIncludeDirectories>$(ProjectDir)include;</PublicIncludeDirectories>
     <ExecutablePath>$(LLVM_PATH)\bin;$(ExecutablePath)</ExecutablePath>
   </PropertyGroup>
@@ -317,7 +318,7 @@
       <EnableCOMDATFolding>true</EnableCOMDATFolding>
       <OptimizeReferences>true</OptimizeReferences>
       <GenerateDebugInformation>true</GenerateDebugInformation>
-      <AdditionalDependencies>$(SolutionDir)zydis\msvc\bin\ReleaseX64\Zycore.lib;$(SolutionDir)zydis\msvc\bin\ReleaseX64\Zydis.lib;%(AdditionalDependencies)</AdditionalDependencies>
+      <AdditionalDependencies>$(SolutionDir)zydis\msvc\bin\ReleaseX64\Zycore.lib;$(SolutionDir)zydis\msvc\bin\ReleaseX64\Zydis.lib;$(SolutionDir)z3\build\install-x64-release\lib\libz3.lib;%(AdditionalDependencies)</AdditionalDependencies>
     </Link>
   </ItemDefinitionGroup>
   <ItemDefinitionGroup Condition="'$(Configuration)|$(Platform)'=='Release-LLVM|x64'">
@@ -339,7 +340,7 @@
       <EnableCOMDATFolding>true</EnableCOMDATFolding>
       <OptimizeReferences>true</OptimizeReferences>
       <GenerateDebugInformation>true</GenerateDebugInformation>
-      <AdditionalDependencies>$(SolutionDir)zydis\msvc\bin\ReleaseX64\Zycore.lib;$(SolutionDir)zydis\msvc\bin\ReleaseX64\Zydis.lib;%(AdditionalDependencies)</AdditionalDependencies>
+      <AdditionalDependencies>$(SolutionDir)zydis\msvc\bin\ReleaseX64\Zycore.lib;$(SolutionDir)zydis\msvc\bin\ReleaseX64\Zydis.lib;$(SolutionDir)z3\build\install-x64-release\lib\libz3.lib;%(AdditionalDependencies)</AdditionalDependencies>
       <AdditionalOptions>/mllvm:--use-retard-cc %(AdditionalOptions)</AdditionalOptions>
     </Link>
   </ItemDefinitionGroup>

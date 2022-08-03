@@ -66,7 +66,29 @@ DECL_SEMA(RDPID) {
 	write_reg(sema_context(), ins.op[0].r, res);
 	return diag::ok;
 }
-// TODO: xgetbv / cpuid
+DECL_SEMA(CPUID) {
+	auto res = bb->push_volatile_intrinsic(ir::intrinsic::ia32_cpuid, read_reg(sema_context(), reg::eax), read_reg(sema_context(), reg::ecx));
+	write_reg(sema_context(), reg::eax, bb->push_extract(ir::type::i32, res, 0));
+	write_reg(sema_context(), reg::ebx, bb->push_extract(ir::type::i32, res, 1));
+	write_reg(sema_context(), reg::ecx, bb->push_extract(ir::type::i32, res, 2));
+	write_reg(sema_context(), reg::edx, bb->push_extract(ir::type::i32, res, 3));
+	return diag::ok;
+}
+DECL_SEMA(XGETBV) {
+	auto res = bb->push_volatile_intrinsic(ir::intrinsic::ia32_xgetbv, read_reg(sema_context(), reg::ecx));
+	res		= bb->push_extract(ir::type::i64, res, 0);
+	write_reg(sema_context(), reg::eax, bb->push_cast(ir::type::i32, res));
+	write_reg(sema_context(), reg::edx, bb->push_cast(ir::type::i32, bb->push_binop(ir::op::bit_shr, res, (i64) 32)));
+	return diag::ok;
+}
+DECL_SEMA(XSETBV) {
+	auto a  = bb->push_cast(ir::type::i64, read_reg(sema_context(), reg::eax) a);
+	auto d  = bb->push_cast(ir::type::i64, read_reg(sema_context(), reg::eax));
+	d		  = bb->push_binop(ir::op::bit_shl, d, (i64) 32);
+	auto da = bb->push_binop(ir::op::bit_or, d, a);
+	bb->push_volatile_intrinsic(ir::intrinsic::ia32_xsetbv, read_reg(sema_context(), reg::ecx), da);
+	return diag::ok;
+}
 // TODO: INT / INTO
 
 
@@ -76,13 +98,9 @@ popfq
 
 xchg -> 4 0.018925%
 movsd -> 85 0.402157%
-xorps -> 24 0.113550%
 cmpxchg -> 1 0.004731%
 
 cqo -> 8 0.037850%
-mul -> 10 0.047313%
-imul -> 19 0.089894%
-div -> 1 0.004731%
 sbb -> 5 0.023656%
 adc -> 3 0.014194%
 
@@ -90,7 +108,4 @@ scasd -> 1 0.004731%
 stosw -> 3 0.014194%
 lodsb -> 1 0.004731%
 stosd -> 1 0.004731%
-
-xgetbv -> 1 0.004731%
-cpuid -> 3 0.014194%
 */
