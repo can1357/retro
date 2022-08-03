@@ -31,6 +31,7 @@ DECL_SEMA(RET) {
 	bb->push_xret(retptr);
 	return diag::ok;
 }
+// TODO: IRETQ, IRETD, SYSRET...
 DECL_SEMA(NOP) { return diag::ok; }
 DECL_SEMA(UD2) {
 	bb->push_trap("ud2");
@@ -82,7 +83,7 @@ DECL_SEMA(XGETBV) {
 	return diag::ok;
 }
 DECL_SEMA(XSETBV) {
-	auto a  = bb->push_cast(ir::type::i64, read_reg(sema_context(), reg::eax) a);
+	auto a  = bb->push_cast(ir::type::i64, read_reg(sema_context(), reg::eax));
 	auto d  = bb->push_cast(ir::type::i64, read_reg(sema_context(), reg::eax));
 	d		  = bb->push_binop(ir::op::bit_shl, d, (i64) 32);
 	auto da = bb->push_binop(ir::op::bit_or, d, a);
@@ -97,7 +98,7 @@ DECL_SEMA(RDMSR) {
 	return diag::ok;
 }
 DECL_SEMA(WRMSR) {
-	auto a  = bb->push_cast(ir::type::i64, read_reg(sema_context(), reg::eax) a);
+	auto a  = bb->push_cast(ir::type::i64, read_reg(sema_context(), reg::eax));
 	auto d  = bb->push_cast(ir::type::i64, read_reg(sema_context(), reg::eax));
 	d		  = bb->push_binop(ir::op::bit_shl, d, (i64) 32);
 	auto da = bb->push_binop(ir::op::bit_or, d, a);
