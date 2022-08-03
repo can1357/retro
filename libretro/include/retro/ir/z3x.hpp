@@ -15,6 +15,10 @@ namespace retro::z3x {
 	using sort	  = z3::sort;
 	using context = z3::context;
 
+	// Global context per thread.
+	//
+	inline static thread_local context local_context = {};
+
 	// Null checks.
 	//
 	RC_INLINE static bool ok(const expr& expr) { return bool(expr); }

@@ -46,7 +46,6 @@ namespace retro::ir::opt {
 					}
 				}
 			} else if (ins->op == opcode::select) {
-				auto	into = ins->template_types[1];
 				auto& val  = ins->opr(0);
 				if (val.is_const()) {
 					n += 1 + ins->replace_all_uses_with(ins->opr(val.const_val.get<bool>() ? 1 : 2));
