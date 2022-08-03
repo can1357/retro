@@ -302,19 +302,34 @@ ret =    "@type.none"
 symbol = "__builtin_ia32_rdgsbase32"
 args   = []
 ret =    "@type.i32"
-[intrinsic.ia32-rdgsbase64]
-symbol = "__builtin_ia32_rdgsbase64"
-args   = []
-ret =    "@type.i64"
 [intrinsic.ia32-rdfsbase32]
 symbol = "__builtin_ia32_rdfsbase32"
 args   = []
 ret =    "@type.i32"
+[intrinsic.ia32-rdgsbase64]
+symbol = "__builtin_ia32_rdgsbase64"
+args   = []
+ret =    "@type.i64"
 [intrinsic.ia32-rdfsbase64]
 symbol = "__builtin_ia32_rdfsbase64"
 args   = []
 ret =    "@type.i64"
-
+[intrinsic.ia32-wrgsbase32]
+symbol = "__builtin_ia32_wrgsbase32"
+args   = ["@type.i32"]
+ret =    "@type.none"
+[intrinsic.ia32-wrfsbase32]
+symbol = "__builtin_ia32_wrfsbase32"
+args   = ["@type.i32"]
+ret =    "@type.none"
+[intrinsic.ia32-wrgsbase64]
+symbol = "__builtin_ia32_wrgsbase64"
+args   = ["@type.i64"]
+ret =    "@type.none"
+[intrinsic.ia32-wrfsbase64]
+symbol = "__builtin_ia32_wrfsbase64"
+args   = ["@type.i64"]
+ret =    "@type.none"
 
 [intrinsic.ia32-readpid]
 symbol = "__builtin_ia32_readpid"

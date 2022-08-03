@@ -136,6 +136,30 @@ DECL_SEMA(LFENCE) {
 	bb->push_sideeffect_intrinsic(ir::intrinsic::lfence);
 	return diag::ok;
 }
+DECL_SEMA(RDGSBASE) {
+	u16  w		= ins.effective_width;
+	auto intrin = w == 32 ? ir::intrinsic::ia32_rdgsbase32 : ir::intrinsic::ia32_rdgsbase64;
+	write(sema_context(), 0, bb->push_intrinsic(intrin));
+	return diag::ok;
+}
+DECL_SEMA(RDFSBASE) {
+	u16  w		= ins.effective_width;
+	auto intrin = w == 32 ? ir::intrinsic::ia32_rdfsbase32 : ir::intrinsic::ia32_rdfsbase64;
+	write(sema_context(), 0, bb->push_intrinsic(intrin));
+	return diag::ok;
+}
+DECL_SEMA(WRGSBASE) {
+	u16 w = ins.effective_width;
+	auto intrin = w == 32 ? ir::intrinsic::ia32_wrgsbase32 : ir::intrinsic::ia32_wrgsbase64;
+	bb->push_sideeffect_intrinsic(intrin, read(sema_context(), 0, ir::int_type(w)));
+	return diag::ok;
+}
+DECL_SEMA(WRFSBASE) {
+	u16  w		= ins.effective_width;
+	auto intrin = w == 32 ? ir::intrinsic::ia32_wrfsbase32 : ir::intrinsic::ia32_wrfsbase64;
+	bb->push_sideeffect_intrinsic(intrin, read(sema_context(), 0, ir::int_type(w)));
+	return diag::ok;
+}
 // TODO: INT / INTO
 
 /*
