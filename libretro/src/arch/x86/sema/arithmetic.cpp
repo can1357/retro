@@ -179,7 +179,7 @@ DECL_SEMA(CMP) {
 
 // Division and mulitplication.
 //
-static std::array<arch::mreg, 3> select_muldiv_regs(u16 w) {
+static std::array<arch::mreg, 3> select_mul_regs(u16 w) {
 	arch::mreg lhs	  = {};
 	arch::mreg outlo = {};
 	arch::mreg outhi = {};
@@ -216,13 +216,12 @@ static std::array<arch::mreg, 3> select_muldiv_regs(u16 w) {
 	}
 	return {lhs, outlo, outhi};
 }
-
 DECL_SEMA(MUL) {
 	auto ty	= ir::int_type(ins.effective_width);
 	auto tyx = ir::int_type(ins.effective_width * 2);
 	auto rhs = read(sema_context(), 0, ty);
 
-	auto [lhs, outlo, outhi] = select_muldiv_regs(ins.effective_width);
+	auto [lhs, outlo, outhi] = select_mul_regs(ins.effective_width);
 
 	auto lhsx	  = bb->push_cast(tyx, read_reg(sema_context(), lhs, ty));
 	auto rhsx	  = bb->push_cast(tyx, rhs);
@@ -264,7 +263,7 @@ static diag::lazy imul_1op(SemaContext) {
 	auto tyx = ir::int_type(ins.effective_width * 2);
 	auto rhs = read(sema_context(), 0, ty);
 
-	auto [lhs, outlo, outhi] = select_muldiv_regs(ins.effective_width);
+	auto [lhs, outlo, outhi] = select_mul_regs(ins.effective_width);
 
 	auto lhsx	  = bb->push_cast_sx(tyx, read_reg(sema_context(), lhs, ty));
 	auto rhsx	  = bb->push_cast_sx(tyx, rhs);
@@ -317,4 +316,112 @@ DECL_SEMA(IMUL) {
 	} else {
 		return imul_2_3op(sema_context());
 	}
+}
+
+
+static std::array<arch::mreg, 4> select_div_regs(u16 w) {
+	arch::mreg inlo = {};
+	arch::mreg inhi = {};
+	arch::mreg outq = {};
+	arch::mreg outr = {};
+	switch (w) {
+		case 8: {
+			// AL&AH <| AX /% OP1
+			outq	= reg::al;
+			outr	= reg::ah;
+			inlo	= reg::ax;
+			break;
+		}
+		case 16: {
+			// AX&DX <| DX:AX /% OP1
+			outq = reg::ax;
+			outr = reg::dx;
+			inlo = reg::ax;
+			inhi = reg::dx;
+			break;
+		}
+		case 32: {
+			// EAX&EDX <| EDX:EAX /% OP1
+			outq = reg::eax;
+			outr = reg::edx;
+			inlo = reg::eax;
+			inhi = reg::edx;
+			break;
+		}
+		case 64: {
+			// RAX&RDX <| RDX:RAX /% OP1
+			outq = reg::rax;
+			outr = reg::rdx;
+			inlo = reg::rax;
+			inhi = reg::rdx;
+			break;
+		}
+		default:
+			RC_UNREACHABLE();
+	}
+	return {inlo, inhi, outq, outr};
+}
+DECL_SEMA(IDIV) {
+	auto ty	= ir::int_type(ins.effective_width);
+	auto tyx = ir::int_type(ins.effective_width * 2);
+
+	auto [inlo, inhi, outq, outr] = select_div_regs(ins.effective_width);
+
+	// Read RHS.
+	//
+	auto rhs	 = read(sema_context(), 0, ty);
+	auto rhsx = bb->push_cast_sx(tyx, rhs);
+
+	// Read LHS.
+	//
+	ir::insn* lhsx;
+	if (inhi) {
+		auto lhslo = bb->push_cast(tyx, read_reg(sema_context(), inlo, ty));
+		auto lhshi = bb->push_cast(tyx, read_reg(sema_context(), inhi, ty));
+		lhshi		  = bb->push_binop(ir::op::bit_shl, lhshi, ir::constant(tyx, ins.effective_width));
+		lhsx		  = bb->push_binop(ir::op::bit_or, lhshi, lhslo);
+	} else {
+		lhsx = read_reg(sema_context(), inlo, tyx);
+	}
+
+	// Compute result and write.
+	//
+	auto rq = bb->push_binop(ir::op::div, lhsx, rhsx);
+	auto rr = bb->push_binop(ir::op::rem, lhsx, rhsx);
+
+	write_reg(sema_context(), outq, bb->push_cast(ty, rq));
+	write_reg(sema_context(), outr, bb->push_cast(ty, rr));
+	return diag::ok;
+}
+DECL_SEMA(DIV) {
+	auto ty	= ir::int_type(ins.effective_width);
+	auto tyx = ir::int_type(ins.effective_width * 2);
+
+	auto [inlo, inhi, outq, outr] = select_div_regs(ins.effective_width);
+
+	// Read RHS.
+	//
+	auto rhs	 = read(sema_context(), 0, ty);
+	auto rhsx = bb->push_cast(tyx, rhs);
+
+	// Read LHS.
+	//
+	ir::insn* lhsx;
+	if (inhi) {
+		auto lhslo = bb->push_cast(tyx, read_reg(sema_context(), inlo, ty));
+		auto lhshi = bb->push_cast(tyx, read_reg(sema_context(), inhi, ty));
+		lhshi		  = bb->push_binop(ir::op::bit_shl, lhshi, ir::constant(tyx, ins.effective_width));
+		lhsx		  = bb->push_binop(ir::op::bit_or, lhshi, lhslo);
+	} else {
+		lhsx = read_reg(sema_context(), inlo, tyx);
+	}
+
+	// Compute result and write.
+	//
+	auto rq = bb->push_binop(ir::op::udiv, lhsx, rhsx);
+	auto rr = bb->push_binop(ir::op::urem, lhsx, rhsx);
+
+	write_reg(sema_context(), outq, bb->push_cast(ty, rq));
+	write_reg(sema_context(), outr, bb->push_cast(ty, rr));
+	return diag::ok;
 }

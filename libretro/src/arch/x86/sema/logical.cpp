@@ -4,6 +4,9 @@
 using namespace retro;
 using namespace retro::arch::x86;
 
+// TODO: Special handling:
+//  lock or [rsp], 0
+
 template<auto Operation>
 static diag::lazy logical(SemaContext) {
 	auto ty	= ir::int_type(ins.effective_width);

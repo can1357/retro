@@ -135,36 +135,3 @@ DECL_SEMA(STI) {
 	bb->push_write_reg(reg::flag_if, true);
 	return diag::ok;
 }
-
-// Vector moves.
-//
-DECL_SEMA(MOVUPS) {
-	constexpr auto ty = ir::type::f32x4;
-	write(sema_context(), 0, read(sema_context(), 1, ty));
-	return diag::ok;
-}
-DECL_SEMA(MOVAPS) {
-	constexpr auto ty = ir::type::f32x4;
-	write(sema_context(), 0, read(sema_context(), 1, ty));
-	return diag::ok;
-}
-DECL_SEMA(MOVUPD) {
-	constexpr auto ty = ir::type::f64x2;
-	write(sema_context(), 0, read(sema_context(), 1, ty));
-	return diag::ok;
-}
-DECL_SEMA(MOVAPD) {
-	constexpr auto ty = ir::type::f64x2;
-	write(sema_context(), 0, read(sema_context(), 1, ty));
-	return diag::ok;
-}
-DECL_SEMA(MOVDQU) {
-	constexpr auto ty = ir::type::i32x4;
-	write(sema_context(), 0, read(sema_context(), 1, ty));
-	return diag::ok;
-}
-DECL_SEMA(MOVDQA) {
-	constexpr auto ty = ir::type::i32x4;
-	write(sema_context(), 0, read(sema_context(), 1, ty));
-	return diag::ok;
-}

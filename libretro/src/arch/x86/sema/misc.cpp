@@ -4,12 +4,6 @@
 using namespace retro;
 using namespace retro::arch::x86;
 
-// TODO: Special handling:
-//  pxor xmm0, xmm0
-//  lock or [rsp], 0
-//
-//
-
 DECL_SEMA(CALL) {
 	bb->push_xcall(read(sema_context(), 0, ir::type::pointer));
 	return diag::ok;
@@ -91,19 +85,6 @@ imul -> 19 0.089894%
 div -> 1 0.004731%
 sbb -> 5 0.023656%
 adc -> 3 0.014194%
-
-movq -> 14 0.066238%
-movd -> 5 0.023656%
-movss -> 9 0.042581%
-divss -> 1 0.004731%
-cvtdq2pd -> 2 0.009463%
-cvtdq2ps -> 2 0.009463%
-cvtps2pd -> 2 0.009463%
-cvtsi2ss -> 6 0.028388%
-cvtsi2sd -> 4 0.018925%
-addsd -> 1 0.004731%
-addss -> 1 0.004731%
-psrldq -> 6 0.028388%
 
 scasd -> 1 0.004731%
 stosw -> 3 0.014194%
