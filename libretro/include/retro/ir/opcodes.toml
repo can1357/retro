@@ -316,7 +316,7 @@ is-pure =        true
 template-count = 1
 types =          ["@type.i1", "@type.op", "@type.none", "@type.none"]
 templates =      [0,          0,          1,            1]
-names =          ["",         "Op", "lhs",        "rhs"]
+names =          ["",         "Op",       "lhs",        "rhs"]
 constexprs =     [1]
 
 #T     phi<T>     Tx...:incoming

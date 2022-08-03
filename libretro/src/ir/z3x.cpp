@@ -277,9 +277,9 @@ namespace retro::z3x {
 				} else if (n == m) {
 					return val;
 				} else if (sx) {
-					return z3::sext(val, m);
+					return z3::sext(val, n - m);
 				} else {
-					return z3::zext(val, m);
+					return z3::zext(val, n - m);
 				}
 			}
 			// i -> f
