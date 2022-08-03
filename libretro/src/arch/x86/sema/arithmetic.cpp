@@ -227,7 +227,7 @@ DECL_SEMA(MUL) {
 	auto lhsx	  = bb->push_cast(tyx, read_reg(sema_context(), lhs, ty));
 	auto rhsx	  = bb->push_cast(tyx, rhs);
 	auto resultx  = bb->push_binop(ir::op::mul, lhsx, rhsx);
-	auto resulthi = bb->push_cast(ty, bb->push_binop(ir::op::bit_shr, resultx, ir::constant(tyx, 1)));
+	auto resulthi = bb->push_cast(ty, bb->push_binop(ir::op::bit_shr, resultx, ir::constant(tyx, ins.effective_width)));
 
 	if (!outhi) {
 		write_reg(sema_context(), outlo, resultx);
@@ -252,7 +252,7 @@ DECL_SEMA(MULX) {
 	auto lhsx	  = bb->push_cast(tyx, read_reg(sema_context(), lhs, ty));
 	auto rhsx	  = bb->push_cast(tyx, rhs);
 	auto resultx  = bb->push_binop(ir::op::mul, lhsx, rhsx);
-	auto resulthi = bb->push_cast(ty, bb->push_binop(ir::op::bit_shr, resultx, ir::constant(tyx, 1)));
+	auto resulthi = bb->push_cast(ty, bb->push_binop(ir::op::bit_shr, resultx, ir::constant(tyx, ins.effective_width)));
 
 	write(sema_context(), 1, bb->push_cast(ty, resultx));
 	write(sema_context(), 0, resulthi);
@@ -269,7 +269,7 @@ static diag::lazy imul_1op(SemaContext) {
 	auto lhsx	  = bb->push_cast_sx(tyx, read_reg(sema_context(), lhs, ty));
 	auto rhsx	  = bb->push_cast_sx(tyx, rhs);
 	auto resultx  = bb->push_binop(ir::op::mul, lhsx, rhsx);
-	auto resulthi = bb->push_cast(ty, bb->push_binop(ir::op::bit_shr, resultx, ir::constant(tyx, 1)));
+	auto resulthi = bb->push_cast(ty, bb->push_binop(ir::op::bit_shr, resultx, ir::constant(tyx, ins.effective_width)));
 
 	if (!outhi) {
 		write_reg(sema_context(), outlo, resultx);

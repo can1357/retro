@@ -50,6 +50,29 @@ DECL_SEMA(INT1) {
 	bb->push_trap("int1");
 	return diag::ok;
 }
+DECL_SEMA(RDTSC) {
+	auto res = bb->push_intrinsic(ir::intrinsic::readcyclecounter);
+	res = bb->push_extract(ir::type::i64, res, 0);
+	write_reg(sema_context(), reg::eax, bb->push_cast(ir::type::i32, res));
+	write_reg(sema_context(), reg::edx, bb->push_cast(ir::type::i32, bb->push_binop(ir::op::bit_shr, res, (i64)32)));
+	return diag::ok;
+}
+DECL_SEMA(RDTSCP) {
+	lift_RDTSC(sema_context());
+	auto res = bb->push_intrinsic(ir::intrinsic::ia32_readpid);
+	res		= bb->push_extract(ir::type::i32, res, 0);
+	write_reg(sema_context(), reg::ecx, res);
+	return diag::ok;
+}
+DECL_SEMA(RDPID) {
+	auto res = bb->push_intrinsic(ir::intrinsic::ia32_readpid);
+	res		= bb->push_extract(ir::type::i32, res, 0);
+	if (ins.op[0].r.get_kind() == arch::reg_kind::gpr64)
+		res = bb->push_cast(ir::type::i64, res);
+	write_reg(sema_context(), ins.op[0].r, res);
+	return diag::ok;
+}
+// TODO: xgetbv / cpuid
 // TODO: INT / INTO
 
 

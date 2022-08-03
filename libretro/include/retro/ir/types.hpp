@@ -170,6 +170,14 @@ namespace retro::ir {
 				case type::i64:
 					data_length = 8;
 					break;
+				case type::i128: {
+					data_length = 16;
+					if constexpr (std::is_signed_v<T>)
+						std::construct_at((i128*) &data, i128{.low = value, .high = value >= 0 ? 0 : -1});
+					else
+						std::construct_at((u128*) &data, u128{.low = value, .high = 0});
+					break;
+				}
 				case type::f32:
 					data_length = 4;
 					std::construct_at((f32*) &data, f32(value));

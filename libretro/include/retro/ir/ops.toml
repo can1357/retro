@@ -229,7 +229,7 @@ commutative = true
 
 # Memory intrinsics.
 #
-[intrinsic.stack-alloc]
+[intrinsic.alloc-stack]
 symbol = "alloca"
 args =   ["@type.i32"]
 ret =    "@type.pointer"
@@ -280,6 +280,14 @@ ret =    "@type.pointer"
 
 # Low level intrinsics.
 #
+[intrinsic.readcyclecounter]
+symbol = "__builtin_readcyclecounter"
+args   = []
+ret =    "@type.i64"
+[intrinsic.ia32-readpid]
+symbol = "__builtin_ia32_readpid"
+args   = []
+ret =    "@type.i32"
 [intrinsic.retaddr]
 symbol = "_ReturnAddress"
 args =   []

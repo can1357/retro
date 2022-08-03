@@ -110,6 +110,7 @@ opcode_kind = [
 	"phi",
 	"branch",
 	"external-branch",
+	"intrinsic",
 	
 	"trap"
 ]
@@ -176,8 +177,8 @@ templates =      [1,            0]
 names =          ["",           "Reason"]
 constexprs =     [1]
 
-#E  extract_vector<V,E> V:vector, i32:Lane
-[opcode.extract_vector]
+#E  extract<V,E> V:vector, i32:Lane
+[opcode.extract]
 kind =           "@opcode_kind.data"
 is-const =       true
 is-pure =        true
@@ -186,8 +187,8 @@ types =          ["@type.none", "@type.none", "@type.i32"]
 templates =      [2,            1,            0]
 names =          ["",           "vector",      "Lane"]
 constexprs =     [2]
-#V  insert_vector<V,E>  V:vector, i32:Lane, E:element
-[opcode.insert_vector]
+#V  insert<V,E>  V:vector, i32:Lane, E:element
+[opcode.insert]
 kind =           "@opcode_kind.data"
 is-const =       true
 is-pure =        true
@@ -327,7 +328,7 @@ template-count = 0
 types =          ["@type.none", "@type.pointer"]
 templates =      [0,            0]
 names =          ["",           "destination"]
-#pack  call       pointer:destination, context:ctx
+#context call       pointer:destination, context:ctx
 [opcode.call]
 kind =           "@opcode_kind.branch"
 side-effect    = true
@@ -335,6 +336,25 @@ template-count = 0
 types =          ["@type.context", "@type.pointer", "@type.context"]
 templates =      [0,               0,               0]
 names =          ["",              "destination",   "ctx"]
+
+#pack   intrinsic             constexpr intrinsic:Function, Tx:Args...
+[opcode.intrinsic]
+kind =           "@opcode_kind.intrinsic"
+side-effect    = false
+template-count = 0
+types =          ["@type.pack",    "@type.intrinsic", "@type.pack"]
+templates =      [0,               0,                 0]
+names =          ["",              "function",        "args"]
+constexprs =     [1]
+#pack    volatile_intrinsic   constexpr intrinsic:Function, Tx:Args...
+[opcode.volatile_intrinsic]
+kind =           "@opcode_kind.intrinsic"
+side-effect    = true
+template-count = 0
+types =          ["@type.pack",    "@type.intrinsic", "@type.pack"]
+templates =      [0,               0,                 0]
+names =          ["",              "function",        "args"]
+constexprs =     [1]
 
 #void  xjmp      pointer:destination
 [opcode.xjmp]
@@ -394,6 +414,9 @@ types =          ["@type.none", "@type.context"]
 templates =      [0,            0]
 names =          ["",           "ctx"]
 
+
+
+
 #void  trap      str:Reason
 [opcode.trap]
 kind =           "@opcode_kind.trap"
@@ -423,10 +446,3 @@ template-count = 0
 types =          ["@type.none"]
 templates =      [0]
 names =          [""]
-
-#TODO:
-#  -- vector stuff
-#  T    intrinsic<T> constexpr intrinsic:Id, Ty:ArgOrTup // lsb,msb,popcnt,sin,cos,memcpy,atomic,can represent all things we dont care about
-#  Tup  insert       Tup, int:idx, Ty:value
-#  T    extract      Tup
-#  R    call<R, A>   uptr:adr A:arg CC:CallConvention

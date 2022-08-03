@@ -2585,4 +2585,21 @@ namespace std
 		return count;
 	}
 };
+
+// Short names.
+//
+namespace retro {
+	template<typename Key, typename T, typename Hash = robin_hood::hash<Key>, typename KeyEqual = std::equal_to<Key>, size_t MaxLoadFactor100 = 80>
+	using flat_umap = robin_hood::unordered_flat_map<Key, T, Hash, KeyEqual, MaxLoadFactor100>;
+	template<typename Key, typename T, typename Hash = robin_hood::hash<Key>, typename KeyEqual = std::equal_to<Key>, size_t MaxLoadFactor100 = 80>
+	using node_umap = robin_hood::unordered_node_map<Key, T, Hash, KeyEqual, MaxLoadFactor100>;
+	template<typename Key, typename T, typename Hash = robin_hood::hash<Key>, typename KeyEqual = std::equal_to<Key>, size_t MaxLoadFactor100 = 80>
+	using umap = robin_hood::unordered_map<Key, T, Hash, KeyEqual, MaxLoadFactor100>;
+	template<typename Key, typename Hash = robin_hood::hash<Key>, typename KeyEqual = std::equal_to<Key>, size_t MaxLoadFactor100 = 80>
+	using flat_uset = robin_hood::unordered_flat_set<Key, Hash, KeyEqual, MaxLoadFactor100>;
+	template<typename Key, typename Hash = robin_hood::hash<Key>, typename KeyEqual = std::equal_to<Key>, size_t MaxLoadFactor100 = 80>
+	using node_uset = robin_hood::unordered_node_set<Key, Hash, KeyEqual, MaxLoadFactor100>;
+	template<typename Key, typename Hash = robin_hood::hash<Key>, typename KeyEqual = std::equal_to<Key>, size_t MaxLoadFactor100 = 80>
+	using uset = robin_hood::unordered_set<Key, Hash, KeyEqual, MaxLoadFactor100>;
+};
 #endif
