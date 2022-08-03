@@ -89,6 +89,21 @@ DECL_SEMA(XSETBV) {
 	bb->push_volatile_intrinsic(ir::intrinsic::ia32_xsetbv, read_reg(sema_context(), reg::ecx), da);
 	return diag::ok;
 }
+DECL_SEMA(RDMSR) {
+	auto res = bb->push_volatile_intrinsic(ir::intrinsic::ia32_rdmsr, read_reg(sema_context(), reg::ecx));
+	res		= bb->push_extract(ir::type::i64, res, 0);
+	write_reg(sema_context(), reg::eax, bb->push_cast(ir::type::i32, res));
+	write_reg(sema_context(), reg::edx, bb->push_cast(ir::type::i32, bb->push_binop(ir::op::bit_shr, res, (i64) 32)));
+	return diag::ok;
+}
+DECL_SEMA(WRMSR) {
+	auto a  = bb->push_cast(ir::type::i64, read_reg(sema_context(), reg::eax) a);
+	auto d  = bb->push_cast(ir::type::i64, read_reg(sema_context(), reg::eax));
+	d		  = bb->push_binop(ir::op::bit_shl, d, (i64) 32);
+	auto da = bb->push_binop(ir::op::bit_or, d, a);
+	bb->push_volatile_intrinsic(ir::intrinsic::ia32_wrmsr, read_reg(sema_context(), reg::ecx), da);
+	return diag::ok;
+}
 // TODO: INT / INTO
 
 
