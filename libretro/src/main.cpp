@@ -560,19 +560,18 @@ static void phase0(ref<ir::routine> rtn) {
 		}
 	}
 
-
-	// TODO: Call $0 => push jmp
+	// TODO: Detect tail call.
+	// TODO: Call $0 => push jmp.
 
 	// Apply simple optimizations.
 	//
-	size_t n = 0;
 	for (auto& bb : rtn->blocks) {
-		n += ir::opt::p0::reg_move_prop(bb);
-		n += ir::opt::const_fold(bb);
-		n += ir::opt::id_fold(bb);
-		n += ir::opt::ins_combine(bb);
-		n += ir::opt::const_fold(bb);
-		n += ir::opt::id_fold(bb);
+		ir::opt::p0::reg_move_prop(bb);
+		ir::opt::const_fold(bb);
+		ir::opt::id_fold(bb);
+		ir::opt::ins_combine(bb);
+		ir::opt::const_fold(bb);
+		ir::opt::id_fold(bb);
 		// TODO: Cfg optimization
 	}
 
@@ -580,7 +579,6 @@ static void phase0(ref<ir::routine> rtn) {
 	//
 	rtn->topological_sort();
 	rtn->rename_insns();
-	printf(RC_GRAY " # Optimized " RC_RED "%llu " RC_GRAY "instructions.\n" RC_RESET, n);
 
 	// Map of all registers with offset from SP.
 	//
@@ -698,7 +696,7 @@ static void phase0(ref<ir::routine> rtn) {
 					if (!o1->is_const() && o2->is_const()) {
 						if (auto* in = o1->get_value()->get_if<ir::insn>()) {
 							if (i32 o = i_sp_offset_list[in->name]; o != no_offset) {
-								i64 delta = o2->const_val.get<i64>();	// TODO: Wrong for ptr = 32
+								i64 delta = o2->const_val.get_i64();
 								if (op == ir::op::add) {
 									o += delta;
 								} else {

@@ -1,11 +1,8 @@
-
-
-
 EXPORT int _fn_0(int* a) {
 	return *a * 2;
 }
 
-EXPORT void fn_memcpy(void* dst, void* src, size_t count) {
+EXPORT void _fn_memcpy(void* dst, void* src, size_t count) {
     asm volatile("cld; rep movsb" : "+D"(dst), "+S"(src), "+c"(count) : : "memory");
 }
 

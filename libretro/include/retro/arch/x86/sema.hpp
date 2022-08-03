@@ -217,6 +217,14 @@ namespace retro::arch::x86 {
 		// If GPR:
 		//
 		if (reg_kind::gpr8 <= desc->kind && desc->kind <= reg_kind::gpr64) {
+			// Determine limits for configuration.
+			//
+			reg_kind gpr_max = reg_kind::gpr64;
+			if (mach->is_32())
+				gpr_max = reg_kind::gpr32;
+			else if (mach->is_16())
+				gpr_max = reg_kind::gpr16;
+
 			// For each part effected:
 			//
 			auto& subreg_list	 = desc->super != reg::none ? enum_reflect(desc->super).parts : desc->parts;
@@ -232,6 +240,11 @@ namespace retro::arch::x86 {
 				auto	sub_ty	  = ir::int_type(sub_desc.width);
 				auto	sub_offset = sub_desc.offset;
 				auto	sub_mask	  = bit_mask(sub_desc.width, sub_offset);
+
+				// Skip if architecture does not have this register.
+				//
+				if (sub_desc.kind > gpr_max)
+					continue;
 
 				// If no alias, skip.
 				//

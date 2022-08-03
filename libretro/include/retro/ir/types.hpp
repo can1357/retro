@@ -147,7 +147,7 @@ namespace retro::ir {
 		//
 		template<typename T>
 		constant(type t, T value) : constant(i64(value)) {
-			// todo: i128, vector types.
+			// TODO: vector broadcast.
 			type_id = (u64) t;
 			switch (t) {
 				case type::i1:
@@ -248,6 +248,43 @@ namespace retro::ir {
 				return *(const T*) ptr;
 			} else {
 				return *(const T*) &data[0];
+			}
+		}
+
+		// Integer getters.
+		//
+		i64 get_i64() const {
+			switch (get_type()) {
+				case type::i1:
+					return get<bool>() ? 1 : 0;
+				case type::i8:
+					return get<i8>();
+				case type::i16:
+					return get<i16>();
+				case type::i32:
+					return get<i32>();
+				case type::pointer:
+				case type::i64:
+					return get<i64>();
+				default:
+					fmt::abort("getting non-integer immediate as i64.");
+			}
+		}
+		u64 get_u64() const {
+			switch (get_type()) {
+				case type::i1:
+					return get<bool>() ? 1 : 0;
+				case type::i8:
+					return get<u8>();
+				case type::i16:
+					return get<u16>();
+				case type::i32:
+					return get<u32>();
+				case type::pointer:
+				case type::i64:
+					return get<u64>();
+				default:
+					fmt::abort("getting non-integer immediate as u64.");
 			}
 		}
 

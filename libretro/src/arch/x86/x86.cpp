@@ -68,12 +68,35 @@ namespace retro::arch {
 		if (desc.super != x86::reg::none) {
 			info.full_reg = desc.super;
 		}
+
+		// Replace super for non-long mode config.
+		//
+		if (!is_64()) {
+			auto match = is_32() ? reg_kind::gpr32 : reg_kind::gpr16;
+			if (auto& i = enum_reflect(x86::reg(info.full_reg.id)); i.kind == reg_kind::gpr64) {
+				for (auto part : i.parts) {
+					if (enum_reflect(part).kind == match) {
+						info.full_reg = part;
+					}
+				}
+			}
+		}
 		return info;
 	}
 	void x86arch::for_each_subreg(mreg r, function_view<void(mreg)> f) {
-		auto i  = get_register_info(r);
-		// TODO: Fix for x86 non 64-bit.
+		auto i = get_register_info(r);
+
+		reg_kind gpr_max = reg_kind::gpr64;
+		if (is_32())
+			gpr_max = reg_kind::gpr32;
+		else if (is_16())
+			gpr_max = reg_kind::gpr16;
+
 		for (auto& p : enum_reflect(x86::reg(i.full_reg.id)).parts) {
+			if (auto k = enum_reflect(p).kind; reg_kind::gpr32 <= k && k <= reg_kind::gpr64) {
+				if (k > gpr_max)
+					continue;
+			}
 			f(p);
 		}
 	}
