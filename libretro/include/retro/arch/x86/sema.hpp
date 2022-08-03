@@ -76,16 +76,24 @@ namespace retro::arch::x86 {
 		return set_af(bb, std::forward<Lhs>(lhs), std::forward<Rhs>(rhs), tmp);
 	}
 	template<typename Lhs, typename Rhs>
-	inline void set_cf_add(ir::basic_block* bb, Lhs&& lhs, Rhs&& rhs, ir::insn* res) {
+	inline ir::insn* get_cf_add(ir::basic_block* bb, Lhs&& lhs, Rhs&& rhs, ir::insn* res) {
 		// res u< lhs || res u< rhs
 		auto a = bb->push_cmp(ir::op::ult, res, std::forward<Lhs>(lhs));
 		auto b = bb->push_cmp(ir::op::ult, res, std::forward<Rhs>(rhs));
-		bb->push_write_reg(reg::flag_cf, bb->push_binop(ir::op::bit_or, a, b));
+		return bb->push_binop(ir::op::bit_or, a, b);
+	}
+	template<typename Lhs, typename Rhs>
+	inline ir::insn* get_cf_sub(ir::basic_block* bb, Lhs&& lhs, Rhs&& rhs) {
+		// lhs u< rhs
+		return bb->push_cmp(ir::op::ult, std::forward<Lhs>(lhs), std::forward<Rhs>(rhs));
+	}
+	template<typename Lhs, typename Rhs>
+	inline void set_cf_add(ir::basic_block* bb, Lhs&& lhs, Rhs&& rhs, ir::insn* res) {
+		bb->push_write_reg(reg::flag_cf, get_cf_add(bb, std::forward<Lhs>(lhs), std::forward<Rhs>(rhs), res));
 	}
 	template<typename Lhs, typename Rhs>
 	inline void set_cf_sub(ir::basic_block* bb, Lhs&& lhs, Rhs&& rhs) {
-		// lhs u< rhs
-		bb->push_write_reg(reg::flag_cf, bb->push_cmp(ir::op::ult, std::forward<Lhs>(lhs), std::forward<Rhs>(rhs)));
+		bb->push_write_reg(reg::flag_cf, get_cf_sub(bb, std::forward<Lhs>(lhs), std::forward<Rhs>(rhs)));
 	}
 	template<typename Lhs, typename Rhs>
 	inline void set_of_add(ir::basic_block* bb, Lhs&& lhs, Rhs&& rhs, ir::insn* res) {

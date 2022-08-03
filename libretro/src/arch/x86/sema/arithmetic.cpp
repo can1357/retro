@@ -178,6 +178,76 @@ DECL_SEMA(CMP) {
 	return diag::ok;
 }
 
+// Add/Sub with Carry.
+//
+DECL_SEMA(ADC) {
+	auto ty	= ir::int_type(ins.effective_width);
+
+	auto rhs_o = read(sema_context(), 1, ty);
+	auto rhs_c = bb->push_cast(ty, bb->push_read_reg(ir::type::i1, reg::flag_cf));
+
+	ir::insn*	result_o;
+	ir::insn*	result_c;
+	ir::variant lhs;
+	if (ins.modifiers & ZYDIS_ATTRIB_HAS_LOCK) {
+		auto [ptr, seg] = agen(sema_context(), ins.op[0].m, true);
+		lhs				 = bb->push_atomic_binop(ir::op::add, seg, std::move(ptr), bb->push_binop(ir::op::add, rhs_o, rhs_c));
+		result_o = bb->push_binop(ir::op::add, lhs, rhs_o);
+		result_c = bb->push_binop(ir::op::add, result_o, rhs_c);
+	} else {
+		lhs	 = read(sema_context(), 0, ty);
+		result_o = bb->push_binop(ir::op::add, lhs, rhs_o);
+		result_c = bb->push_binop(ir::op::add, result_o, rhs_c);
+		write(sema_context(), 0, result_c);
+	}
+
+	set_af(bb, lhs, rhs_o, result_c);
+	set_sf(bb, result_c);
+	set_zf(bb, result_c);
+	set_pf(bb, result_c);
+
+	auto c1 = get_cf_add(bb, lhs, rhs_o, result_o);
+	auto c2 = get_cf_add(bb, result_o, rhs_c, result_c);
+	bb->push_write_reg(reg::flag_cf, bb->push_binop(ir::op::bit_or, c1, c2));
+
+	set_of_add(bb, std::move(lhs), std::move(rhs_o), result_c);
+	return diag::ok;
+}
+DECL_SEMA(SBB) {
+	auto ty = ir::int_type(ins.effective_width);
+
+	auto rhs_o = read(sema_context(), 1, ty);
+	auto rhs_c = bb->push_cast(ty, bb->push_read_reg(ir::type::i1, reg::flag_cf));
+
+	ir::insn*	result_o;
+	ir::insn*	result_c;
+	ir::variant lhs;
+	if (ins.modifiers & ZYDIS_ATTRIB_HAS_LOCK) {
+		auto [ptr, seg] = agen(sema_context(), ins.op[0].m, true);
+		lhs				 = bb->push_atomic_binop(ir::op::sub, seg, std::move(ptr), bb->push_binop(ir::op::add, rhs_o, rhs_c));
+		result_o			 = bb->push_binop(ir::op::sub, lhs, rhs_o);
+		result_c			 = bb->push_binop(ir::op::sub, result_o, rhs_c);
+	} else {
+		lhs		= read(sema_context(), 0, ty);
+		result_o = bb->push_binop(ir::op::sub, lhs, rhs_o);
+		result_c = bb->push_binop(ir::op::sub, result_o, rhs_c);
+		write(sema_context(), 0, result_c);
+	}
+
+	set_af(bb, lhs, rhs_o, result_c);
+	set_sf(bb, result_c);
+	set_zf(bb, result_c);
+	set_pf(bb, result_c);
+
+	auto c1 = get_cf_sub(bb, lhs, rhs_o);
+	auto c2 = get_cf_sub(bb, result_o, rhs_c);
+	bb->push_write_reg(reg::flag_cf, bb->push_binop(ir::op::bit_or, c1, c2));
+
+	set_of_sub(bb, std::move(lhs), std::move(rhs_o), result_c);
+	return diag::ok;
+}
+
+
 // Division and mulitplication.
 //
 static std::array<arch::mreg, 3> select_mul_regs(u16 w) {
@@ -420,5 +490,3 @@ DECL_SEMA(DIV) {
 	write_reg(sema_context(), outr, bb->push_cast(ty, rr));
 	return diag::ok;
 }
-
-// TODO: SBB/ADC

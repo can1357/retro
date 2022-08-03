@@ -20,6 +20,69 @@ DECL_SEMA(MOV) {
 	return diag::ok;
 }
 
+// Memset*.
+//
+static diag::lazy make_stos(SemaContext) {
+	arch::mreg dst, cnt;
+	if (mach->is_64())
+		dst = reg::rdi, cnt = reg::rcx;
+	else if (mach->is_32())
+		dst = reg::edi, cnt = reg::ecx;
+	else
+		dst = reg::di, cnt = reg::cx;
+	auto dstv = read_reg(sema_context(), dst);
+
+	i32		  delta;
+	arch::mreg data;
+	ir::intrinsic intr;
+	if (ins.mnemonic == ZYDIS_MNEMONIC_STOSB)
+		data = reg::al, delta = 1, intr = ir::intrinsic::memset;
+	else if (ins.mnemonic == ZYDIS_MNEMONIC_STOSW)
+		data = reg::ax, delta = 2, intr = ir::intrinsic::memset16;
+	else if (ins.mnemonic == ZYDIS_MNEMONIC_STOSD)
+		data = reg::eax, delta = 4, intr = ir::intrinsic::memset32;
+	else
+		data = reg::rax, delta = 8, intr = ir::intrinsic::memset64;
+	auto datav = read_reg(sema_context(), data);
+
+	
+	auto df = bb->push_read_reg(ir::type::i1, reg::flag_df);
+	if (ins.modifiers & (ZYDIS_ATTRIB_HAS_REP | ZYDIS_ATTRIB_HAS_REPE | ZYDIS_ATTRIB_HAS_REPNE)) {
+		// ByteCnt = Cnt * N
+		auto cntv = read_reg(sema_context(), cnt);
+		auto bcntv = bb->push_binop(ir::op::mul, cntv, ir::constant(cntv->get_type(), delta));
+
+		// Tmp0 = DF ? ByteCnt : 0
+		auto tmp0 = bb->push_select(df, bcntv, ir::constant(bcntv->get_type(), 0));
+		// Tmp1 = DI - Tmp0
+		auto tmp1 = bb->push_binop(ir::op::sub, dstv, tmp0);
+
+		// Intrin(Ptr=Tmp1, Data, Cnt)
+		auto call_ptr = bb->push_bitcast(ir::type::pointer, tmp1);
+		auto call_arg = delta < 4 ? bb->push_cast(ir::type::i32, datav) : datav;
+		auto call_cnt = mach->is_64() ? cntv : bb->push_cast(ir::type::i64, cntv);
+		bb->push_volatile_intrinsic(intr, call_ptr, call_arg, call_cnt);
+
+		// Tmp2 = DI + ByteCnt
+		auto tmp2 = bb->push_binop(ir::op::add, dstv, tmp0);
+		// Tmp3 = DF ? Tmp1 : tmp2
+		auto tmp3 = bb->push_select(df, tmp1, tmp2);
+		// DI =   Tmp3
+		write_reg(sema_context(), dst, tmp3);
+	} else {
+		// DEST <- *
+		bb->push_store_mem(map_seg(reg::es), bb->push_bitcast(ir::type::pointer, dstv), datav);
+		// DI += DF ? -1 : +1
+		auto delta = bb->push_select(df, ir::constant(dstv->get_type(), -1), ir::constant(dstv->get_type(), +1));
+		write_reg(sema_context(), dst, bb->push_binop(ir::op::add, dstv, delta));
+	}
+	return diag::ok;
+}
+DECL_SEMA(STOSB) { return make_stos(sema_context()); }
+DECL_SEMA(STOSW) { return make_stos(sema_context()); }
+DECL_SEMA(STOSD) { return make_stos(sema_context()); }
+DECL_SEMA(STOSQ) { return make_stos(sema_context()); }
+
 // Atomic data transfer.
 //
 DECL_SEMA(CMPXCHG16B) {
@@ -219,6 +282,14 @@ DECL_SEMA(CDQE) {
 	auto				a	= read_reg(sema_context(), reg::eax, t0);
 	a						= bb->push_cast_sx(t1, a);
 	write_reg(sema_context(), reg::rax, a);
+	return diag::ok;
+}
+DECL_SEMA(CQO) {
+	constexpr auto t0 = ir::type::i64;
+	constexpr auto t1 = ir::type::i128;
+	auto				a	= read_reg(sema_context(), reg::rax, t0);
+	a						= bb->push_cast_sx(t1, a);
+	write_pair(sema_context(), reg::rdx, reg::rax, a);
 	return diag::ok;
 }
 

@@ -260,3 +260,15 @@ DECL_SEMA(BT) {
 	bb->push_write_reg(reg::flag_cf, cf);
 	return diag::ok;
 }
+DECL_SEMA(BSWAP) {
+	auto ty = ir::int_type(ins.effective_width);
+	if (ins.effective_width == 64 || ins.effective_width == 32) {
+		auto val = read(sema_context(), 0, ty);
+		auto tmp = bb->push_unop(ir::op::bit_byteswap, val);
+		write(sema_context(), 0, tmp);
+	} else {
+		// "Undefined behavior", actually writes 0 during runtime.
+		write(sema_context(), 0, ir::constant(ty, 0));
+	}
+	return diag::ok;
+}

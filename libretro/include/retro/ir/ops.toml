@@ -262,6 +262,15 @@ ret =    "@type.i32"
 [intrinsic.memset]
 args =   ["@type.pointer", "@type.i32", "@type.i64"]
 ret =    "@type.pointer"
+[intrinsic.memset16]
+args =   ["@type.pointer", "@type.i32", "@type.i64"]
+ret =    "@type.pointer"
+[intrinsic.memset32]
+args =   ["@type.pointer", "@type.i32", "@type.i64"]
+ret =    "@type.pointer"
+[intrinsic.memset64]
+args =   ["@type.pointer", "@type.i64", "@type.i64"]
+ret =    "@type.pointer"
 [intrinsic.memchr]
 args =   ["@type.pointer", "@type.i32", "@type.i64"]
 ret =    "@type.pointer"
