@@ -306,7 +306,7 @@ namespace retro::arch::x86 {
 		auto tyx	  = ir::int_type(width * 2);
 
 		write_reg(sema_context(), low, bb->push_cast(ty, value));
-		write_reg(sema_context(), high, bb->push_cast(ty, bb->push_binop(ir::op::bit_shr, std::move(value), width)));
+		write_reg(sema_context(), high, bb->push_cast(ty, bb->push_binop(ir::op::bit_shr, std::move(value), ir::constant(tyx, width))));
 	}
 	inline ir::insn* read_pair(SemaContext, mreg high, mreg low) {
 		u32  width = enum_reflect(low.get_kind()).width;

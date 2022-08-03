@@ -65,7 +65,7 @@ DECL_SEMA(NOT) {
 template<auto Operation>
 static diag::lazy shift(SemaContext) {
 	auto ty		= ir::int_type(ins.effective_width);
-	auto rhs		= read(sema_context(), 1, ty);
+	auto rhs		= bb->push_cast(ty, read(sema_context(), 1, ir::type::i8));
 	auto lhs		= read(sema_context(), 0, ty);
 	auto result = bb->push_binop(Operation, lhs, rhs);
 	write(sema_context(), 0, result);
@@ -89,7 +89,7 @@ static diag::lazy shift(SemaContext) {
 template<auto Operation>
 static diag::lazy rot(SemaContext) {
 	auto ty		= ir::int_type(ins.effective_width);
-	auto rhs		= read(sema_context(), 1, ty);
+	auto rhs		= bb->push_cast(ty, read(sema_context(), 1, ir::type::i8));
 	auto lhs		= read(sema_context(), 0, ty);
 	auto result = bb->push_binop(Operation, lhs, rhs);
 	write(sema_context(), 0, result);
