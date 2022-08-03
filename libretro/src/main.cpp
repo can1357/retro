@@ -763,9 +763,21 @@ static void analysis_test_from_image_va(std::filesystem::path path, u64 va) {
 	analysis_test(dom, fmt::str("sub_%llx", va), va - dom->img->base_address);
 }
 static void analysis_test_from_source(std::string src) {
+	// Determine flags.
+	//
+	std::string flags = "-O1";
+	if (auto it = src.find("// clang: "); it != std::string::npos) {
+		std::string_view new_flags{src.begin() + sizeof("// clang: ") - 1, src.end()};
+		auto p = new_flags.find_first_of("\r\n");
+		if (p != std::string::npos) {
+			new_flags = new_flags.substr(0, p);
+		}
+		flags.assign(new_flags);
+	}
+
 	// Compile the source code.
 	//
-	auto bin = compile(src, "-O1");
+	auto bin = compile(src, flags.data());
 	auto img = ldr::load_from_memory(bin).value();
 
 	// Create the workspace.
@@ -798,7 +810,7 @@ int main(int argv, const char** args) {
 
 	// Large function test:
 	//
-	if (true) {
+	if (false) {
 		analysis_test_from_image_va("S:\\Dumps\\ntoskrnl_2004.exe", 0x140A1AEE4);
 	}
 	// Small C file test:

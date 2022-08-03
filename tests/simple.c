@@ -1,3 +1,5 @@
+// clang: -O1
+
 EXPORT int _fn_0(int* a) {
 	return *a * 2;
 }
