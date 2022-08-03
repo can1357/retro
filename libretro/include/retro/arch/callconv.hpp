@@ -9,16 +9,16 @@ namespace retro::arch {
 	enum class call_conv : u8 {
 		unknown = 0,  // Unknown.
 
-		// x86_64:
-		msabi_x86_64	 = 1,
-		sysv_x86_64		 = 2,
-
 		// i386:
 		cdecl_i386		 = 1,
 		stdcall_i386	 = 2,
 		thiscall_i386	 = 3,
 		msthiscall_i386 = 4,
 		msfastcall_i386 = 5,
+
+		// x86_64:
+		msabi_x86_64	 = 1,
+		sysv_x86_64		 = 2,
 	};
 
 	// Describes an architecture specific calling convention.
@@ -55,6 +55,7 @@ namespace retro::arch {
 		bool combined_argument_counter = false;
 
 		// Whether or not stack is adjusted by caller or callee on return.
+		// - Forced true if vararg.
 		//
 		bool sp_caller_adjusted = false;
 

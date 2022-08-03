@@ -1,22 +1,22 @@
 // clang: -O1 -m32
 
-EXPORT int __cdecl _testc(int a, int b) {
+OUTLINE int __cdecl testc(int a, int b) {
    return a * b;
 }
-EXPORT int __stdcall _tests(int a, int b) {
+OUTLINE int __stdcall tests(int a, int b) {
    return a * b;
 }
-EXPORT int __fastcall _testf(int a, int b) {
+OUTLINE int __fastcall testf(int a, int b) {
    return a * b;
 }
-EXPORT int __thiscall _testt(int a, int b) {
+OUTLINE int __thiscall testt(int a, int b) {
    return a * b;
 }
 
 EXPORT int __cdecl test(int a, int b) {
-   a = _testc(a,b);
-   b = _tests(a,b);
-   a = _testf(a,b);
-   b = _testt(a,b);
+   a = testc(a,b);
+   b = tests(a,b);
+   a = testf(a,b);
+   b = testt(a,b);
    return a + b;
 }

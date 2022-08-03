@@ -437,6 +437,7 @@ static const char code_prefix[] =
 	 "#define EXPORT __attribute__((noinline)) __attribute__((visibility(\"default\")))\n"
 #endif
 	 R"(
+#define OUTLINE __attribute__((noinline))
 __attribute__((noinline)) static void sinkptr(void* _) { asm volatile(""); }
 __attribute__((noinline)) static void sinkull(unsigned long long _) { asm volatile(""); }
 __attribute__((noinline)) static void sinkll(long long _) { asm volatile(""); }
