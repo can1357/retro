@@ -736,7 +736,7 @@ static ref<ir::routine> analysis_test(analysis::domain* dom, const std::string& 
 
 	range::sort(rtn->blocks, [](auto& a, auto& b) { return a->ip < b->ip; });
 	for (auto& bb : rtn->blocks) {
-		std::string result = fmt::str(RC_CYAN "$%x:" RC_RESET, name);
+		std::string result = fmt::str(RC_CYAN "$%x:" RC_RESET, bb->name);
 		result += fmt::str(RC_GRAY " [%llx => %llx]" RC_RESET, bb->ip, bb->end_ip);
 		fmt::println(result);
 		fmt::println("\t", bb->terminator()->to_string());

@@ -1,7 +1,7 @@
 #!/usr/bin/env python
 # coding: utf-8
 
-# In[141]:
+# In[2]:
 
 
 #!conda install --yes toml
@@ -14,7 +14,7 @@ import ast
 import traceback
 
 
-# In[191]:
+# In[3]:
 
 
 # Directive implementation.
@@ -231,7 +231,7 @@ def parse_expr(s):
     return e
 
 
-# In[192]:
+# In[4]:
 
 
 # Constants
@@ -994,9 +994,13 @@ def generate_directive_table(data):
     global dtmpcounter
     dtmpcounter = 0
     
-    result =  "#pragma once\n"
-    result += "#include <retro/directives/pattern.hpp>\n\n"
+    result = "#include <retro/directives/pattern.hpp>\n"
     result += "#ifndef __INTELLISENSE__\n"
+    result += "#if RC_CLANG\n"
+    result += "    #pragma clang diagnostic ignored \"-Wunused-variable\"\n"
+    result += "#elif RC_GNU\n"
+    result += "    #pragma GCC diagnostic ignored \"-Wunused-variable\"\n"
+    result += "#endif\n\n"
     result += "using op =  retro::ir::op;\n"
     result += "using opr = retro::ir::operand;\n"
     result += "using imm = retro::ir::constant;\n"

@@ -1,4 +1,3 @@
-#pragma once
 #include <retro/common.hpp>
 #include <retro/task.hpp>
 #include <retro/list.hpp>

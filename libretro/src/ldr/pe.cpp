@@ -134,13 +134,13 @@ namespace retro::ldr {
 		// Parse export directory:
 		//
 		if (auto* dd = img->get_directory(win::directory_entry_export)) {
-			auto exp = img->rva_to_ptr<win::export_directory_t>(dd->rva);
+			auto exp = img->template rva_to_ptr<win::export_directory_t>(dd->rva);
 			if (ok(exp, data)) {
 				size_t	  num_func			  = exp->num_functions;
 				size_t	  num_names			  = exp->num_names;
-				const u32* rvas				  = img->rva_to_ptr<u32>(exp->rva_functions);
-				const u32* rva_names			  = img->rva_to_ptr<u32>(exp->rva_names);
-				const u16* rva_name_ordinals = img->rva_to_ptr<u16>(exp->rva_name_ordinals);
+				const u32* rvas				  = img->template rva_to_ptr<u32>(exp->rva_functions);
+				const u32* rva_names			  = img->template rva_to_ptr<u32>(exp->rva_names);
+				const u16* rva_name_ordinals = img->template rva_to_ptr<u16>(exp->rva_name_ordinals);
 				if (ok(rvas, data, num_func) && ok(rva_names, data, num_names) && ok(rva_name_ordinals, data, num_names)) {
 					// Write ordinal list.
 					//
@@ -161,7 +161,7 @@ namespace retro::ldr {
 
 						// Map the name.
 						//
-						auto s = img->rva_to_ptr<char>(rva_names[i]);
+						auto s = img->template rva_to_ptr<char>(rva_names[i]);
 						if (ok(s, data)) {
 							auto e = std::find(s, (const char*)data.data() + data.size(), 0);
 							out.symbols[o].name = {s, e};
