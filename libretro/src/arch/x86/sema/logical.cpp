@@ -4,9 +4,6 @@
 using namespace retro;
 using namespace retro::arch::x86;
 
-// TODO: Special handling:
-//  lock or [rsp], 0
-
 template<auto Operation>
 static diag::lazy logical(SemaContext) {
 	auto ty	= ir::int_type(ins.effective_width);
@@ -27,7 +24,20 @@ static diag::lazy logical(SemaContext) {
 	set_flags_logical(bb, result);
 	return diag::ok;
 }
-DECL_SEMA(OR) { return logical<ir::op::bit_or>(sema_context()); }
+DECL_SEMA(OR) {
+	// Pattern: [lock or [...], 0]] <=> [mfence] + flags update.
+	if (ins.modifiers & ZYDIS_ATTRIB_HAS_LOCK) {
+		if (ins.op[1].type == arch::mop_type::imm && ins.op[1].i.u == 0) {
+			// mfence
+			bb->push_sideeffect_intrinsic(ir::intrinsic::mfence);
+			// set flags based on the value.
+			set_flags_logical(bb, read_mem(sema_context(), ins.op[0].m, ir::int_type(ins.effective_width)));
+			return diag::ok;
+		}
+	}
+
+	return logical<ir::op::bit_or>(sema_context());
+}
 DECL_SEMA(AND) { return logical<ir::op::bit_and>(sema_context()); }
 DECL_SEMA(XOR) {
 	// Pattern: [xor reg, reg] <=> [mov reg, 0] + flags update

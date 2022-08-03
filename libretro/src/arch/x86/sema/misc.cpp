@@ -124,6 +124,18 @@ DECL_SEMA(PREFETCHWT1) {
 	bb->push_sideeffect_intrinsic(ir::intrinsic::ia32_prefetchwt1, agen(sema_context(), ins.op[0].m, true).first);
 	return diag::ok;
 }
+DECL_SEMA(MFENCE) {
+	bb->push_sideeffect_intrinsic(ir::intrinsic::mfence);
+	return diag::ok;
+}
+DECL_SEMA(SFENCE) {
+	bb->push_sideeffect_intrinsic(ir::intrinsic::sfence);
+	return diag::ok;
+}
+DECL_SEMA(LFENCE) {
+	bb->push_sideeffect_intrinsic(ir::intrinsic::lfence);
+	return diag::ok;
+}
 // TODO: INT / INTO
 
 
