@@ -254,7 +254,7 @@ namespace retro::ir {
 			size_t n = 0;
 			for (auto it = use_list.begin(); it != use_list.end();) {
 				auto next = std::next(it);
-				it->reset(std::forward<T>(val));
+				it->reset(val);
 				it = next;
 				n++;
 			}

@@ -298,6 +298,7 @@
       <SubSystem>Console</SubSystem>
       <GenerateDebugInformation>true</GenerateDebugInformation>
       <AdditionalDependencies>$(SolutionDir)zydis\msvc\bin\DebugX64\Zycore.lib;$(SolutionDir)zydis\msvc\bin\DebugX64\Zydis.lib;$(SolutionDir)z3\build\install-x64\lib\libz3.lib;%(AdditionalDependencies)</AdditionalDependencies>
+      <AdditionalOptions>/STACK:34359738368 %(AdditionalOptions)</AdditionalOptions>
     </Link>
   </ItemDefinitionGroup>
   <ItemDefinitionGroup Condition="'$(Configuration)|$(Platform)'=='Release|x64'">
@@ -319,6 +320,7 @@
       <OptimizeReferences>true</OptimizeReferences>
       <GenerateDebugInformation>true</GenerateDebugInformation>
       <AdditionalDependencies>$(SolutionDir)zydis\msvc\bin\ReleaseX64\Zycore.lib;$(SolutionDir)zydis\msvc\bin\ReleaseX64\Zydis.lib;$(SolutionDir)z3\build\install-x64-release\lib\libz3.lib;%(AdditionalDependencies)</AdditionalDependencies>
+      <AdditionalOptions>/STACK:34359738368 %(AdditionalOptions)</AdditionalOptions>
     </Link>
   </ItemDefinitionGroup>
   <ItemDefinitionGroup Condition="'$(Configuration)|$(Platform)'=='Release-LLVM|x64'">
@@ -341,7 +343,7 @@
       <OptimizeReferences>true</OptimizeReferences>
       <GenerateDebugInformation>true</GenerateDebugInformation>
       <AdditionalDependencies>$(SolutionDir)zydis\msvc\bin\ReleaseX64\Zycore.lib;$(SolutionDir)zydis\msvc\bin\ReleaseX64\Zydis.lib;$(SolutionDir)z3\build\install-x64-release\lib\libz3.lib;%(AdditionalDependencies)</AdditionalDependencies>
-      <AdditionalOptions>/mllvm:--use-retard-cc %(AdditionalOptions)</AdditionalOptions>
+      <AdditionalOptions>/mllvm:--use-retard-cc /STACK:34359738368 %(AdditionalOptions)</AdditionalOptions>
     </Link>
   </ItemDefinitionGroup>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.targets" />

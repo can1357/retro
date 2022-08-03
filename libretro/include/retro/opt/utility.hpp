@@ -86,7 +86,10 @@ namespace retro::ir::opt::util {
 		//
 		if (n) {
 #if RC_DEBUG
-			bb->validate().raise();
+			if (auto e = bb->validate()) {
+				e.print();
+				fmt::println(bb->to_string());
+			}
 #endif
 			n += local_dce(bb);
 		}
@@ -97,7 +100,10 @@ namespace retro::ir::opt::util {
 		//
 		if (n) {
 #if RC_DEBUG
-			rtn->validate().raise();
+			if (auto e = rtn->validate()) {
+				e.print();
+				fmt::println(rtn->to_string());
+			}
 #endif
 			for (auto& bb : rtn->blocks)
 				n += local_dce(bb);

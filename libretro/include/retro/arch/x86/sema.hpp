@@ -214,6 +214,7 @@ namespace retro::arch::x86 {
 			write = bb->insert_after(write, std::move(ref));
 			return write;
 		};
+		RC_ASSERT(!value.is_null());
 
 		// If GPR:
 		//
@@ -287,7 +288,7 @@ namespace retro::arch::x86 {
 		// Long mode moves to 32-bit register always zeroes the upper part.
 		//
 		if (desc->kind == reg_kind::gpr32 && mach->is_64()) {
-			auto write = bb->push_write_reg(desc->super, bb->push_cast(ir::type::i64, value));
+			auto write = bb->push_write_reg(desc->super, bb->push_cast(ir::type::i64, std::move(value)));
 			return explode_write_reg(mach, write);
 		} else if (implicit_zero) {
 			// TODO: VEX/EVEX for zeroing.
@@ -295,7 +296,7 @@ namespace retro::arch::x86 {
 
 		// Write to the original register, forward to explode.
 		//
-		return explode_write_reg(mach, bb->push_write_reg(r, value));
+		return explode_write_reg(mach, bb->push_write_reg(r, std::move(value)));
 	}
 
 	// Helpers for reading/writing register pairs.
