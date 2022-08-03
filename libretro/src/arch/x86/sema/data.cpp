@@ -64,17 +64,15 @@ static diag::lazy make_stos(SemaContext) {
 		bb->push_volatile_intrinsic(intr, call_ptr, call_arg, call_cnt);
 
 		// Tmp2 = DI + ByteCnt
-		auto tmp2 = bb->push_binop(ir::op::add, dstv, tmp0);
-		// Tmp3 = DF ? Tmp1 : tmp2
-		auto tmp3 = bb->push_select(df, tmp1, tmp2);
-		// DI =   Tmp3
-		write_reg(sema_context(), dst, tmp3);
+		auto tmp2 = bb->push_binop(ir::op::add, dstv, bcntv);
+		// DI =   DF ? Tmp1 : tmp2
+		write_reg(sema_context(), dst, bb->push_select(df, tmp1, tmp2));
 	} else {
 		// DEST <- *
 		bb->push_store_mem(map_seg(reg::es), bb->push_bitcast(ir::type::pointer, dstv), datav);
-		// DI += DF ? -1 : +1
-		auto delta = bb->push_select(df, ir::constant(dstv->get_type(), -1), ir::constant(dstv->get_type(), +1));
-		write_reg(sema_context(), dst, bb->push_binop(ir::op::add, dstv, delta));
+		// DI += DF ? -delta : +delta
+		auto dv = bb->push_select(df, ir::constant(dstv->get_type(), -delta), ir::constant(dstv->get_type(), +delta));
+		write_reg(sema_context(), dst, bb->push_binop(ir::op::add, dstv, dv));
 	}
 	return diag::ok;
 }
@@ -82,6 +80,68 @@ DECL_SEMA(STOSB) { return make_stos(sema_context()); }
 DECL_SEMA(STOSW) { return make_stos(sema_context()); }
 DECL_SEMA(STOSD) { return make_stos(sema_context()); }
 DECL_SEMA(STOSQ) { return make_stos(sema_context()); }
+
+// Memcpy*.
+//
+static diag::lazy make_movs(SemaContext) {
+	arch::mreg src, dst, cnt;
+	if (mach->is_64())
+		src = reg::rsi, dst = reg::rdi, cnt = reg::rcx;
+	else if (mach->is_32())
+		src = reg::esi, dst = reg::edi, cnt = reg::ecx;
+	else
+		src = reg::si, dst = reg::di, cnt = reg::cx;
+	auto srcv = read_reg(sema_context(), src);
+	auto dstv = read_reg(sema_context(), dst);
+
+	i32			  delta;
+	if (ins.mnemonic == ZYDIS_MNEMONIC_MOVSB)
+		delta = 1;
+	else if (ins.mnemonic == ZYDIS_MNEMONIC_MOVSW)
+		delta = 2;
+	else if (ins.mnemonic == ZYDIS_MNEMONIC_MOVSD)
+		delta = 4;
+	else
+		delta = 8;
+
+	auto df = bb->push_read_reg(ir::type::i1, reg::flag_df);
+	if (ins.modifiers & (ZYDIS_ATTRIB_HAS_REP | ZYDIS_ATTRIB_HAS_REPE | ZYDIS_ATTRIB_HAS_REPNE)) {
+		// ByteCnt = Cnt * N
+		auto cntv  = read_reg(sema_context(), cnt);
+		auto bcntv = bb->push_binop(ir::op::mul, cntv, ir::constant(cntv->get_type(), delta));
+
+		// Tmp0 = DF ? ByteCnt : 0
+		auto tmp0 = bb->push_select(df, bcntv, ir::constant(bcntv->get_type(), 0));
+		// Tmp1(d/s) = DI/SI - Tmp0
+		auto tmp1d = bb->push_binop(ir::op::sub, dstv, tmp0);
+		auto tmp1s = bb->push_binop(ir::op::sub, srcv, tmp0);
+
+		// Intrin(Tmp1d, Tmp1s, Bytecnt)
+		auto call_dst = bb->push_bitcast(ir::type::pointer, tmp1d);
+		auto call_src = bb->push_bitcast(ir::type::pointer, tmp1s);
+		auto call_cnt = mach->is_64() ? bcntv : bb->push_cast(ir::type::i64, bcntv);
+		bb->push_volatile_intrinsic(ir::intrinsic::memcpy, call_dst, call_src, call_cnt);
+
+		// Tmp2(d/s) = DI/SI + ByteCnt
+		auto tmp2d = bb->push_binop(ir::op::add, dstv, bcntv);
+		auto tmp2s = bb->push_binop(ir::op::add, srcv, bcntv);
+		// DI/SI =   DF ? Tmp1(d/s) : tmp2(d/s)
+		write_reg(sema_context(), dst, bb->push_select(df, tmp1d, tmp2d));
+		write_reg(sema_context(), src, bb->push_select(df, tmp1s, tmp2s));
+	} else {
+		// DV = DF ? -delta : +delta
+		auto dv = bb->push_select(df, ir::constant(dstv->get_type(), -delta), ir::constant(dstv->get_type(), +delta));
+		// memcpy(DEST, SRC, Delta)
+		bb->push_volatile_intrinsic(ir::intrinsic::memcpy, bb->push_bitcast(ir::type::pointer, dstv), bb->push_bitcast(ir::type::pointer, srcv), (i64)delta);
+		// DI += DV
+		write_reg(sema_context(), dst, bb->push_binop(ir::op::add, dstv, dv));
+	}
+	return diag::ok;
+}
+DECL_SEMA(MOVSB) { return make_movs(sema_context()); }
+DECL_SEMA(MOVSW) { return make_movs(sema_context()); }
+DECL_SEMA(MOVSD) { return make_movs(sema_context()); }
+DECL_SEMA(MOVSQ) { return make_movs(sema_context()); }
 
 // Atomic data transfer.
 //

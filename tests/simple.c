@@ -4,6 +4,11 @@
 EXPORT int _fn_0(int* a) {
 	return *a * 2;
 }
+
+EXPORT void fn_memcpy(void* dst, void* src, size_t count) {
+    asm volatile("cld; rep movsb" : "+D"(dst), "+S"(src), "+c"(count) : : "memory");
+}
+
 EXPORT int fn_1(int a, int b) {
 	int* p = (int*)__builtin_alloca(a);
 	asm volatile("" : "+m" (*p));
