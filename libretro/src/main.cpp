@@ -212,10 +212,11 @@ namespace retro::analysis {
 		// Try to continue traversal.
 		//
 		z3x::variable_set vs;
+
 		auto coerce_const = [&](ir::operand& op) {
 			if (op.is_const())
 				return true;
-			if (auto expr = z3x::to_expr(vs, z3x::local_context, op)) {
+			if (auto expr = z3x::to_expr(vs, z3x::get_context(), op)) {
 				if (auto v = z3x::value_of(expr); !v.is<void>()) {
 					v.type_id = (u64) op.get_type();	 // TODO: Replace with a proper cast.
 					op			 = std::move(v);

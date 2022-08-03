@@ -17,7 +17,10 @@ namespace retro::z3x {
 
 	// Global context per thread.
 	//
-	inline static thread_local context local_context = {};
+	inline static context& get_context() {
+		static thread_local context ctx = {};
+		return ctx;
+	}
 
 	// Null checks.
 	//
