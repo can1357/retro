@@ -264,6 +264,7 @@ namespace retro::ir {
 				case type::i32:
 					return get<i32>();
 				case type::pointer:
+					return (i64) (u64) get<pointer>();
 				case type::i64:
 					return get<i64>();
 				default:
@@ -281,6 +282,7 @@ namespace retro::ir {
 				case type::i32:
 					return get<u32>();
 				case type::pointer:
+					return (u64) get<pointer>();
 				case type::i64:
 					return get<u64>();
 				default:

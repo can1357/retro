@@ -296,7 +296,10 @@ namespace retro {
 
 		// Cannot be destructed whilist its executing.
 		//
-		~unique_task() { get(); }
+		~unique_task() {
+			if (handle)
+				get();
+		}
 	};
 
 	// Make unique task co-awaitable, note that only one coroutine may wait on unique task.

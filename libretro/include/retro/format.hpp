@@ -192,13 +192,13 @@ namespace retro::fmt {
 		} else if constexpr (StructuredEnum<Td>) {
 			return retro::enum_name<Td>(arg);
 		} else if constexpr (std::is_same_v<Td, u64>) {
-			if (arg > 0xFFFFFF)
+			if (arg > 0x1FFFFF)
 				return str("0x%llx", arg);
 			else
 				return std::to_string(arg);
 		} else if constexpr (std::is_same_v<Td, i64>) {
 			auto abv = arg < 0 ? -arg : arg;
-			if (abv > 0xFFFFFF)
+			if (abv > 0x1FFFFF)
 				return str("%s0x%llx", arg < 0 ? "-" : "", abv);
 			else
 				return std::to_string(arg);
