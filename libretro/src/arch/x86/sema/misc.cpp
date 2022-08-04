@@ -177,6 +177,10 @@ DECL_SEMA(PAUSE) {
 	bb->push_sideeffect_intrinsic(ir::intrinsic::ia32_pause);
 	return diag::ok;
 }
+DECL_SEMA(SWAPGS) {
+	bb->push_sideeffect_intrinsic(ir::intrinsic::ia32_swapgs);
+	return diag::ok;
+}
 DECL_SEMA(RDGSBASE) {
 	u16  w		= ins.effective_width;
 	auto intrin = w == 32 ? ir::intrinsic::ia32_rdgsbase32 : ir::intrinsic::ia32_rdgsbase64;

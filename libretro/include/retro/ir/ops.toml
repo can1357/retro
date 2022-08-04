@@ -329,6 +329,10 @@ ret =    "@type.none"
 symbol = "_writefsbase_u64"
 args   = ["@type.i64"]
 ret =    "@type.none"
+[intrinsic.ia32-swapgs]
+symbol = "__swapgs"
+args   = []
+ret =    "@type.none"
 [intrinsic.ia32-stmxcsr]
 symbol = "_mm_getcsr"
 args   = []
