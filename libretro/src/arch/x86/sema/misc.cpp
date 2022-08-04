@@ -63,8 +63,6 @@ DECL_SEMA(LEAVE) {
 	write_reg(sema_context(), bpr, rbpv);
 	return diag::ok;
 }
-
-// TODO: IRETQ, IRETD, SYSRET...
 DECL_SEMA(NOP) { return diag::ok; }
 DECL_SEMA(UD2) {
 	bb->push_trap("ud2");
@@ -457,3 +455,9 @@ DECL_SEMA(LTR) {
 
 // TODO: push/popf(_/d/q)
 //       pushad/popad
+//       lahf/sahf
+//       rdrand/rdseed
+//       lsl verr verw
+//       iret iretq iretd
+//       sysret sysexit
+//       syscall sysenter
