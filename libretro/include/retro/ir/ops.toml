@@ -519,6 +519,72 @@ ret =    "@type.i16"
 symbol = "__inl"
 args   = ["@type.i16"]
 ret =    "@type.i32"
+
+[intrinsic.ia32-fxrstor]
+symbol = "_fxrstor"
+args   = ["@type.pointer"]
+ret =    "@type.none"
+[intrinsic.ia32-fxrstor64]
+symbol = "_fxrstor64"
+args   = ["@type.pointer"]
+ret =    "@type.none"
+[intrinsic.ia32-fxsave]
+symbol = "_fxsave"
+args   = ["@type.pointer"]
+ret =    "@type.none"
+[intrinsic.ia32-fxsave64]
+symbol = "_fxsave64"
+args   = ["@type.pointer"]
+ret =    "@type.none"
+[intrinsic.ia32-xrstor]
+symbol = "_xrstor"
+args   = ["@type.pointer", "@type.i64"]
+ret =    "@type.none"
+[intrinsic.ia32-xrstor64]
+symbol = "_xrstor64"
+args   = ["@type.pointer", "@type.i64"]
+ret =    "@type.none"
+[intrinsic.ia32-xrstors]
+symbol = "_xrstors"
+args   = ["@type.pointer", "@type.i64"]
+ret =    "@type.none"
+[intrinsic.ia32-xrstors64]
+symbol = "_xrstors64"
+args   = ["@type.pointer", "@type.i64"]
+ret =    "@type.none"
+[intrinsic.ia32-xsave]
+symbol = "_xsave"
+args   = ["@type.pointer", "@type.i64"]
+ret =    "@type.none"
+[intrinsic.ia32-xsavec]
+symbol = "_xsavec"
+args   = ["@type.pointer", "@type.i64"]
+ret =    "@type.none"
+[intrinsic.ia32-xsaveopt]
+symbol = "_xsaveopt"
+args   = ["@type.pointer", "@type.i64"]
+ret =    "@type.none"
+[intrinsic.ia32-xsaves]
+symbol = "_xsaves64"
+args   = ["@type.pointer", "@type.i64"]
+ret =    "@type.none"
+[intrinsic.ia32-xsave64]
+symbol = "_xsave64"
+args   = ["@type.pointer", "@type.i64"]
+ret =    "@type.none"
+[intrinsic.ia32-xsavec64]
+symbol = "_xsavec64"
+args   = ["@type.pointer", "@type.i64"]
+ret =    "@type.none"
+[intrinsic.ia32-xsaveopt64]
+symbol = "_xsaveopt64"
+args   = ["@type.pointer", "@type.i64"]
+ret =    "@type.none"
+[intrinsic.ia32-xsaves64]
+symbol = "_xsaves64"
+args   = ["@type.pointer", "@type.i64"]
+ret =    "@type.none"
+
 [intrinsic.ia32-sgdt]
 symbol = "__sgdt"
 args   = ["@type.pointer"]

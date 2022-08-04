@@ -139,6 +139,76 @@ DECL_SEMA(WRMSR) {
 	bb->push_sideeffect_intrinsic(ir::intrinsic::ia32_wrmsr, read_reg(sema_context(), reg::ecx), std::move(val));
 	return diag::ok;
 }
+
+DECL_SEMA(FXSAVE) {
+	bb->push_sideeffect_intrinsic(ir::intrinsic::ia32_fxsave, agen(sema_context(), ins.op[0].m, true));
+	return diag::ok;
+}
+DECL_SEMA(FXSAVE64) {
+	bb->push_sideeffect_intrinsic(ir::intrinsic::ia32_fxsave64, agen(sema_context(), ins.op[0].m, true));
+	return diag::ok;
+}
+DECL_SEMA(FXRSTOR) {
+	bb->push_sideeffect_intrinsic(ir::intrinsic::ia32_fxrstor, agen(sema_context(), ins.op[0].m, true));
+	return diag::ok;
+}
+DECL_SEMA(FXRSTOR64) {
+	bb->push_sideeffect_intrinsic(ir::intrinsic::ia32_fxrstor64, agen(sema_context(), ins.op[0].m, true));
+	return diag::ok;
+}
+
+DECL_SEMA(XRSTOR) {
+	bb->push_sideeffect_intrinsic(ir::intrinsic::ia32_xrstor, agen(sema_context(), ins.op[0].m, true), read_pair(sema_context(), reg::edx, reg::eax));
+	return diag::ok;
+}
+DECL_SEMA(XRSTORS) {
+	bb->push_sideeffect_intrinsic(ir::intrinsic::ia32_xrstors, agen(sema_context(), ins.op[0].m, true), read_pair(sema_context(), reg::edx, reg::eax));
+	return diag::ok;
+}
+DECL_SEMA(XSAVE) {
+	bb->push_sideeffect_intrinsic(ir::intrinsic::ia32_xsave, agen(sema_context(), ins.op[0].m, true), read_pair(sema_context(), reg::edx, reg::eax));
+	return diag::ok;
+}
+DECL_SEMA(XSAVES) {
+	bb->push_sideeffect_intrinsic(ir::intrinsic::ia32_xsaves, agen(sema_context(), ins.op[0].m, true), read_pair(sema_context(), reg::edx, reg::eax));
+	return diag::ok;
+}
+DECL_SEMA(XSAVEC) {
+	bb->push_sideeffect_intrinsic(ir::intrinsic::ia32_xsavec, agen(sema_context(), ins.op[0].m, true), read_pair(sema_context(), reg::edx, reg::eax));
+	return diag::ok;
+}
+DECL_SEMA(XSAVEOPT) {
+	bb->push_sideeffect_intrinsic(ir::intrinsic::ia32_xsaveopt, agen(sema_context(), ins.op[0].m, true), read_pair(sema_context(), reg::edx, reg::eax));
+	return diag::ok;
+}
+DECL_SEMA(XRSTOR64) {
+	bb->push_sideeffect_intrinsic(ir::intrinsic::ia32_xrstor64, agen(sema_context(), ins.op[0].m, true), read_pair(sema_context(), reg::edx, reg::eax));
+	return diag::ok;
+}
+DECL_SEMA(XRSTORS64) {
+	bb->push_sideeffect_intrinsic(ir::intrinsic::ia32_xrstors64, agen(sema_context(), ins.op[0].m, true), read_pair(sema_context(), reg::edx, reg::eax));
+	return diag::ok;
+}
+DECL_SEMA(XSAVE64) {
+	bb->push_sideeffect_intrinsic(ir::intrinsic::ia32_xsave64, agen(sema_context(), ins.op[0].m, true), read_pair(sema_context(), reg::edx, reg::eax));
+	return diag::ok;
+}
+DECL_SEMA(XSAVES64) {
+	bb->push_sideeffect_intrinsic(ir::intrinsic::ia32_xsaves64, agen(sema_context(), ins.op[0].m, true), read_pair(sema_context(), reg::edx, reg::eax));
+	return diag::ok;
+}
+DECL_SEMA(XSAVEC64) {
+	bb->push_sideeffect_intrinsic(ir::intrinsic::ia32_xsavec64, agen(sema_context(), ins.op[0].m, true), read_pair(sema_context(), reg::edx, reg::eax));
+	return diag::ok;
+}
+DECL_SEMA(XSAVEOPT64) {
+	bb->push_sideeffect_intrinsic(ir::intrinsic::ia32_xsaveopt64, agen(sema_context(), ins.op[0].m, true), read_pair(sema_context(), reg::edx, reg::eax));
+	return diag::ok;
+}
+
+
+
+
 DECL_SEMA(PREFETCH) {
 	bb->push_sideeffect_intrinsic(ir::intrinsic::prefetch, agen(sema_context(), ins.op[0].m, true));
 	return diag::ok;
