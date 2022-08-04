@@ -16,6 +16,26 @@ DECL_SEMA(MOV) {
 	}
 
 	auto ty = ir::int_type(ins.effective_width);
+
+	// Write segment reg.
+	//
+	if (ins.op[0].type == arch::mop_type::reg && ins.op[0].r.get_kind() == arch::reg_kind::segment) {
+		auto intrin = (ir::intrinsic)(ins.op[0].r.id - (u32) reg::es + (u32) ir::intrinsic::ia32_setes);
+		bb->push_sideeffect_intrinsic(intrin, bb->push_cast(ir::type::i16, read(sema_context(), 1, ty)));
+		return diag::ok;
+	}
+	// Read segment reg.
+	//
+	else if (ins.op[1].type == arch::mop_type::reg && ins.op[1].r.get_kind() == arch::reg_kind::segment) {
+		auto intrin = (ir::intrinsic)(ins.op[0].r.id - (u32) reg::es + (u32) ir::intrinsic::ia32_getes);
+		auto res = bb->push_extract(ir::type::i16, bb->push_intrinsic(intrin), 0);
+		if (ty != ir::type::i16) {
+			res = bb->push_cast(ty, res);
+		}
+		write(sema_context(), 0, res);
+		return diag::ok;
+	}
+
 	write(sema_context(), 0, read(sema_context(), 1, ty));
 	return diag::ok;
 }
