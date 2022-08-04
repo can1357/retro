@@ -441,6 +441,46 @@ ret =    "@type.i16"
 symbol = "__inl"
 args   = ["@type.i16"]
 ret =    "@type.i32"
+[intrinsic.ia32-sgdt]
+symbol = "__sgdt"
+args   = ["@type.pointer"]
+ret =    "@type.none"
+[intrinsic.ia32-sidt]
+symbol = "__sidt"
+args   = ["@type.pointer"]
+ret =    "@type.none"
+[intrinsic.ia32-sldt]
+symbol = "__sldt"
+args   = []
+ret =    "@type.i16"
+[intrinsic.ia32-smsw]
+symbol = "__smsw"
+args   = []
+ret =    "@type.i16"
+[intrinsic.ia32-str]
+symbol = "__str"
+args   = []
+ret =    "@type.i16"
+[intrinsic.ia32-lgdt]
+symbol = "__lgdt"
+args   = ["@type.pointer"]
+ret =    "@type.none"
+[intrinsic.ia32-lidt]
+symbol = "__lidt"
+args   = ["@type.pointer"]
+ret =    "@type.none"
+[intrinsic.ia32-lldt]
+symbol = "__lldt"
+args   = ["@type.i16"]
+ret =    "@type.none"
+[intrinsic.ia32-ltr]
+symbol = "__ltr"
+args   = ["@type.i16"]
+ret =    "@type.none"
+[intrinsic.ia32-lmsw]
+symbol = "__lmsw"
+args   = ["@type.i16"]
+ret =    "@type.none"
 
 # -- Same order as registers! --
 [intrinsic.ia32-getes]

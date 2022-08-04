@@ -288,5 +288,76 @@ DECL_SEMA(OUT) {
 	return diag::ok;
 }
 
+DECL_SEMA(SGDT) {
+	bb->push_sideeffect_intrinsic(ir::intrinsic::ia32_sgdt, agen(sema_context(), ins.op[0].m, true));
+	return diag::ok;
+}
+DECL_SEMA(SIDT) {
+	bb->push_sideeffect_intrinsic(ir::intrinsic::ia32_sidt, agen(sema_context(), ins.op[0].m, true));
+	return diag::ok;
+}
+DECL_SEMA(LGDT) {
+	bb->push_sideeffect_intrinsic(ir::intrinsic::ia32_lgdt, agen(sema_context(), ins.op[0].m, true));
+	return diag::ok;
+}
+DECL_SEMA(LIDT) {
+	bb->push_sideeffect_intrinsic(ir::intrinsic::ia32_lidt, agen(sema_context(), ins.op[0].m, true));
+	return diag::ok;
+}
+DECL_SEMA(SMSW) {
+	auto res = bb->push_extract(ir::type::i16, bb->push_sideeffect_intrinsic(ir::intrinsic::ia32_smsw), 0);
+	auto ty	= ir::int_type(ins.op[0].get_width());
+	if (ty != ir::type::i16) {
+		res = bb->push_cast(ty, res);
+	}
+	write(sema_context(), 0, res);
+	return diag::ok;
+}
+DECL_SEMA(SLDT) {
+	auto res = bb->push_extract(ir::type::i16, bb->push_sideeffect_intrinsic(ir::intrinsic::ia32_sldt), 0);
+	auto ty	= ir::int_type(ins.op[0].get_width());
+	if (ty != ir::type::i16) {
+		res = bb->push_cast(ty, res);
+	}
+	write(sema_context(), 0, res);
+	return diag::ok;
+}
+DECL_SEMA(STR) {
+	auto res = bb->push_extract(ir::type::i16, bb->push_sideeffect_intrinsic(ir::intrinsic::ia32_str), 0);
+	auto ty	= ir::int_type(ins.op[0].get_width());
+	if (ty != ir::type::i16) {
+		res = bb->push_cast(ty, res);
+	}
+	write(sema_context(), 0, res);
+	return diag::ok;
+}
+DECL_SEMA(LMSW) {
+	auto ty	= ir::int_type(ins.op[0].get_width());
+	auto val = read(sema_context(), 0, ty);
+	if (ty != ir::type::i16) {
+		val = bb->push_cast(ty, std::move(val));
+	}
+	bb->push_sideeffect_intrinsic(ir::intrinsic::ia32_lmsw, std::move(val));
+	return diag::ok;
+}
+DECL_SEMA(LLDT) {
+	auto ty	= ir::int_type(ins.op[0].get_width());
+	auto val = read(sema_context(), 0, ty);
+	if (ty != ir::type::i16) {
+		val = bb->push_cast(ty, std::move(val));
+	}
+	bb->push_sideeffect_intrinsic(ir::intrinsic::ia32_lldt, std::move(val));
+	return diag::ok;
+}
+DECL_SEMA(LTR) {
+	auto ty	= ir::int_type(ins.op[0].get_width());
+	auto val = read(sema_context(), 0, ty);
+	if (ty != ir::type::i16) {
+		val = bb->push_cast(ty, std::move(val));
+	}
+	bb->push_sideeffect_intrinsic(ir::intrinsic::ia32_ltr, std::move(val));
+	return diag::ok;
+}
+
 // TODO: push/popf(_/d/q)
 //       pushad/popad
