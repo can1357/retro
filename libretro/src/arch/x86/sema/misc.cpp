@@ -117,6 +117,12 @@ DECL_SEMA(XGETBV) {
 	write_pair(sema_context(), reg::edx, reg::eax, std::move(res));
 	return diag::ok;
 }
+DECL_SEMA(RDPMC) {
+	auto res = bb->push_sideeffect_intrinsic(ir::intrinsic::ia32_rdpmc, read_reg(sema_context(), reg::ecx));
+	res		= bb->push_extract(ir::type::i64, res, 0);
+	write_pair(sema_context(), reg::edx, reg::eax, std::move(res));
+	return diag::ok;
+}
 DECL_SEMA(XSETBV) {
 	auto val = read_pair(sema_context(), reg::edx, reg::eax);
 	bb->push_sideeffect_intrinsic(ir::intrinsic::ia32_xsetbv, read_reg(sema_context(), reg::ecx), std::move(val));

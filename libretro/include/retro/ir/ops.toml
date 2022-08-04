@@ -408,6 +408,10 @@ ret =    "@type.i32x4"
 symbol = "_xgetbv"
 args   = ["@type.i32"]
 ret =    "@type.i64"
+[intrinsic.ia32-rdpmc]
+symbol = "_rdpmc"
+args   = ["@type.i32"]
+ret =    "@type.i64"
 [intrinsic.ia32-xsetbv]
 symbol = "_xgetbv"
 args   = ["@type.i32", "@type.i64"]
@@ -442,6 +446,26 @@ args   = ["@type.pointer"]
 ret =    "@type.none"
 [intrinsic.ia32-prefetchwt1]
 symbol = "_m_prefetchwt1"
+args   = ["@type.pointer"]
+ret =    "@type.none"
+[intrinsic.ia32-cldemote]
+symbol = "_cldemote"
+args   = ["@type.pointer"]
+ret =    "@type.none"
+[intrinsic.ia32-clflush]
+symbol = "_mm_clflush"
+args   = ["@type.pointer"]
+ret =    "@type.none"
+[intrinsic.ia32-clflushopt]
+symbol = "_mm_clflushopt"
+args   = ["@type.pointer"]
+ret =    "@type.none"
+[intrinsic.ia32-clwb]
+symbol = "_mm_clwb"
+args   = ["@type.pointer"]
+ret =    "@type.none"
+[intrinsic.ia32-clzero]
+symbol = "_mm_clzero"
 args   = ["@type.pointer"]
 ret =    "@type.none"
 
