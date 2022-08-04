@@ -300,7 +300,10 @@ DECL_SEMA(HLT) {
 	bb->push_sideeffect_intrinsic(ir::intrinsic::ia32_hlt);
 	return diag::ok;
 }
-
+DECL_SEMA(RSM) {
+	bb->push_sideeffect_intrinsic(ir::intrinsic::ia32_rsm);
+	return diag::ok;
+}
 DECL_SEMA(RDGSBASE) {
 	u16  w		= ins.effective_width;
 	auto intrin = w == 32 ? ir::intrinsic::ia32_rdgsbase32 : ir::intrinsic::ia32_rdgsbase64;

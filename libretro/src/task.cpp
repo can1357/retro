@@ -90,11 +90,7 @@ namespace retro {
 
 	// Global list of workers, will not be resized.
 	//
-	#if RC_DEBUG
-	static std::vector<work_list> work_lists(4);
-	#else
 	static std::vector<work_list> work_lists(std::bit_ceil(std::thread::hardware_concurrency()));
-	#endif
 	static std::atomic<u32>			work_balancer = 0;
 
 	// Queues the work.

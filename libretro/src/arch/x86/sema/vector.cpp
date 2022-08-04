@@ -238,6 +238,16 @@ DECL_SEMA(SQRTPS) { return vector_op<ir::op::sqrt, ir::type::f32x4>(sema_context
 DECL_SEMA(SQRTSD) { return scalar_op<ir::op::sqrt, ir::type::f64x2, ir::type::f64>(sema_context()); }
 DECL_SEMA(SQRTPD) { return vector_op<ir::op::sqrt, ir::type::f64x2>(sema_context()); }
 
+DECL_SEMA(PADDB) { return vector_op<ir::op::add, ir::type::i8x16>(sema_context()); }
+DECL_SEMA(PADDW) { return vector_op<ir::op::add, ir::type::i16x8>(sema_context()); }
+DECL_SEMA(PADDD) { return vector_op<ir::op::add, ir::type::i32x4>(sema_context()); }
+DECL_SEMA(PADDQ) { return vector_op<ir::op::add, ir::type::i64x2>(sema_context()); }
+
+DECL_SEMA(PSUBB) { return vector_op<ir::op::sub, ir::type::i8x16>(sema_context()); }
+DECL_SEMA(PSUBW) { return vector_op<ir::op::sub, ir::type::i16x8>(sema_context()); }
+DECL_SEMA(PSUBD) { return vector_op<ir::op::sub, ir::type::i32x4>(sema_context()); }
+DECL_SEMA(PSUBQ) { return vector_op<ir::op::sub, ir::type::i64x2>(sema_context()); }
+
 // TODO:
 // RCP
 // RSQRT

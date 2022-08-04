@@ -407,6 +407,10 @@ ret =    "@type.none"
 symbol = "__hlt"
 args   = []
 ret =    "@type.none"
+[intrinsic.ia32-rsm]
+symbol = "__rsm"
+args   = []
+ret =    "@type.none"
 [intrinsic.ia32-invd]
 symbol = "__invd"
 args   = []
