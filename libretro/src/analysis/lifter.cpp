@@ -233,6 +233,11 @@ namespace retro::analysis {
 			if (!m->build_block(rva).wait()) {
 				m->routine[IRP_BUILT] = nullptr;
 			}
+			// Otherwise, call the hooks.
+			//
+			else {
+				irp_complete_hook(m->routine[IRP_BUILT], IRP_BUILT);
+			}
 
 			// Mark IR phase as finished, return the method.
 			//

@@ -21,28 +21,12 @@ namespace retro {
 	};
 	namespace detail {
 		static constexpr u8 slow_yield_threshold = 128;
-
-		struct signal {
-			std::atomic<u16> value = 0;
-			RC_COLD void wait() {
-				value.store(1, std::memory_order::relaxed);
-				value.wait(1, std::memory_order::relaxed);
-			}
-			RC_COLD void emit() {
-				value.store(0);
-				value.notify_all();
-			}
-			RC_INLINE void clear() {
-				if (value.load(std::memory_order::relaxed)) [[unlikely]] {
-					emit();
-				}
-			}
-		};
-		RC_INLINE static void smart_yield(u8& counter, signal& ss) {
+		RC_INLINE static bool yield(u8& counter) {
 			if (counter++ >= slow_yield_threshold) [[unlikely]] {
-				ss.wait();
+				return false;
 			}
 			intrin::yield();
+			return true;
 		}
 	};
 
@@ -50,50 +34,59 @@ namespace retro {
 	//
 	struct simple_lock {
 		std::atomic<u16> flag  = 0;
-		detail::signal   signal = {};
 
 		RC_INLINE bool locked() const { return !(flag.load(std::memory_order::relaxed) & 1); }
 		RC_INLINE bool try_lock() { return flag.fetch_or(1, std::memory_order::acquire) == 0; }
 		RC_INLINE void lock() {
+			u8 yield_counter = 0;
 			while (!try_lock()) [[unlikely]] {
-				u8 yield_counter = 0;
 				do {
-					detail::smart_yield(yield_counter, signal);
+					if (!detail::yield(yield_counter)) {
+						flag.wait(1);
+					}
 				} while (locked());
 			}
 		}
-		RC_INLINE void unlock() { flag.store(0, std::memory_order::release); }
+		RC_INLINE void unlock() {
+			flag.store(0, std::memory_order::release);
+			flag.notify_all();
+		}
 	};
 
 	// Recursive lock.
 	//
 	struct rec_lock {
 		std::atomic<size_t> owner  = 0;
-		detail::signal      signal = {};
 		u16                 depth  = 0;
 
 		RC_INLINE bool locked() const { return owner.load(std::memory_order::relaxed) != 0; }
 		RC_INLINE bool try_lock(size_t tid = platform::thread_id()) {
 			size_t expected = 0;
-			if (owner.compare_exchange_strong(expected, tid) || expected == tid) {
+			if (owner.compare_exchange_strong(expected, tid, std::memory_order::acquire) || expected == tid) {
 				++depth;
 				return true;
 			}
 			return false;
 		}
 		RC_INLINE void lock() {
-			size_t tid = platform::thread_id();
-			while (!try_lock(tid)) [[unlikely]] {
-				u8 yield_counter = 0;
-				do {
-					detail::smart_yield(yield_counter, signal);
-				} while (locked());
+			size_t tid				= platform::thread_id();
+			u8		 yield_counter = 0;
+			while (true) {
+				size_t expected = 0;
+				if (owner.compare_exchange_strong(expected, tid, std::memory_order::acquire) || expected == tid) [[likely]] {
+					++depth;
+					break;
+				}
+
+				if (!detail::yield(yield_counter)) {
+					owner.wait(expected);
+				}
 			}
 		}
 		RC_INLINE void unlock() {
 			if (!--depth) {
 				owner.store(0, std::memory_order::release);
-				signal.clear();
+				owner.notify_all();
 			}
 		}
 	};
@@ -102,7 +95,6 @@ namespace retro {
 	//
 	struct rw_lock {
 		std::atomic<u16> counter = 0;
-		detail::signal   signal  = {};
 
 		RC_INLINE bool locked() const { return counter.load(std::memory_order::relaxed) != 0; }
 		RC_INLINE bool try_lock() {
@@ -118,36 +110,38 @@ namespace retro {
 			return false;
 		}
 		RC_INLINE void lock() {
-			while (!try_lock()) [[unlikely]] {
-				u8 yield_counter = 0;
-				do {
-					detail::smart_yield(yield_counter, signal);
-				} while (locked());
+			u8 yield_counter = 0;
+			while (true) {
+				u16 expected = 0;
+				if (counter.compare_exchange_strong(expected, UINT16_MAX, std::memory_order::acquire)) [[likely]] {
+					break;
+				}
+				if (!detail::yield(yield_counter)) {
+					counter.wait(expected);
+				}
 			}
 		}
 		RC_INLINE void lock_shared() {
 			u8 yield_counter = 0;
 			while (true) {
-				// Yield the CPU until the exclusive lock is gone.
-				//
-				u16 value;
-				while ((value = counter.load(std::memory_order::relaxed)) >= (UINT16_MAX - 1)) [[unlikely]] {
-					detail::smart_yield(yield_counter, signal);
+				u16 expected;
+				while ((expected = counter.load(std::memory_order::relaxed)) >= (UINT16_MAX - 1)) {
+					if (!detail::yield(yield_counter)) {
+						if (expected == UINT16_MAX)
+							counter.wait(expected);
+					}
 				}
-
-				// Try incrementing share count.
-				//
-				if (counter.compare_exchange_strong(value, value + 1, std::memory_order::acquire))
-					return;
+				if (counter.compare_exchange_strong(expected, expected + 1, std::memory_order::acquire))
+					break;
 			}
 		}
 		RC_INLINE void unlock() {
 			counter.store(0, std::memory_order::release);
-			signal.clear();
+			counter.notify_all();
 		}
 		RC_INLINE void unlock_shared() {
 			if (!--counter)
-				signal.clear();
+				counter.notify_all();
 		}
 	};
 };

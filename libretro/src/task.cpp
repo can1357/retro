@@ -12,9 +12,9 @@ namespace retro {
 	struct work_list {
 		// Queue and the lock.
 		//
-		rec_lock					 lock	 = {};
-		list::head<work>		 queue = {};
-		std::binary_semaphore signal{0};
+		rec_lock						  lock  = {};
+		list::head<work>			  queue = {};
+		std::counting_semaphore<> signal{0};
 
 		// Thread running it.
 		//
@@ -82,7 +82,7 @@ namespace retro {
 		~work_list() {
 			// Set the termination signal and wait for the thread.
 			//
-			signal.release();
+			signal.release(UINT32_MAX);
 			termination_signal.store(true);
 			thread.join();
 		}
@@ -90,7 +90,11 @@ namespace retro {
 
 	// Global list of workers, will not be resized.
 	//
+	#if RC_DEBUG
+	static std::vector<work_list> work_lists(4);
+	#else
 	static std::vector<work_list> work_lists(std::bit_ceil(std::thread::hardware_concurrency()));
+	#endif
 	static std::atomic<u32>			work_balancer = 0;
 
 	// Queues the work.
