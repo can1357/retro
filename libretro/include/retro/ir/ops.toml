@@ -342,6 +342,56 @@ symbol = "_mm_pause"
 args   = []
 ret =    "@type.none"
 
+# -- Same order as registers! --
+[intrinsic.ia32-getes]
+symbol = "_getes"
+args   = []
+ret =    "@type.i16"
+[intrinsic.ia32-getcs]
+symbol = "_getcs"
+args   = []
+ret =    "@type.i16"
+[intrinsic.ia32-getss]
+symbol = "_getss"
+args   = []
+ret =    "@type.i16"
+[intrinsic.ia32-getds]
+symbol = "_getds"
+args   = []
+ret =    "@type.i16"
+[intrinsic.ia32-getfs]
+symbol = "_getfs"
+args   = []
+ret =    "@type.i16"
+[intrinsic.ia32-getgs]
+symbol = "_getgs"
+args   = []
+ret =    "@type.i16"
+[intrinsic.ia32-setes]
+symbol = "_setes"
+args   = ["@type.i16"]
+ret =    "@type.none"
+[intrinsic.ia32-setcs]
+symbol = "_setcs"
+args   = ["@type.i16"]
+ret =    "@type.none"
+[intrinsic.ia32-setss]
+symbol = "_setss"
+args   = ["@type.i16"]
+ret =    "@type.none"
+[intrinsic.ia32-setds]
+symbol = "_setds"
+args   = ["@type.i16"]
+ret =    "@type.none"
+[intrinsic.ia32-setfs]
+symbol = "_setfs"
+args   = ["@type.i16"]
+ret =    "@type.none"
+[intrinsic.ia32-setgs]
+symbol = "_setgs"
+args   = ["@type.i16"]
+ret =    "@type.none"
+
 [intrinsic.ia32-readpid]
 symbol = "__builtin_ia32_readpid"
 args   = []

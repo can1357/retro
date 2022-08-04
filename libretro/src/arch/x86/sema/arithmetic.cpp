@@ -10,8 +10,11 @@ DECL_SEMA(LEA) {
 	// Pattern: [lea reg, [reg]] <=> [nop]
 	if (ins.op[0].type == arch::mop_type::reg && !ins.op[1].m.index && ins.op[1].m.disp) {
 		if (ins.op[0].r == ins.op[1].m.base) {
-			bb->push_nop();
-			return diag::ok;
+			// Exception: lea eax, [eax] in long mode
+			if (ins.op[0].r.get_kind() != arch::reg_kind::gpr32 || !mach->is_64()) {
+				bb->push_nop();
+				return diag::ok;
+			}
 		}
 	}
 	auto ptr = agen(sema_context(), ins.op[1].m, false);

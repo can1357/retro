@@ -10,8 +10,11 @@ DECL_SEMA(MOV) {
 	// Pattern: [mov reg, reg] <=> [nop]
 	if (ins.op[0].type == arch::mop_type::reg && ins.op[1].type == arch::mop_type::reg) {
 		if (ins.op[0].r == ins.op[1].r) {
-			bb->push_nop();
-			return diag::ok;
+			// Exception: mov eax, eax in long mode
+			if (ins.op[0].r.get_kind() != arch::reg_kind::gpr32 || !mach->is_64()) {
+				bb->push_nop();
+				return diag::ok;
+			}
 		}
 	}
 
