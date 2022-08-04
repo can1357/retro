@@ -343,6 +343,22 @@ DECL_SEMA(CDQE) {
 	write_reg(sema_context(), reg::rax, a);
 	return diag::ok;
 }
+DECL_SEMA(CWD) {
+	constexpr auto t0 = ir::type::i16;
+	constexpr auto t1 = ir::type::i32;
+	auto				a	= read_reg(sema_context(), reg::ax, t0);
+	a						= bb->push_cast_sx(t1, a);
+	write_pair(sema_context(), reg::dx, reg::ax, a);
+	return diag::ok;
+}
+DECL_SEMA(CDQ) {
+	constexpr auto t0 = ir::type::i32;
+	constexpr auto t1 = ir::type::i64;
+	auto				a	= read_reg(sema_context(), reg::eax, t0);
+	a						= bb->push_cast_sx(t1, a);
+	write_pair(sema_context(), reg::edx, reg::eax, a);
+	return diag::ok;
+}
 DECL_SEMA(CQO) {
 	constexpr auto t0 = ir::type::i64;
 	constexpr auto t1 = ir::type::i128;
