@@ -268,7 +268,7 @@ DECL_SEMA(PUSH) {
 	auto rsp		 = reg_sp(mach);
 	auto pty		 = mach->ptr_type();
 	auto ty		 = ir::int_type(ins.effective_width);
-	i32  dif		 = ins.effective_width == 2 ? 2 : mach->ptr_width / 8;
+	i32  dif		 = ins.effective_width == 16 ? 16 : mach->ptr_width / 8;
 	auto prev_sp = read_reg(sema_context(), rsp, pty);
 
 	// Update SP.
@@ -284,7 +284,7 @@ DECL_SEMA(POP) {
 	auto rsp		 = reg_sp(mach);
 	auto pty		 = mach->ptr_type();
 	auto ty		 = ir::int_type(ins.effective_width);
-	i32  dif		 = ins.effective_width == 2 ? 2 : mach->ptr_width / 8;
+	i32  dif		 = ins.effective_width == 16 ? 16 : mach->ptr_width / 8;
 	auto prev_sp = read_reg(sema_context(), rsp, pty);
 
 	// Read the value.
