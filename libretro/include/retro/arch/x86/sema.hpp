@@ -387,7 +387,7 @@ namespace retro::arch::x86 {
 				base = bb->push_intrinsic(mach->is_64() ? ir::intrinsic::ia32_rdgsbase64 : ir::intrinsic::ia32_rdgsbase32);
 			}
 			if (base) {
-				result = bb->push_binop(ir::op::add, result, base);
+				result = bb->push_binop(ir::op::add, result, bb->push_extract(mach->is_64() ? ir::type::i64 : ir::type::i32, base, 0));
 			}
 		}
 

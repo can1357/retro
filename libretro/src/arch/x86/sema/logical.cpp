@@ -282,3 +282,35 @@ DECL_SEMA(BSWAP) {
 	}
 	return diag::ok;
 }
+DECL_SEMA(BSF) {
+	auto ty = ir::int_type(ins.effective_width);
+	auto val = read(sema_context(), 1, ty);
+	write(sema_context(), 0, bb->push_unop(ir::op::bit_lsb, val));
+	bb->push_write_reg(reg::flag_zf, bb->push_cmp(ir::op::eq, val, ir::constant(ty, 0)));
+	return diag::ok;
+}
+DECL_SEMA(BSR) {
+	auto ty	= ir::int_type(ins.effective_width);
+	auto val = read(sema_context(), 1, ty);
+	write(sema_context(), 0, bb->push_unop(ir::op::bit_msb, val));
+	bb->push_write_reg(reg::flag_zf, bb->push_cmp(ir::op::eq, val, ir::constant(ty, 0)));
+	return diag::ok;
+}
+DECL_SEMA(TZCNT) {
+	auto ty	= ir::int_type(ins.effective_width);
+	auto val = read(sema_context(), 1, ty);
+	auto res = bb->push_unop(ir::op::bit_lsb, val);
+	write(sema_context(), 0, res);
+	bb->push_write_reg(reg::flag_zf, bb->push_cmp(ir::op::eq, res, ir::constant(ty, 0)));
+	bb->push_write_reg(reg::flag_cf, bb->push_cmp(ir::op::eq, val, ir::constant(ty, 0)));
+	return diag::ok;
+}
+DECL_SEMA(LZCNT) {
+	auto ty	= ir::int_type(ins.effective_width);
+	auto val = read(sema_context(), 1, ty);
+	auto res = bb->push_unop(ir::op::bit_msb, val);
+	write(sema_context(), 0, res);
+	bb->push_write_reg(reg::flag_zf, bb->push_cmp(ir::op::eq, res, ir::constant(ty, 0)));
+	bb->push_write_reg(reg::flag_cf, bb->push_cmp(ir::op::eq, val, ir::constant(ty, 0)));
+	return diag::ok;
+}

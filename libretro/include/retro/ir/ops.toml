@@ -297,37 +297,36 @@ ret =    "@type.i64"
 symbol = "__builtin_prefetech"
 args   = ["@type.pointer"]
 ret =    "@type.none"
-
 [intrinsic.ia32-rdgsbase32]
-symbol = "__builtin_ia32_rdgsbase32"
+symbol = "_readgsbase_u32"
 args   = []
 ret =    "@type.i32"
 [intrinsic.ia32-rdfsbase32]
-symbol = "__builtin_ia32_rdfsbase32"
+symbol = "_readfsbase_u32"
 args   = []
 ret =    "@type.i32"
 [intrinsic.ia32-rdgsbase64]
-symbol = "__builtin_ia32_rdgsbase64"
+symbol = "_readgsbase_u64"
 args   = []
 ret =    "@type.i64"
 [intrinsic.ia32-rdfsbase64]
-symbol = "__builtin_ia32_rdfsbase64"
+symbol = "_readfsbase_u64"
 args   = []
 ret =    "@type.i64"
 [intrinsic.ia32-wrgsbase32]
-symbol = "__builtin_ia32_wrgsbase32"
+symbol = "_writegsbase_u32"
 args   = ["@type.i32"]
 ret =    "@type.none"
 [intrinsic.ia32-wrfsbase32]
-symbol = "__builtin_ia32_wrfsbase32"
+symbol = "_writefsbase_u32"
 args   = ["@type.i32"]
 ret =    "@type.none"
 [intrinsic.ia32-wrgsbase64]
-symbol = "__builtin_ia32_wrgsbase64"
+symbol = "_writegsbase_u64"
 args   = ["@type.i64"]
 ret =    "@type.none"
 [intrinsic.ia32-wrfsbase64]
-symbol = "__builtin_ia32_wrfsbase64"
+symbol = "_writefsbase_u64"
 args   = ["@type.i64"]
 ret =    "@type.none"
 [intrinsic.ia32-stmxcsr]
@@ -337,6 +336,10 @@ ret =    "@type.i32"
 [intrinsic.ia32-ldmxcsr]
 symbol = "_mm_setcsr"
 args   = ["@type.i32"]
+ret =    "@type.none"
+[intrinsic.ia32-pause]
+symbol = "_mm_pause"
+args   = []
 ret =    "@type.none"
 
 [intrinsic.ia32-readpid]
