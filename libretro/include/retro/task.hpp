@@ -275,9 +275,9 @@ namespace retro {
 			return expected;
 		}
 
-		// Value getter.
+		// Value getter, starts if not already done, waits in a blocking fashion.
 		//
-		T& get() & {
+		T& wait() & {
 			// If not done yet, enter the wait loop.
 			//
 			if (signal() != 2) [[unlikely]] {
@@ -291,6 +291,15 @@ namespace retro {
 			//
 			return *(T*) &handle.promise().data;
 		}
+		T&&		wait() && { return std::move(wait()); }
+		const T& wait() const& { return const_cast<unique_task*>(this)->wait(); }
+
+		// Getter assuming the task is complete.
+		//
+		T& get() & {
+			RC_ASSERT(handle.promise().state.load(std::memory_order::relaxed) == 2);
+			return *(T*) &handle.promise().data;
+		}
 		T&& get() && { return std::move(get()); }
 		const T& get() const& { return const_cast<unique_task*>(this)->get(); }
 
@@ -298,28 +307,59 @@ namespace retro {
 		//
 		~unique_task() {
 			if (handle)
-				get();
+				wait();
 		}
 	};
 
-	// Make unique task co-awaitable, note that only one coroutine may wait on unique task.
+	// Make unique task co-awaitable, note that only one coroutine may wait on unique task using
+	// symmetric transfer, rest will do a blocking wait. 
 	//
+	template<typename T>
+	inline auto operator co_await(unique_task<T>&& ref) {
+		struct awaitable {
+			unique_task<T>&&	 ref;
+			coroutine_handle<> hnd;
+
+			inline bool await_ready() {
+				u32 expected = 0;
+				if (!ref.handle.promise().state.compare_exchange_strong(expected, 1)) {
+					ref.wait();
+					return true;
+				}
+				return false;
+			}
+			inline T&& await_resume() const { return std::move(ref).get(); }
+
+			inline coroutine_handle<> await_suspend(coroutine_handle<> hnd) {
+				auto& pr = ref.handle.promise();
+				RC_ASSERT(pr.continuation == nullptr);
+				pr.continuation = hnd;
+				return ref.handle.get();
+			}
+		};
+		return awaitable{std::move(ref)};
+	}
 	template<typename T>
 	inline auto operator co_await(const unique_task<T>& ref) {
 		struct awaitable {
 			const unique_task<T>& ref;
-			long						 state;
+			coroutine_handle<>	 hnd;
 
 			inline bool await_ready() {
-				state = ref.signal();
-				return state == 2;
+				u32 expected = 0;
+				if (!ref.handle.promise().state.compare_exchange_strong(expected, 1)) {
+					ref.wait();
+					return true;
+				}
+				return false;
 			}
-			inline const auto& await_resume() const { return *(const T*) &ref.handle.promise().data; }
+			inline const T& await_resume() const { return ref.get(); }
 
-			inline void await_suspend(coroutine_handle<> hnd) {
+			inline coroutine_handle<> await_suspend(coroutine_handle<> hnd) {
 				auto& pr = ref.handle.promise();
 				RC_ASSERT(pr.continuation == nullptr);
 				pr.continuation = hnd;
+				return ref.handle.get();
 			}
 		};
 		return awaitable{ref};
