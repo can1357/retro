@@ -289,6 +289,64 @@ ret =    "@type.pointer"
 
 # Low level intrinsics.
 #
+
+[intrinsic.loadnontemporal8]
+symbol = "__builtin_load_nontemporal8"
+args =   ["@type.pointer"]
+ret =    "@type.i8"
+[intrinsic.loadnontemporal16]
+symbol = "__builtin_load_nontemporal16"
+args =   ["@type.pointer"]
+ret =    "@type.i16"
+[intrinsic.loadnontemporal32]
+symbol = "__builtin_load_nontemporal32"
+args =   ["@type.pointer"]
+ret =    "@type.i32"
+[intrinsic.loadnontemporal64]
+symbol = "__builtin_load_nontemporal64"
+args =   ["@type.pointer"]
+ret =    "@type.i64"
+[intrinsic.loadnontemporal128]
+symbol = "__builtin_load_nontemporal128"
+args =   ["@type.pointer"]
+ret =    "@type.i8x16"
+[intrinsic.loadnontemporal256]
+symbol = "__builtin_load_nontemporal256"
+args =   ["@type.pointer"]
+ret =    "@type.i8x32"
+[intrinsic.loadnontemporal512]
+symbol = "__builtin_load_nontemporal512"
+args =   ["@type.pointer"]
+ret =    "@type.i8x64"
+[intrinsic.storenontemporal8]
+symbol = "__builtin_store_nontemporal8"
+args =   ["@type.pointer", "@type.i8"]
+RET =    "@type.none"
+[intrinsic.storenontemporal16]
+symbol = "__builtin_store_nontemporal16"
+args =   ["@type.pointer", "@type.i16"]
+RET =    "@type.none"
+[intrinsic.storenontemporal32]
+symbol = "__builtin_store_nontemporal32"
+args =   ["@type.pointer", "@type.i32"]
+RET =    "@type.none"
+[intrinsic.storenontemporal64]
+symbol = "__builtin_store_nontemporal64"
+args =   ["@type.pointer", "@type.i64"]
+RET =    "@type.none"
+[intrinsic.storenontemporal128]
+symbol = "__builtin_store_nontemporal128"
+args =   ["@type.pointer", "@type.i8x16"]
+RET =    "@type.none"
+[intrinsic.storenontemporal256]
+symbol = "__builtin_store_nontemporal256"
+args =   ["@type.pointer", "@type.i8x32"]
+RET =    "@type.none"
+[intrinsic.storenontemporal512]
+symbol = "__builtin_store_nontemporal512"
+args =   ["@type.pointer", "@type.i8x64"]
+RET =    "@type.none"
+
 [intrinsic.readcyclecounter]
 symbol = "__builtin_readcyclecounter"
 args   = []

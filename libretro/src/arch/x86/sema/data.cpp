@@ -431,3 +431,55 @@ DECL_SEMA(STI) {
 	bb->push_write_reg(reg::flag_if, true);
 	return diag::ok;
 }
+
+// Non-temporal move.
+//
+static constexpr std::tuple<ir::intrinsic, ir::intrinsic, ir::type> nt_traits(u32 w) {
+	switch (w) {
+		case 8:
+			return {ir::intrinsic::storenontemporal8, ir::intrinsic::loadnontemporal8, ir::type::i8};
+		case 16:
+			return {ir::intrinsic::storenontemporal16, ir::intrinsic::loadnontemporal16, ir::type::i16};
+		case 32:
+			return {ir::intrinsic::storenontemporal32, ir::intrinsic::loadnontemporal32, ir::type::i32};
+		case 64:
+			return {ir::intrinsic::storenontemporal64, ir::intrinsic::loadnontemporal64, ir::type::i64};
+		case 128:
+			return {ir::intrinsic::storenontemporal128, ir::intrinsic::loadnontemporal128, ir::type::i8x16};
+		case 256:
+			return {ir::intrinsic::storenontemporal256, ir::intrinsic::loadnontemporal256, ir::type::i8x32};
+		case 512:
+			return {ir::intrinsic::storenontemporal512, ir::intrinsic::loadnontemporal512, ir::type::i8x64};
+		default:
+			RC_UNREACHABLE();
+	}
+}
+static diag::lazy make_nt(SemaContext) {
+	// NT store:
+	if (ins.op[0].type == arch::mop_type::mem) {
+		auto [store, load, ty] = nt_traits(ins.op[1].get_width());
+		auto val					  = read(sema_context(), 1, ty);
+		bb->push_sideeffect_intrinsic(store, agen(sema_context(), ins.op[0].m, true), val);
+		return diag::ok;
+	}
+	// NT load:
+	else {
+		auto [store, load, ty] = nt_traits(ins.op[0].get_width());
+		auto val					  = bb->push_sideeffect_intrinsic(load, agen(sema_context(), ins.op[1].m, true));
+		val						  = bb->push_extract(ty, val, 0);
+		write(sema_context(), 0, val);
+	}
+	return diag::ok;
+}
+
+// MOVNTI m32, r32
+// MOVNTI m64, r64
+DECL_SEMA(MOVNTQ) { return make_nt(sema_context()); }
+// MOVNTPD m128, xmm1
+DECL_SEMA(MOVNTPD) { return make_nt(sema_context()); }
+// MOVNTPS m128, xmm1
+DECL_SEMA(MOVNTPS) { return make_nt(sema_context()); }
+// MOVNTDQ m128, xmm1
+DECL_SEMA(MOVNTDQ) { return make_nt(sema_context()); }
+// MOVNTDQA xmm1, m128
+DECL_SEMA(MOVNTDQA) { return make_nt(sema_context()); }
