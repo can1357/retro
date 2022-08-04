@@ -330,6 +330,14 @@ ret =    "@type.none"
 symbol = "__builtin_ia32_wrfsbase64"
 args   = ["@type.i64"]
 ret =    "@type.none"
+[intrinsic.ia32-stmxcsr]
+symbol = "_mm_getcsr"
+args   = []
+ret =    "@type.i32"
+[intrinsic.ia32-ldmxcsr]
+symbol = "_mm_setcsr"
+args   = ["@type.i32"]
+ret =    "@type.none"
 
 [intrinsic.ia32-readpid]
 symbol = "__builtin_ia32_readpid"

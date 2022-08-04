@@ -172,25 +172,45 @@ DECL_SEMA(LFENCE) {
 DECL_SEMA(RDGSBASE) {
 	u16  w		= ins.effective_width;
 	auto intrin = w == 32 ? ir::intrinsic::ia32_rdgsbase32 : ir::intrinsic::ia32_rdgsbase64;
-	write(sema_context(), 0, bb->push_intrinsic(intrin));
+	auto ty		= w == 32 ? ir::type::i32 : ir::type::i64;
+	write(sema_context(), 0, bb->push_extract(ty, bb->push_intrinsic(intrin), 0));
 	return diag::ok;
 }
 DECL_SEMA(RDFSBASE) {
 	u16  w		= ins.effective_width;
 	auto intrin = w == 32 ? ir::intrinsic::ia32_rdfsbase32 : ir::intrinsic::ia32_rdfsbase64;
-	write(sema_context(), 0, bb->push_intrinsic(intrin));
+	auto ty		= w == 32 ? ir::type::i32 : ir::type::i64;
+	write(sema_context(), 0, bb->push_extract(ty, bb->push_intrinsic(intrin), 0));
 	return diag::ok;
 }
 DECL_SEMA(WRGSBASE) {
 	u16 w = ins.effective_width;
 	auto intrin = w == 32 ? ir::intrinsic::ia32_wrgsbase32 : ir::intrinsic::ia32_wrgsbase64;
-	bb->push_sideeffect_intrinsic(intrin, read(sema_context(), 0, ir::int_type(w)));
+	auto ty		= w == 32 ? ir::type::i32 : ir::type::i64;
+	bb->push_sideeffect_intrinsic(intrin, read(sema_context(), 0, ty));
 	return diag::ok;
 }
 DECL_SEMA(WRFSBASE) {
 	u16  w		= ins.effective_width;
 	auto intrin = w == 32 ? ir::intrinsic::ia32_wrfsbase32 : ir::intrinsic::ia32_wrfsbase64;
-	bb->push_sideeffect_intrinsic(intrin, read(sema_context(), 0, ir::int_type(w)));
+	auto ty		= w == 32 ? ir::type::i32 : ir::type::i64;
+	bb->push_sideeffect_intrinsic(intrin, read(sema_context(), 0, ty));
+	return diag::ok;
+}
+DECL_SEMA(STMXCSR) {
+	write(sema_context(), 0, bb->push_extract(ir::type::i32, bb->push_intrinsic(ir::intrinsic::ia32_stmxcsr), 0));
+	return diag::ok;
+}
+DECL_SEMA(VSTMXCSR) {
+	write(sema_context(), 0, bb->push_extract(ir::type::i32, bb->push_intrinsic(ir::intrinsic::ia32_stmxcsr), 0));
+	return diag::ok;
+}
+DECL_SEMA(LDMXCSR) {
+	bb->push_sideeffect_intrinsic(ir::intrinsic::ia32_ldmxcsr, read(sema_context(), 0, ir::type::i32));
+	return diag::ok;
+}
+DECL_SEMA(VLDMXCSR) {
+	bb->push_sideeffect_intrinsic(ir::intrinsic::ia32_ldmxcsr, read(sema_context(), 0, ir::type::i32));
 	return diag::ok;
 }
 // TODO: INT / INTO
