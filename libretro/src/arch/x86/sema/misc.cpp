@@ -78,6 +78,10 @@ DECL_SEMA(INT1) {
 	bb->push_trap("int1");
 	return diag::ok;
 }
+DECL_SEMA(INT) {
+	bb->push_trap(fmt::str("int%x", ins.op[0].i.get_unsigned()));
+	return diag::ok;
+}
 DECL_SEMA(RDTSC) {
 	auto res = bb->push_intrinsic(ir::intrinsic::readcyclecounter);
 	res		= bb->push_extract(ir::type::i64, res, 0);
@@ -213,14 +217,6 @@ DECL_SEMA(VLDMXCSR) {
 	bb->push_sideeffect_intrinsic(ir::intrinsic::ia32_ldmxcsr, read(sema_context(), 0, ir::type::i32));
 	return diag::ok;
 }
-// TODO: INT / INTO
 
-/*
-pushfq
-popfq
-
-movsd -> 85 0.402157%
-
-scasd -> 1 0.004731%
-lodsb -> 1 0.004731%
-*/
+// TODO: push/popf(_/d/q)
+//       pushad/popad
