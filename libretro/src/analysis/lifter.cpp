@@ -148,6 +148,7 @@ namespace retro::analysis {
 						term->erase();
 						bb->add_jump(bbs[0]);
 						bb->add_jump(bbs[1]);
+						break;
 					}
 				} else {
 					// Swap with a xjmp.

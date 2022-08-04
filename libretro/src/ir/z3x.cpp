@@ -622,7 +622,7 @@ namespace retro::z3x {
 					if (i2->op == ir::opcode::write_reg) {
 						// If register matches:
 						if (rt == i2->opr(0).get_const().get<arch::mreg>()) {
-							RC_ASSERT(i2->opr(1).get_type() == i->template_types[0]); // potential bitcasts?
+							//RC_ASSERT(i2->opr(1).get_type() == i->template_types[0]); // potential bitcasts?
 							return to_expr(vs, c, i2->opr(1), max_depth);
 						}
 					}

@@ -31,6 +31,39 @@ DECL_SEMA(RET) {
 	bb->push_xret(retptr);
 	return diag::ok;
 }
+DECL_SEMA(LEAVE) {
+	ir::type ty;
+	reg		bpr, spr;
+	u32		n;
+
+	if (mach->is_64()) {
+		ty = ir::type::i64;
+		bpr = reg::rbp;
+		spr = reg::rsp;
+		n	= 8;
+	} else if (mach->is_32()) {
+		ty	 = ir::type::i32;
+		bpr = reg::ebp;
+		spr = reg::esp;
+		n	 = 4;
+	} else {
+		ty	 = ir::type::i16;
+		bpr = reg::bp;
+		spr = reg::sp;
+		n	 = 2;
+	}
+
+	// RSP <- RBP;
+	auto rsp = read_reg(sema_context(), bpr, ty);
+	// RBP <- POP();
+	auto rbpv = bb->push_load_mem(ty, bb->push_bitcast(ir::type::pointer, rsp));
+	auto rspv = bb->push_binop(ir::op::add, std::move(rsp), ir::constant(ty, n));
+
+	write_reg(sema_context(), spr, rspv);
+	write_reg(sema_context(), bpr, rbpv);
+	return diag::ok;
+}
+
 // TODO: IRETQ, IRETD, SYSRET...
 DECL_SEMA(NOP) { return diag::ok; }
 DECL_SEMA(UD2) {

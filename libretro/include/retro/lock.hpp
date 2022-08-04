@@ -35,7 +35,7 @@ namespace retro {
 	struct simple_lock {
 		std::atomic<u16> flag  = 0;
 
-		RC_INLINE bool locked() const { return !(flag.load(std::memory_order::relaxed) & 1); }
+		RC_INLINE bool locked() const { return (flag.load(std::memory_order::relaxed) & 1) != 0; }
 		RC_INLINE bool try_lock() { return flag.fetch_or(1, std::memory_order::acquire) == 0; }
 		RC_INLINE void lock() {
 			u8 yield_counter = 0;

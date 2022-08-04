@@ -197,7 +197,11 @@ namespace retro::arch::x86 {
 			}
 		} else {
 			auto type2 = enum_reflect(enum_reflect(r).kind).type;
-			RC_ASSERT(type2 == ir::type::none || enum_reflect(type2).bit_size == enum_reflect(type).bit_size);
+			auto typer = type;
+			if (typer == ir::type::pointer) {
+				typer = mach->ptr_type();
+			}
+			RC_ASSERT(type2 == ir::type::none || enum_reflect(type2).bit_size == enum_reflect(typer).bit_size);
 		}
 
 		// Push read_reg.
