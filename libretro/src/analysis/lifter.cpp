@@ -192,7 +192,8 @@ namespace retro::analysis {
 	// Lifts a new method into the domain at the given RVA, if it does not already exist.
 	// - If there is an existing entry with arch/cc matching, returns it, otherwise clears it and lifts from scratch.
 	//
-	ref<method> lift(domain* dom, u64 rva, arch::handle arch, const arch::call_conv_desc* cc) {
+	template<bool Async>
+	RC_INLINE static ref<method> lift_impl(domain* dom, u64 rva, arch::handle arch, const arch::call_conv_desc* cc) {
 		arch = arch ? arch : dom->arch;
 		cc = cc ? cc : dom->default_cc;
 		if (!arch || !cc)
@@ -226,15 +227,27 @@ namespace retro::analysis {
 		rtn->method				 = m;
 		rtn->ip					 = rva + dom->img->base_address;
 
-		// If lifter fails, clear out the routine.
-		//
-		if (!m->build_block(rva).wait()) {
-			m->routine[IRP_BUILT] = nullptr;
-		}
+		auto work = [=]() {
+			// If lifter fails, clear out the routine.
+			//
+			if (!m->build_block(rva).wait()) {
+				m->routine[IRP_BUILT] = nullptr;
+			}
 
-		// Mark IR phase as finished, return the method.
-		//
-		m->irp_mask.fetch_or(1u << IRP_BUILT);
+			// Mark IR phase as finished, return the method.
+			//
+			m->irp_mask.fetch_or(1u << IRP_BUILT);
+			m->irp_mask.notify_all();
+		};
+
+		if constexpr (Async) {
+			later(std::move(work));
+		} else {
+			work();
+		}
 		return m;
 	}
+
+	ref<method> lift(domain* dom, u64 rva, arch::handle arch, const arch::call_conv_desc* cc) { return lift_impl<false>(dom, rva, arch, cc); }
+	ref<method> lift_async(domain* dom, u64 rva, arch::handle arch, const arch::call_conv_desc* cc) { return lift_impl<true>(dom, rva, arch, cc); }
 };

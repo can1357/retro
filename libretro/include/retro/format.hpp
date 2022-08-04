@@ -7,6 +7,7 @@
 #include <optional>
 #include <retro/common.hpp>
 #include <retro/utf.hpp>
+#include <retro/lock.hpp>
 #include <string>
 #include <string_view>
 #include <tuple>
@@ -259,19 +260,22 @@ namespace retro::fmt {
 			return detail::concat(to_str(args)...);
 		}
 	}
+
+	// Console wrappers.
+	//
+	inline simple_lock con_lock = {};
 	template<typename T, typename... Tx>
-	static void print(const T& first, const Tx&... rest) {
-		auto				  str = to_str(first);
-		std::string_view view{str};
-		fwrite(view.data(), 1, view.size(), stdout);
-		if constexpr (sizeof...(Tx) != 0) {
-			print<Tx...>(rest...);
-		}
+	static void println(const T& first, const Tx&... rest) {
+		std::lock_guard _g{con_lock};
+		std::string str = concat<T, Tx...>(first, rest..., "\n" RC_RESET);
+		fwrite(str.data(), 1, str.size(), stdout);
 	}
-	template<typename... Tx>
-	static void println(const Tx&... rest) {
-		print<Tx...>(rest...);
-		putchar('\n');
+	static void printf(const char* fmt, ...) {
+		std::lock_guard _g{con_lock};
+		va_list a;
+		va_start(a, fmt);
+		vfprintf(stdout, fmt, a);
+		va_end(a);
 	}
 
 	// Asserts and errors.
@@ -291,7 +295,7 @@ namespace retro::fmt {
 	}
 	template<typename T, typename... Tx>
 	RC_COLD inline void abort [[noreturn]] (const char* fmt, const T& a1, const Tx&... rest) {
-		printf(fmt, a1, rest...);
+		::printf(fmt, a1, rest...);
 		abort_no_msg();
 	}
 

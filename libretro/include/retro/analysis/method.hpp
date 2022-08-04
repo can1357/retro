@@ -74,6 +74,28 @@ namespace retro::analysis {
 			return nullptr;
 		}
 
+		// Waits for an IR phase to be complete.
+		//
+		ref<ir::routine> wait_for_irp(ir_phase p) const {
+			u32 mask = 1u << p;
+			while (true) {
+				// Break out if complete or not present.
+				//
+				auto expected = irp_mask.load(std::memory_order::relaxed);
+				if (expected & mask) {
+					return routine[p];
+				}
+				if (routine[p] == nullptr) {
+					return nullptr;
+				}
+
+				// Wait for a change.
+				//
+				irp_mask.wait(expected, std::memory_order::relaxed);
+			}
+		}
+
+
 		// Lifts a basic block into the IRP_BUILT IR from the given RVA.
 		//
 		unique_task<ir::basic_block*> build_block(u64 rva);
@@ -83,4 +105,5 @@ namespace retro::analysis {
 	// - If there is an existing entry with arch/cc matching, returns it, otherwise clears it and lifts from scratch.
 	//
 	ref<method> lift(domain* dom, u64 rva, arch::handle arch = {}, const arch::call_conv_desc* cc = nullptr);
+	ref<method> lift_async(domain* dom, u64 rva, arch::handle arch = {}, const arch::call_conv_desc* cc = nullptr);
 }

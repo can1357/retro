@@ -266,21 +266,21 @@ namespace retro::diag {
 		constexpr T& value() & {
 			if (!has_value()) [[unlikely]] {
 				std::get<0>(var).raise();
-				fmt::abort_no_msg();
+				RC_UNREACHABLE();
 			}
 			return std::get<1>(var);
 		}
 		constexpr const T& value() const& {
 			if (!has_value()) [[unlikely]] {
 				std::get<0>(var).raise();
-				fmt::abort_no_msg();
+				RC_UNREACHABLE();
 			}
 			return std::get<1>(var);
 		}
 		constexpr T&& value() && {
 			if (!has_value()) [[unlikely]] {
 				std::get<0>(var).raise();
-				fmt::abort_no_msg();
+				RC_UNREACHABLE();
 			}
 			return std::get<1>(std::move(var));
 		}

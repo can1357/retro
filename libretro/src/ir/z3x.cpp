@@ -931,9 +931,9 @@ namespace retro::z3x {
 				// Unknown.
 				//
 				default: {
-					printf("Don't know how to translate decl %x (%s)\n", decl.decl_kind(), decl.name().str().c_str());
+					fmt::printf("Don't know how to translate decl %x (%s)\n", decl.decl_kind(), decl.name().str().c_str());
 					for (auto e : const_cast<z3::expr&>(expr)) {
-						printf("-> %s\n", e.to_string().c_str());
+						fmt::printf("-> %s\n", e.to_string().c_str());
 					}
 					fmt::abort_no_msg();
 				}
@@ -951,8 +951,8 @@ namespace retro::z3x {
 			}
 			return value_of(expr);
 		} else {
-			printf("Don't know how to translate expr kind %u\n", expr_kind);
-			printf("-> %s\n", expr.to_string().c_str());
+			fmt::printf("Don't know how to translate expr kind %u\n", expr_kind);
+			fmt::printf("-> %s\n", expr.to_string().c_str());
 			fmt::abort_no_msg();
 		}
 	}

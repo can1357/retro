@@ -77,15 +77,14 @@ static std::vector<u8> compile(std::string code, const char* args) {
 static ref<ir::routine> analysis_test(analysis::domain* dom, const std::string& name, u64 rva) {
 	// Demo.
 	//
-	auto method = analysis::lift(dom, rva);
+	auto method = analysis::lift_async(dom, rva);
+	auto rtn = method->wait_for_irp(analysis::IRP_BUILT);
 
 	// Print statistics.
 	//
-	printf(RC_WHITE " ----- Routine '%s' -------\n", name.data());
-	printf(RC_GRAY " # Successfully lifted " RC_VIOLET "%llu" RC_GRAY " instructions into " RC_GREEN "%llu" RC_RED " (avg: ~%llu/ins) #\n" RC_RESET, method->stats.minsn_disasm,
+	fmt::printf(RC_WHITE " ----- Routine '%s' -------\n", name.data());
+	fmt::printf(RC_GRAY " # Successfully lifted " RC_VIOLET "%llu" RC_GRAY " instructions into " RC_GREEN "%llu" RC_RED " (avg: ~%llu/ins) #\n" RC_RESET, method->stats.minsn_disasm,
 		 method->stats.insn_lifted, method->stats.insn_lifted / method->stats.minsn_disasm);
-
-	auto	rtn = method->get_irp(analysis::IRP_BUILT);
 	range::sort(rtn->blocks, [](auto& a, auto& b) { return a->ip < b->ip; });
 	for (auto& bb : rtn->blocks) {
 		std::string result = fmt::str(RC_CYAN "$%x:" RC_RESET, bb->name);
