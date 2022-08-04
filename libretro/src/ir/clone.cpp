@@ -64,6 +64,7 @@ namespace retro::ir {
 		new_blk->orphan_next_ins_name = blk->orphan_next_ins_name;
 		for (auto ins : blk->insns()) {
 			auto new_ins = pre_clone(ins, mark);
+			new_ins->block = new_blk;
 			list::link_before(new_blk->end().get(), new_ins.release());
 		}
 		return new_blk;
