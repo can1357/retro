@@ -345,6 +345,14 @@ ret =    "@type.none"
 symbol = "_mm_pause"
 args   = []
 ret =    "@type.none"
+[intrinsic.ia32-invd]
+symbol = "__invd"
+args   = []
+ret =    "@type.none"
+[intrinsic.ia32-wbinvd]
+symbol = "__wbinvd"
+args   = []
+ret =    "@type.none"
 [intrinsic.ia32-readpid]
 symbol = "__builtin_ia32_readpid"
 args   = []

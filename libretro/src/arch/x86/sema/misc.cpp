@@ -203,6 +203,14 @@ DECL_SEMA(PAUSE) {
 	bb->push_sideeffect_intrinsic(ir::intrinsic::ia32_pause);
 	return diag::ok;
 }
+DECL_SEMA(INVD) {
+	bb->push_sideeffect_intrinsic(ir::intrinsic::ia32_invd);
+	return diag::ok;
+}
+DECL_SEMA(WBINVD) {
+	bb->push_sideeffect_intrinsic(ir::intrinsic::ia32_wbinvd);
+	return diag::ok;
+}
 DECL_SEMA(SWAPGS) {
 	bb->push_sideeffect_intrinsic(ir::intrinsic::ia32_swapgs);
 	return diag::ok;
