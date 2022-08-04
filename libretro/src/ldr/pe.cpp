@@ -15,13 +15,15 @@ namespace retro::ldr {
 	//
 	template<typename T>
 	static bool ok(const T* ptr, std::span<const u8> input, size_t n = 1) {
-		return (!n || ptr) && uptr((ptr + n)) <= uptr(input.data() + input.size());
+		return (!n || ptr) && uptr(ptr + n) <= uptr(input.data() + input.size());
 	}
 
 	// Templated loader handling both 32-bit and 64-bit formats.
 	//
 	template<bool x64>
 	static diag::lazy load_pe(image& out, const win::image_t<x64>* img, std::span<const u8> data) {
+		using va_t = std::conditional_t<x64, u64, u32>;
+
 		auto* nt = img->get_nt_headers();
 
 		// Set image base and entry point.
@@ -184,8 +186,47 @@ namespace retro::ldr {
 			}
 		}
 
-		// TODO: Relocation info.
-		// TODO: PDB info + image_name from PDB info
+		// Parse reloc directory:
+		//
+		if (auto* dd = img->get_directory(win::directory_entry_basereloc)) {
+			auto rel = img->template rva_to_ptr<win::reloc_directory_t>(dd->rva);
+
+			// Get block boundaries
+			//
+			const auto* block_begin = &rel->first_block;
+			const void* block_end	= ((u8*) block_begin + dd->size);
+			if (ok((u8*)block_begin, data, dd->size)) {
+				for (auto block = block_begin; block < block_end; block = block->next()) {
+					// For each entry:
+					//
+					for (size_t i = 0; i < block->num_entries(); i++) {
+						if (!ok(&block->entries[i], data)) {
+							break;
+						}
+						u64 rva = u64(block->base_rva) + block->entries[i].offset;
+
+						// If of expected type:
+						//
+						if (block->entries[i].type == (x64 ? win::rel_based_dir64 : win::rel_based_high_low)) {
+							// If RVA is within boundaries:
+							//
+							auto data = out.slice(rva);
+							if (data.size() >= sizeof(va_t)) {
+								reloc entry = {
+									 .rva		= rva,
+									 .target = *(va_t*) data.data() - out.base_address,
+									 .kind	= reloc_kind::absolute,
+								};
+								insert_into_rva_set(out.relocs, std::move(entry));
+							}
+						}
+					}
+				}
+			}
+		}
+
+		// TODO: Import directory
+		// TODO: Debug directory
 		// TODO: TLS entry_points
 		return diag::ok;
 	}
