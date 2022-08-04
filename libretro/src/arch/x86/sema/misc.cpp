@@ -183,6 +183,19 @@ DECL_SEMA(CLDEMOTE) {
 	bb->push_sideeffect_intrinsic(ir::intrinsic::ia32_cldemote, agen(sema_context(), ins.op[0].m, true));
 	return diag::ok;
 }
+DECL_SEMA(INVLPG) {
+	bb->push_sideeffect_intrinsic(ir::intrinsic::ia32_invlpg, agen(sema_context(), ins.op[0].m, true));
+	return diag::ok;
+}
+DECL_SEMA(INVPCID) {
+	auto ty	= ir::int_type(ins.op[0].get_width());
+	auto val = read(sema_context(), 0, ty);
+	if (ty != ir::type::i32) {
+		val = bb->push_cast(ty, std::move(val));
+	}
+	bb->push_sideeffect_intrinsic(ir::intrinsic::ia32_invpcid, std::move(val), agen(sema_context(), ins.op[1].m, true));
+	return diag::ok;
+}
 DECL_SEMA(CLZERO) {
 	bb->push_sideeffect_intrinsic(ir::intrinsic::ia32_clzero);
 	return diag::ok;
@@ -215,6 +228,11 @@ DECL_SEMA(SWAPGS) {
 	bb->push_sideeffect_intrinsic(ir::intrinsic::ia32_swapgs);
 	return diag::ok;
 }
+DECL_SEMA(HLT) {
+	bb->push_sideeffect_intrinsic(ir::intrinsic::ia32_hlt);
+	return diag::ok;
+}
+
 DECL_SEMA(RDGSBASE) {
 	u16  w		= ins.effective_width;
 	auto intrin = w == 32 ? ir::intrinsic::ia32_rdgsbase32 : ir::intrinsic::ia32_rdgsbase64;

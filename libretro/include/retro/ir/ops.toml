@@ -345,6 +345,10 @@ ret =    "@type.none"
 symbol = "_mm_pause"
 args   = []
 ret =    "@type.none"
+[intrinsic.ia32-hlt]
+symbol = "__hlt"
+args   = []
+ret =    "@type.none"
 [intrinsic.ia32-invd]
 symbol = "__invd"
 args   = []
@@ -380,6 +384,14 @@ ret =    "@type.i64"
 [intrinsic.ia32-wrmsr]
 symbol = "__wrmsr"
 args   = ["@type.i32", "@type.i64"]
+ret =    "@type.none"
+[intrinsic.ia32-invlpg]
+symbol = "__invlpg"
+args   = ["@type.pointer"]
+ret =    "@type.none"
+[intrinsic.ia32-invpcid]
+symbol = "__invvpcid"
+args   = ["@type.i32", "@type.pointer"]
 ret =    "@type.none"
 [intrinsic.ia32-prefetcht0]
 symbol = "_m_prefetcht0"
