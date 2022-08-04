@@ -161,6 +161,26 @@ DECL_SEMA(PREFETCHWT1) {
 	bb->push_sideeffect_intrinsic(ir::intrinsic::ia32_prefetchwt1, agen(sema_context(), ins.op[0].m, true));
 	return diag::ok;
 }
+DECL_SEMA(CLWB) {
+	bb->push_sideeffect_intrinsic(ir::intrinsic::ia32_clwb, agen(sema_context(), ins.op[0].m, true));
+	return diag::ok;
+}
+DECL_SEMA(CLFLUSH) {
+	bb->push_sideeffect_intrinsic(ir::intrinsic::ia32_clflush, agen(sema_context(), ins.op[0].m, true));
+	return diag::ok;
+}
+DECL_SEMA(CLFLUSHOPT) {
+	bb->push_sideeffect_intrinsic(ir::intrinsic::ia32_clflushopt, agen(sema_context(), ins.op[0].m, true));
+	return diag::ok;
+}
+DECL_SEMA(CLDEMOTE) {
+	bb->push_sideeffect_intrinsic(ir::intrinsic::ia32_cldemote, agen(sema_context(), ins.op[0].m, true));
+	return diag::ok;
+}
+DECL_SEMA(CLZERO) {
+	bb->push_sideeffect_intrinsic(ir::intrinsic::ia32_clzero);
+	return diag::ok;
+}
 DECL_SEMA(MFENCE) {
 	bb->push_sideeffect_intrinsic(ir::intrinsic::mfence);
 	return diag::ok;
