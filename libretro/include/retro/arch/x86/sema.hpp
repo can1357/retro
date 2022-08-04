@@ -340,7 +340,8 @@ namespace retro::arch::x86 {
 	// Address generation helper.
 	//
 	inline ir::variant agen(SemaContext, mem m, bool as_ptr = true) {
-		auto pty = mach->ptr_type();
+		auto ptyr = mach->ptr_type();
+		auto pty	 = (m.base.get_kind() == reg_kind::gpr32 || m.index.get_kind() == reg_kind::gpr32) ? ir::type::i32 : ptyr;
 
 		// Handle RIP.
 		//
@@ -382,15 +383,21 @@ namespace retro::arch::x86 {
 		} else {
 			ir::insn* base = nullptr;
 			if (m.segr == reg::fs) {
-				base = bb->push_intrinsic(mach->is_64() ? ir::intrinsic::ia32_rdfsbase64 : ir::intrinsic::ia32_rdfsbase32);
+				base = bb->push_intrinsic(pty == ir::type::i64 ? ir::intrinsic::ia32_rdfsbase64 : ir::intrinsic::ia32_rdfsbase32);
 			} else if (m.segr == reg::gs) {
-				base = bb->push_intrinsic(mach->is_64() ? ir::intrinsic::ia32_rdgsbase64 : ir::intrinsic::ia32_rdgsbase32);
+				base = bb->push_intrinsic(pty == ir::type::i64 ? ir::intrinsic::ia32_rdgsbase64 : ir::intrinsic::ia32_rdgsbase32);
 			}
 			if (base) {
-				result = bb->push_binop(ir::op::add, result, bb->push_extract(mach->is_64() ? ir::type::i64 : ir::type::i32, base, 0));
+				result = bb->push_binop(ir::op::add, result, bb->push_extract(pty, base, 0));
 			}
 		}
 
+		// If pointer type mismatches, add a cast.
+		// e.g. mov [eax], eax in long mode.
+		//
+		if (pty != ptyr) {
+			result = bb->push_cast(ptyr, result);
+		}
 
 		// Finally cast to pointer and return.
 		//

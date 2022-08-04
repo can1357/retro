@@ -42,6 +42,7 @@ DECL_SEMA(MOV) {
 		write(sema_context(), 0, res);
 		return diag::ok;
 	}
+	// TODO: Debug/Control.
 
 	auto ty = ir::int_type(ins.effective_width);
 	write(sema_context(), 0, read(sema_context(), 1, ty));
