@@ -101,6 +101,7 @@
     <ClCompile Include="src\arch\x86\sema\vector.cpp" />
     <ClCompile Include="src\arch\x86\x86.cpp" />
     <ClCompile Include="src\ir\basic_block.cpp" />
+    <ClCompile Include="src\ir\clone.cpp" />
     <ClCompile Include="src\ir\insn.cpp" />
     <ClCompile Include="src\ir\routine.cpp" />
     <ClCompile Include="src\ir\types.cpp" />

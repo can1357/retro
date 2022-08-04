@@ -84,6 +84,10 @@ namespace retro::ir {
 		//
 		std::string to_string(fmt_style s = {}) const;
 
+		// Clones the routine.
+		//
+		ref<routine> clone() const;
+
 		// Clear all block references on destruction to prevent an error being raised.
 		//
 		~routine();
