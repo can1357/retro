@@ -65,3 +65,41 @@ static ir::insn* test_zero(SemaContext) {
 DECL_SEMA(JRCXZ) { return make_jcc<test_zero<reg::rcx>>(sema_context()); }
 DECL_SEMA(JECXZ) { return make_jcc<test_zero<reg::ecx>>(sema_context()); }
 DECL_SEMA(JCXZ)  { return make_jcc<test_zero<reg::cx>>(sema_context()); }
+
+static ir::insn* dec_ntest(SemaContext) {
+	reg		cx = reg::rcx;
+	ir::type ty = ir::type::i64;
+	if (mach->is_32())
+		cx = reg::ecx, ty = ir::type::i32;
+	else if (mach->is_16())
+		cx = reg::cx, ty = ir::type::i16;
+
+	// Count <- Count - 1
+	auto cxv = read_reg(sema_context(), cx, ty);
+	// CC = Count != 0
+	auto ccv = bb->push_cmp(ir::op::ne, cxv, ir::constant(ty, 0));
+	write_reg(sema_context(), cx, bb->push_binop(ir::op::sub, std::move(cxv), ir::constant(ty, 1)));
+	return ccv;
+}
+DECL_SEMA(LOOP) {
+	auto cc = dec_ntest(sema_context());
+	// (Count!=0) -> Rel
+	bb->push_xjs(cc, (ir::pointer) ins.op[0].i.get_unsigned(ip), (ir::pointer)(ip + ins.length));
+	return diag::ok;
+}
+DECL_SEMA(LOOPE) {
+	auto cc = dec_ntest(sema_context());
+	auto zf = bb->push_read_reg(ir::type::i1, reg::flag_zf);
+	cc		  = bb->push_binop(ir::op::bit_and, cc, zf);
+	// (Count!=0 && ZF) -> Rel
+	bb->push_xjs(cc, (ir::pointer) ins.op[0].i.get_unsigned(ip), (ir::pointer)(ip + ins.length));
+	return diag::ok;
+}
+DECL_SEMA(LOOPNE) {
+	auto cc = dec_ntest(sema_context());
+	auto zf = bb->push_read_reg(ir::type::i1, reg::flag_zf);
+	cc		  = bb->push_binop(ir::op::bit_and, cc, bb->push_unop(ir::op::bit_not, zf));
+	// (Count!=0 && !ZF) -> Rel
+	bb->push_xjs(cc, (ir::pointer) ins.op[0].i.get_unsigned(ip), (ir::pointer)(ip + ins.length));
+	return diag::ok;
+}
