@@ -252,5 +252,41 @@ DECL_SEMA(VLDMXCSR) {
 	return diag::ok;
 }
 
+DECL_SEMA(IN) {
+	auto port = read(sema_context(), 1, ir::type::i16);
+
+	switch (ins.op[0].get_width()) {
+		case 8:
+			write(sema_context(), 0, bb->push_extract(ir::type::i8, bb->push_sideeffect_intrinsic(ir::intrinsic::ia32_inb, port), 0));
+			break;
+		case 16:
+			write(sema_context(), 0, bb->push_extract(ir::type::i16, bb->push_sideeffect_intrinsic(ir::intrinsic::ia32_inw, port), 0));
+			break;
+		case 32:
+			write(sema_context(), 0, bb->push_extract(ir::type::i32, bb->push_sideeffect_intrinsic(ir::intrinsic::ia32_ind, port), 0));
+			break;
+		default:
+			RC_UNREACHABLE();
+	}
+	return diag::ok;
+}
+DECL_SEMA(OUT) {
+	auto port = read(sema_context(), 0, ir::type::i16);
+	switch (ins.op[1].get_width()) {
+		case 8:
+			bb->push_sideeffect_intrinsic(ir::intrinsic::ia32_outb, port, read(sema_context(), 1, ir::type::i8));
+			break;
+		case 16:
+			bb->push_sideeffect_intrinsic(ir::intrinsic::ia32_outw, port, read(sema_context(), 1, ir::type::i16));
+			break;
+		case 32:
+			bb->push_sideeffect_intrinsic(ir::intrinsic::ia32_outd, port, read(sema_context(), 1, ir::type::i32));
+			break;
+		default:
+			RC_UNREACHABLE();
+	}
+	return diag::ok;
+}
+
 // TODO: push/popf(_/d/q)
 //       pushad/popad
