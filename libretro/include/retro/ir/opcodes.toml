@@ -396,7 +396,7 @@ types =          ["@type.none", "@type.label"]
 templates =      [0,            0]
 names =          ["",           "destination"]
 
-#void  xjs       i1:cc  pointer:tb pointer:fb
+#void  xjs       i1:cc  constexpr pointer:tb constexpr pointer:fb
 [opcode.xjs]
 kind =           "@opcode_kind.external-branch"
 side-effect    = true
@@ -405,6 +405,8 @@ bb-terminator  = true
 types =          ["@type.none", "@type.i1", "@type.pointer", "@type.pointer"]
 templates =      [0,            0,          0,            0]
 names =          ["",           "cc",      "tb",          "fb"]
+constexprs =     [2,3]
+
 #void  js        i1:cc  label:tb label:fb
 [opcode.js]
 kind =           "@opcode_kind.branch"
@@ -424,15 +426,15 @@ bb-terminator  = true
 types =          ["@type.none", "@type.pointer"]
 templates =      [0,            0]
 names =          ["",           "ptr"]
-#void  ret       context:ctx
+#void  ret       pointer:ptr context:ctx
 [opcode.ret]
 kind =           "@opcode_kind.branch"
 side-effect    = true
 terminator =     true
 bb-terminator  = true
-types =          ["@type.none", "@type.context"]
-templates =      [0,            0]
-names =          ["",           "ctx"]
+types =          ["@type.none", "@type.pointer", "@type.context"]
+templates =      [0,            0,               0]
+names =          ["",           "ptr",           "ctx"]
 
 
 

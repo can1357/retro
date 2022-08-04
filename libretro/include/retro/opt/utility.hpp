@@ -36,6 +36,11 @@ namespace retro::ir::opt::util {
 		auto ai = a->get_if<insn>();
 		auto bi = b->get_if<insn>();
 		if (ai && bi && ai->op == bi->op && ai->template_types == bi->template_types) {
+			// Never merge undef values.
+			//
+			if (ai->op == opcode::undef)
+				return false;
+
 			// If there are side effects or instruction is not pure, assume false.
 			//
 			auto& desc = ai->desc();

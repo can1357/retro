@@ -422,14 +422,11 @@ namespace retro::arch::x86 {
 				return read_mem(sema_context(), ins.op[idx].m, ty);
 			}
 			case mop_type::imm: {
-				auto i = ins.op[idx].i;
-				if (i.is_relative) {
-					i.u += ip;
-				}
+				auto& i = ins.op[idx].i;
 				if (i.is_signed) {
-					return ir::constant(ty, i.s);
+					return ir::constant(ty, i.get_signed(ip));
 				} else {
-					return ir::constant(ty, i.u);
+					return ir::constant(ty, i.get_unsigned(ip));
 				}
 			}
 			default:

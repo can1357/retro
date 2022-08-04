@@ -13,10 +13,17 @@ OUTLINE int __thiscall testt(int a, int b) {
    return a * b;
 }
 
-EXPORT int __cdecl test(int a, int b) {
-   a = testc(a,b);
-   b = tests(a,b);
-   a = testf(a,b);
-   b = testt(a,b);
+struct meme {
+   int(__cdecl*testc)(int, int);
+   int(__stdcall*tests)(int, int);
+   int(__fastcall*testf)(int, int);
+   int(__thiscall*testt)(int, int);
+};
+
+EXPORT int __cdecl test(struct meme* m, int a, int b) {
+   a = m->testc(a,b);
+   b = m->tests(a,b);
+   a = m->testf(a,b);
+   b = m->testt(a,b);
    return a + b;
 }

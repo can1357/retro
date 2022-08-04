@@ -34,6 +34,11 @@ namespace retro::arch {
 		// String conversion.
 		//
 		std::string to_string(u64 ip = 0) const;
+
+		// Getters.
+		//
+		u64 get_unsigned(u64 ip = 0) const { return u + (is_relative ? ip : 0); }
+		i64 get_signed(u64 ip = 0) const { return i64(get_unsigned(ip)); }
 	};
 
 	// Common operand type.

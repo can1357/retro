@@ -8,12 +8,12 @@ using namespace retro::arch::x86;
 //
 template<auto Cc>
 static diag::lazy make_jcc(SemaContext) {
-	bb->push_xjs(Cc(sema_context()), read(sema_context(), 0, ir::type::pointer), ir::constant(ir::type::pointer, ip + ins.length));
+	bb->push_xjs(Cc(sema_context()), (ir::pointer) ins.op[0].i.get_unsigned(ip), (ir::pointer)(ip + ins.length));
 	return diag::ok;
 }
 template<auto Cc>
 static diag::lazy make_jccn(SemaContext) {
-	bb->push_xjs(Cc(sema_context()), ir::constant(ir::type::pointer, ip + ins.length), read(sema_context(), 0, ir::type::pointer));
+	bb->push_xjs(Cc(sema_context()), (ir::pointer)(ip + ins.length), (ir::pointer) ins.op[0].i.get_unsigned(ip));
 	return diag::ok;
 }
 template<auto Cc>

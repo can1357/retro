@@ -27,6 +27,9 @@
     </ProjectConfiguration>
   </ItemGroup>
   <ItemGroup>
+    <ClInclude Include="include\retro\analysis\callbacks.hpp" />
+    <ClInclude Include="include\retro\analysis\method.hpp" />
+    <ClInclude Include="include\retro\analysis\workspace.hpp" />
     <ClInclude Include="include\retro\arch\callconv.hpp" />
     <ClInclude Include="include\retro\arch\minsn.hpp" />
     <ClInclude Include="include\retro\arch\interface.hpp" />
@@ -37,6 +40,7 @@
     <ClInclude Include="include\retro\arch\x86\regs.hxx" />
     <ClInclude Include="include\retro\arch\x86\sema.hpp" />
     <ClInclude Include="include\retro\arch\x86\zy2rc.hpp" />
+    <ClInclude Include="include\retro\callback.hpp" />
     <ClInclude Include="include\retro\diag.hpp" />
     <ClInclude Include="include\retro\directives\pattern.hpp" />
     <ClInclude Include="include\retro\graph\naive.hpp" />
@@ -87,6 +91,7 @@
   <ItemGroup>
     <ClCompile Include="include\retro\directives\identity.d.cxx" />
     <ClCompile Include="include\retro\directives\preferred.d.cxx" />
+    <ClCompile Include="src\analysis\lifter.cpp" />
     <ClCompile Include="src\arch\minsn.cpp" />
     <ClCompile Include="src\arch\x86\sema\arithmetic.cpp" />
     <ClCompile Include="src\arch\x86\sema\conditional.cpp" />

@@ -7,7 +7,7 @@
 #include <retro/graph/search.hpp>
 #include <vector>
 
-namespace retro::analysis { struct domain; };
+namespace retro::analysis { struct method; };
 
 namespace retro::ir {
 	// Routine type.
@@ -17,9 +17,9 @@ namespace retro::ir {
 		using iterator			= typename container::iterator;
 		using const_iterator = typename container::const_iterator;
 
-		// Owning domain.
+		// Owning method.
 		//
-		weak<retro::analysis::domain> dom = {};
+		weak<analysis::method> method = {};
 
 		// Entry point ip if relevant.
 		//
