@@ -1,6 +1,5 @@
 #pragma once
 #include <functional>
-#include <list>
 #include <retro/list.hpp>
 #include <retro/lock.hpp>
 
@@ -14,17 +13,30 @@ namespace retro {
 	//
 	template<typename R, typename... A>
 	struct callback_list {
-		using function = std::function<R(A...)>;
+		using return_type = R;
+		using function =    std::function<R(A...)>;
+
+		struct entry {
+			entry*	prev = this;
+			entry*	next = this;
+			function fn	  = {};
+		};
+
 		struct handle {
-			using T = typename std::list<function>::const_iterator;
-			T value;
+			entry* value = nullptr;
 		};
 
 	  protected:
 		mutable rw_lock	  lock = {};
-		std::list<function> list = {};
+		list::head<entry>	  list = {};
 
 	  public:
+		// Default ctor, no copy.
+		//
+		callback_list()										  = default;
+		callback_list(const callback_list&)				  = delete;
+		callback_list& operator=(const callback_list&) = delete;
+
 		// Invokes the callbacks.
 		//
 		R invoke(const A&... args) const {
@@ -32,8 +44,8 @@ namespace retro {
 			//
 			if constexpr (std::is_void_v<R>) {
 				std::shared_lock _g{lock};
-				for (auto& e : list) {
-					e(args...);
+				for (auto* e : list) {
+					e->fn(args...);
 				}
 			}
 			// Callback:
@@ -42,8 +54,8 @@ namespace retro {
 				std::shared_lock _g{lock};
 
 				R result = {};
-				for (auto& e : list) {
-					result = e(args...);
+				for (auto* e : list) {
+					result = e->fn(args...);
 					if (result)
 						break;
 				}
@@ -58,15 +70,29 @@ namespace retro {
 		//
 		handle insert(function f) {
 			std::unique_lock _g{lock};
-			return handle{list.insert(list.begin(), std::move(f))};
+
+			auto v = new entry();
+			v->fn	 = std::move(f);
+			list::link_after(list.end().get(), v);
+			return handle{v};
 		}
 
 		// Removes a callback.
 		//
 		void remove(handle h) {
 			std::unique_lock _g{lock};
-			if (h != list.end()) {
-				list.erase(std::exchange(h.value, list.end()));
+			if (auto* v = h.value) {
+				list::unlink(v);
+				delete v;
+			}
+		}
+
+		// Destructor deletes all entries.
+		//
+		~callback_list() {
+			auto it = list.begin();
+			while (it != list.end()) {
+				delete std::exchange(it, it->next);
 			}
 		}
 	};

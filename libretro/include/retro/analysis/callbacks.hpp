@@ -13,4 +13,11 @@ namespace retro::analysis {
 	// Notified when an IRP is complete.
 	//
 	inline notification_list<ir::routine*, ir_phase> irp_complete_hook = {};
+
+	// Helper for builtin callbacks.
+	//
+#define RC_INSTALL_CB(list, name, ...)                                              \
+	static typename decltype(list)::return_type RC_CONCAT(hook_, name)(__VA_ARGS__); \
+	RC_INITIALIZER { list.insert(&RC_CONCAT(hook_, name)); };                        \
+	static typename decltype(list)::return_type RC_CONCAT(hook_, name)(__VA_ARGS__)
 };
