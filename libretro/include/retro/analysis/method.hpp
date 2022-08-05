@@ -6,30 +6,55 @@
 #include <retro/ir/routine.hpp>
 #include <retro/rc.hpp>
 #include <retro/task.hpp>
+#include <retro/robin_hood.hpp>
 
 namespace retro::analysis {
 	struct domain;
-
-	// Method statistics.
-	//
-	struct method_stats {
-		// Phase 0 statistics.
-		//
-		u64 minsn_disasm = 0;  // Machine instructions diassembled.
-		u64 insn_lifted  = 0;  // IR instructions created to represent the disassembled instructions.
-		u64 block_count  = 0;  // Blocks parsed.
-	};
 
 	// IR Phases.
 	//
 	enum ir_phase : u8 {
 		// Initial IR representation.
 		//
-		IRP_BUILT,
+		IRP_INIT,
 
 		// Pseudo indices.
 		//
 		IRP_MAX,
+	};
+
+	// Analysis results and statistics for each IRP.
+	//
+	struct irp_init_analysis {
+		// Statistics.
+		//
+		u64 stats_minsn_disasm = 0;  // Machine instructions diassembled.
+		u64 stats_insn_lifted = 0;	 // IR instructions created to represent the disassembled instructions.
+		u64 stats_block_count  = 0;  // Blocks parsed.
+
+		// Difference in stack pointer after a call to this function.
+		//
+		i32 stack_delta = 0;
+
+		// Frame register if any used and difference from initial SP.
+		//
+		arch::mreg frame_reg			= {};
+		i32		  frame_reg_delta = 0;
+
+		// Min/Max of non-indexed accesses.
+		//
+		i32 min_access = 0;
+		i32 max_access = 0;
+
+		// Layout of registers saved on the stack frame.
+		//
+		flat_umap<i32, arch::mreg> save_area_layout = {};
+
+		// Flags.
+		//
+		u32 is_valid : 1	  = false;
+		u32 is_noreturn : 1 = false;
+		u32 is_const : 1	  = false;
 	};
 
 	// A method describes a collection of IR routines in different states and
@@ -49,9 +74,9 @@ namespace retro::analysis {
 		arch::handle					 arch = {};
 		const arch::call_conv_desc* cc	= nullptr;
 
-		// Statistics.
+		// Analysis information saved by each IRP.
 		//
-		method_stats stats = {};
+		irp_init_analysis init_info = {};
 
 		// IR of the routine for each phase.
 		//
@@ -96,7 +121,7 @@ namespace retro::analysis {
 		}
 
 
-		// Lifts a basic block into the IRP_BUILT IR from the given RVA.
+		// Lifts a basic block into the IRP_INIT IR from the given RVA.
 		//
 		unique_task<ir::basic_block*> build_block(u64 rva);
 	};

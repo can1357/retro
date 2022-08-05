@@ -19,7 +19,7 @@ namespace retro::ir {
 			v->arch = arch;
 
 		v->block = this;
-		v->name	= (rtn ? rtn->next_ins_name : orphan_next_ins_name)++;
+		v->name	= rtn->next_ins_name++;
 		list::link_before(position.get(), v.get());
 		return {v.release()};
 	}
@@ -176,7 +176,7 @@ namespace retro::ir {
 				auto str = i->to_string();
 				if (i->ip != NO_LABEL && i->ip != last_label) {
 					last_label = i->ip;
-					fmt::ljust(str, 36);
+					fmt::ljust(str, 64);
 					str += fmt::str(RC_PURPLE " ; %p", i->ip);
 				}
 				result += "\n\t" + str;

@@ -11,8 +11,10 @@ namespace retro {
 	// Define the callback table.
 	// - TODO: Optimize.
 	//
+	template<typename F>
+	struct callback_list;
 	template<typename R, typename... A>
-	struct callback_list {
+	struct callback_list<R(A...)> {
 		using return_type = R;
 		using function =    std::function<R(A...)>;
 
@@ -97,7 +99,14 @@ namespace retro {
 		}
 	};
 	template<typename... A>
-	using notification_list = callback_list<void, A...>;
+	using notification_list = callback_list<void(A...)>;
 	template<typename... A>
-	using handler_list =      callback_list<bool, A...>;
+	using handler_list =      callback_list<bool(A...)>;
 };
+
+	// Helper for builtin callbacks.
+	//
+#define RC_INSTALL_CB(list, name, ...)                                              \
+	static typename decltype(list)::return_type RC_CONCAT(hook_, name)(__VA_ARGS__); \
+	RC_INITIALIZER { list.insert(&RC_CONCAT(hook_, name)); };                        \
+	static typename decltype(list)::return_type RC_CONCAT(hook_, name)(__VA_ARGS__)

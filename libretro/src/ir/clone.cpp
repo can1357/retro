@@ -3,6 +3,25 @@
 #include <retro/ir/routine.hpp>
 
 namespace retro::ir {
+	// Post clone helpers.
+	//
+	static void post_clone(value*& v, u64 mark) {
+		if (v && v->tmp_monotonic == mark) {
+			v = (value*) v->tmp_mapping;
+		}
+	}
+	static void post_clone(weak<value>& v, u64 mark) { post_clone(v.ptr, mark); }
+	static void post_clone(ref<value>& v, u64 mark) { post_clone(v.ptr, mark); }
+	static void post_clone(operand& o, u64 mark) {
+		if (o.is_value()) {
+			value* v = o.value_ref.get();
+			post_clone(v, mark);
+			if (v != o.value_ref) {
+				o = v;
+			}
+		}
+	}
+
 	// Instruction cloning.
 	//
 	static ref<insn> pre_clone(const insn* ins, u64 mark) {
@@ -24,24 +43,7 @@ namespace retro::ir {
 	}
 	static void post_clone(insn* ins, u64 mark) {
 		for (auto& op : ins->operands()) {
-			if (!op.is_const()) {
-				auto val = op.get_value();
-
-				// Fix instruction references.
-				//
-				if (auto* pi = val->get_if<insn>()) {
-					if (pi->tmp_monotonic == mark) {
-						val = (insn*) pi->tmp_mapping;
-					}
-				}
-				// Fix basic block references.
-				//
-				else if (auto* pb = val->get_if<basic_block>()) {
-					if (pb->tmp_monotonic == mark) {
-						val = (basic_block*) pb->tmp_mapping;
-					}
-				}
-			}
+			post_clone(op, mark);
 		}
 	}
 
@@ -61,7 +63,6 @@ namespace retro::ir {
 		new_blk->arch						= blk->arch;
 		new_blk->predecessors			= blk->predecessors;
 		new_blk->successors				= blk->successors;
-		new_blk->orphan_next_ins_name = blk->orphan_next_ins_name;
 		for (auto ins : blk->insns()) {
 			auto new_ins = pre_clone(ins, mark);
 			new_ins->block = new_blk;

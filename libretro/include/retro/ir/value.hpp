@@ -72,8 +72,10 @@ namespace retro::ir {
 
 		// Observers.
 		//
-		bool			is_null() const { return is_const() && const_val.get_type() == type::none; }
-		bool			is_const() const { return const_val.__rsvd == 1; }
+		bool is_null() const { return is_const() && const_val.get_type() == type::none; }
+		bool is_const() const { return const_val.__rsvd == 1; }
+		bool is_value() const { return !is_const(); }
+
 		std::string to_string(fmt_style s = {}) const;
 		type			get_type() const;
 
@@ -90,15 +92,15 @@ namespace retro::ir {
 			return const_val;
 		}
 		weak<value>&& get_value() && {
-			RC_ASSERT(!is_const());
+			RC_ASSERT(is_value());
 			return std::move(value_ref);
 		}
 		weak<value>& get_value() & {
-			RC_ASSERT(!is_const());
+			RC_ASSERT(is_value());
 			return value_ref;
 		}
 		const weak<value>& get_value() const& {
-			RC_ASSERT(!is_const());
+			RC_ASSERT(is_value());
 			return value_ref;
 		}
 
@@ -179,8 +181,7 @@ namespace retro::ir {
 				reset();
 				if constexpr (std::is_convertible_v<T, weak<value>>) {
 					if (val) {
-						prev = this;
-						next = this;
+						list::init(this);
 						list::link_before(val->use_list.entry(), this);
 						std::construct_at(&value_ref, std::forward<T>(val));
 					}
@@ -198,6 +199,7 @@ namespace retro::ir {
 		// Observers.
 		//
 		bool is_const() const { return const_val.__rsvd == 1; }
+		bool is_value() const { return !is_const(); }
 
 		constant&& get_const() && {
 			RC_ASSERT(is_const());
@@ -238,6 +240,11 @@ namespace retro::ir {
 		friend operand;
 
 	  public:
+		// Temporaries for algorithms.
+		//
+		mutable u64 tmp_monotonic = 0;
+		mutable u64 tmp_mapping	  = 0;
+
 		// String conversion and type getter.
 		//
 		virtual std::string to_string(fmt_style s = {}) const = 0;

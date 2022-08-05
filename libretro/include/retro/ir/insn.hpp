@@ -40,11 +40,6 @@ namespace retro::ir {
 		//
 		u64 ip = NO_LABEL;
 
-		// Temporary for algorithms.
-		//
-		mutable u64 tmp_monotonic = 0;
-		mutable u64 tmp_mapping	  = 0;
-
 		// Allocated with operand count.
 		//
 		inline insn(u32 n) : operand_count(n) {}

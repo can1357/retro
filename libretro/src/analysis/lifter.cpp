@@ -4,13 +4,30 @@
 #include <retro/ir/z3x.hpp>
 
 namespace retro::analysis {
-	// Lifts a basic block into the IRP_BUILT IR from the given RVA.
+	// Helper for coercing an operand into a constant.
+	//
+	static ir::constant* coerce_const(z3x::variable_set& vs, ir::operand& op) {
+		if (op.is_const())
+			return &op.const_val;
+		if (auto expr = z3x::to_expr(vs, z3x::get_context(), op)) {
+			if (auto v = z3x::value_of(expr); !v.is<void>()) {
+				v = v.bitcast(op.get_type());
+				RC_ASSERT(!v.is<void>());
+				op = std::move(v);
+				return &op.const_val;
+			}
+		}
+		return nullptr;
+	}
+
+	// Lifts a basic block into the IRP_INIT IR from the given RVA.
 	//
 	unique_task<ir::basic_block*> method::build_block(u64 rva) {
-		ir::routine* rtn		 = routine[IRP_BUILT].get();
+		ir::routine* rtn		 = routine[IRP_INIT].get();
 		u64			 img_base = dom->img->base_address;
 		u64			 va		 = img_base + rva;
 
+		
 		// Invalid jump if out of image boundaries.
 		//
 		std::span<const u8> data = dom->img->slice(rva);
@@ -58,7 +75,7 @@ namespace retro::analysis {
 
 		// Add a new block.
 		//
-		stats.block_count++;
+		init_info.stats_block_count++;
 		auto* bb	  = rtn->add_block();
 		bb->ip	  = va;
 		bb->end_ip = va;
@@ -71,7 +88,7 @@ namespace retro::analysis {
 				bb->push_trap("undefined opcode")->ip = va;
 				break;
 			}
-			stats.minsn_disasm++;
+			init_info.stats_minsn_disasm++;
 
 			// Update the block range.
 			//
@@ -90,7 +107,20 @@ namespace retro::analysis {
 				while (it != bb->begin() && it->prev->ip == va) {
 					--it;
 				}
-				stats.insn_lifted += std::distance(it, bb->end());
+				init_info.stats_insn_lifted += std::distance(it, bb->end());
+			}
+
+			// If XCALL:
+			//
+			if (auto i = bb->back(); i->op == ir::opcode::xcall) {
+				// Coerce first operand into a constant where possible.
+				//
+				z3x::variable_set vs;
+				coerce_const(vs, i->opr(0));
+
+				// Invoke the callbacks.
+				//
+				on_irp_init_xcall(i);
 			}
 
 			// If last instruction is a terminator break out.
@@ -104,35 +134,29 @@ namespace retro::analysis {
 			va += ins.length;
 		}
 
+		// Invoke prologue/epilogue callbacks as relevant.
+		//
+		auto* term = bb->terminator();
+		if (bb == rtn->get_entry()) {
+			on_irp_init_prologue(bb);
+		}
+		if (term->op == ir::opcode::xret) {
+			on_irp_init_epilogue(bb);
+		}
+
 		// Try to continue traversal.
 		//
 		z3x::variable_set vs;
-
-		auto coerce_const = [&](ir::operand& op) {
-			if (op.is_const())
-				return true;
-			if (auto expr = z3x::to_expr(vs, z3x::get_context(), op)) {
-				if (auto v = z3x::value_of(expr); !v.is<void>()) {
-					v = v.bitcast(op.get_type());
-					RC_ASSERT(!v.is<void>());
-					op			 = std::move(v);
-					return true;
-				}
-			}
-			return false;
-		};
-
-		auto* term = bb->terminator();
 		switch (term->op) {
 			case ir::opcode::xjs: {
 				// If condition cannot be coerced to a constant:
 				//
-				if (auto cc = coerce_const(term->opr(0)); !cc) {
+				if (auto cc = coerce_const(vs, term->opr(0)); !cc) {
 					ir::basic_block* bbs[2] = {nullptr, nullptr};
 					for (size_t i = 0; i != 2; i++) {
 						// Try coercing destination into a constant.
 						//
-						if (coerce_const(term->opr(i + 1))) {
+						if (coerce_const(vs, term->opr(i + 1))) {
 							bbs[i] = co_await build_block(term->opr(i + 1).const_val.get_u64() - img_base);
 						}
 					}
@@ -165,7 +189,7 @@ namespace retro::analysis {
 			case ir::opcode::xjmp: {
 				// Try coercing destination into a constant.
 				//
-				if (coerce_const(term->opr(0))) {
+				if (coerce_const(vs, term->opr(0))) {
 					// Lift the target block.
 					//
 					if (auto target = co_await build_block(term->opr(0).const_val.get_u64() - img_base)) {
@@ -225,7 +249,7 @@ namespace retro::analysis {
 		// Recursively lift starting from the entry point.
 		//
 		auto rtn					 = make_rc<ir::routine>();
-		m->routine[IRP_BUILT] = rtn;
+		m->routine[IRP_INIT] = rtn;
 		rtn->method				 = m;
 		rtn->ip					 = rva + dom->img->base_address;
 
@@ -233,17 +257,17 @@ namespace retro::analysis {
 			// If lifter fails, clear out the routine.
 			//
 			if (!m->build_block(rva).wait()) {
-				m->routine[IRP_BUILT] = nullptr;
+				m->routine[IRP_INIT] = nullptr;
 			}
 			// Otherwise, call the hooks.
 			//
 			else {
-				irp_complete_hook(m->routine[IRP_BUILT], IRP_BUILT);
+				on_irp_complete(m->routine[IRP_INIT], IRP_INIT);
 			}
 
 			// Mark IR phase as finished, return the method.
 			//
-			m->irp_mask.fetch_or(1u << IRP_BUILT);
+			m->irp_mask.fetch_or(1u << IRP_INIT);
 			m->irp_mask.notify_all();
 		};
 

@@ -26,15 +26,6 @@ namespace retro::ir {
 		//
 		arch::handle arch = {};
 
-		// Temporary for algorithms.
-		//
-		mutable u64 tmp_monotonic = 0;
-		mutable u64 tmp_mapping	  = 0;
-
-		// Counters.
-		// - Only used for basic blocks with no routine.
-		mutable u32 orphan_next_ins_name = 0;
-
 		// Successor and predecesor list.
 		//
 		std::vector<weak<basic_block>> successors	  = {};
