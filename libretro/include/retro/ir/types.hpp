@@ -307,6 +307,7 @@ namespace retro::ir {
 		//
 		constant cast_zx(type into) const;
 		constant cast_sx(type into) const;
+		constant bitcast(type into) const;
 
 		// Reset handling freeing of the data.
 		//

@@ -344,6 +344,52 @@ namespace retro::ir {
 			}, into);
 		}, get_type());
 	}
+	constant constant::bitcast(type into) const {
+		// Success if already same type, fail if invalid type.
+		//
+		auto src = get_type();
+		if (src == into) {
+			return *this;
+		} else if (src == type::str || src == type::i1) {
+			return {};
+		}
+
+		constant result = {};
+		auto		bw		 = enum_reflect(into).bit_size;
+
+		// Handle pointer types.
+		//
+		if (src == type::pointer) {
+			if (bw == 32 || bw == 64) {
+				result.data_length		= bw / 8;
+				result.type_id				= (u64) into;
+				*(u32*) &result.data[0] = *(u32*) &data[0];
+			}
+		} else if (into == type::pointer) {
+			if (data_length == 4) {
+				result.data_length		= 8;
+				result.type_id				= (u64) into;
+				*(u64*) &result.data[0] = *(u32*) &data[0];
+			} else if (data_length == 8) {
+				result.data_length		= 8;
+				result.type_id				= (u64) into;
+				*(u64*) &result.data[0] = *(u64*) &data[0];
+			}
+		}
+		// Everything else:
+		//
+		else if (bw == (data_length*8)) {
+			result.type_id = (u64) into;
+			result.data_length = data_length;
+			if (data_length > sizeof(data)) {
+				result.ptr = operator new(data_length);
+				memcpy(result.ptr, ptr, data_length);
+			} else {
+				memcpy(result.data, data, sizeof(data));
+			}
+		}
+		return result;
+	}
 
 	// String conversion.
 	//
@@ -356,7 +402,6 @@ namespace retro::ir {
 			return visit_valid([&]<typename T>(type_tag<T>) { return std::string{fmt::to_str(get<T>())}; }, get_type());
 		}
 	}
-
 
 	// Typed construction.
 	//
@@ -403,10 +448,10 @@ namespace retro::ir {
 				break;
 
 				
-			#define DEF_VECTOR(VT, PT)                           \
+			#define DEF_VECTOR(VT, PT)                  \
 	case type::VT: {                                  \
 		VT* ptr = (VT*) &c->data[0];                   \
-		if constexpr (sizeof(VT) <= sizeof(c->data)) { \
+		if constexpr (sizeof(VT) > sizeof(c->data)) {  \
 			c->ptr = operator new(sizeof(VT));          \
 			ptr	 = (VT*) c->ptr;                      \
 		}                                              \

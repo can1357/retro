@@ -47,6 +47,14 @@ namespace retro::ir::opt {
 						n += 1 + ins->replace_all_uses_with(res);
 					}
 				}
+			} else if (ins->op == opcode::bitcast) {
+				auto	into = ins->template_types[1];
+				auto& val  = ins->opr(0);
+				if (val.is_const()) {
+					auto cv = val.get_const().bitcast(into);
+					RC_ASSERT(!cv.is<void>());
+					n += ins->replace_all_uses_with(cv);
+				}
 			} else if (ins->op == opcode::select) {
 				auto& val = ins->opr(0);
 				if (val.is_const()) {

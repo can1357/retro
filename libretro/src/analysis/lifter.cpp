@@ -113,7 +113,8 @@ namespace retro::analysis {
 				return true;
 			if (auto expr = z3x::to_expr(vs, z3x::get_context(), op)) {
 				if (auto v = z3x::value_of(expr); !v.is<void>()) {
-					v.type_id = (u64) op.get_type();	 // TODO: Replace with a proper cast.
+					v = v.bitcast(op.get_type());
+					RC_ASSERT(!v.is<void>());
 					op			 = std::move(v);
 					return true;
 				}
