@@ -111,7 +111,7 @@ namespace retro::arch {
 		u16 effective_width	 = 0;	 // Effective width if used.
 		u16 length : 8			 = 0;	 // Length of the instruction.
 		u16 operand_count : 4 = 0;	 // Number of operands present.
-		u16 is_privileged : 1 = 0;	 // Set if privileged instruction.
+		u16 is_supervisor : 1 = 0;	 // Set if supervisor instruction.
 
 		// Operand list.
 		//

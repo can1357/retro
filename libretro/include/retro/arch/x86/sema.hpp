@@ -207,7 +207,7 @@ namespace retro::arch::x86 {
 		// Push read_reg.
 		return bb->push_read_reg(type, r);
 	}
-	inline ir::insn* explode_write_reg(arch::x86arch* mach, ir::insn* write) {
+	inline ir::insn* explode_write_reg(arch::x86arch* mach, ir::insn* write, bool artifical = false) {
 		reg	r	  = (reg) write->opr(0).get_const().get<arch::mreg>().id;
 		auto* desc = &enum_reflect(r);
 
@@ -221,6 +221,16 @@ namespace retro::arch::x86 {
 		// If GPR:
 		//
 		if (reg_kind::gpr8 <= desc->kind && desc->kind <= reg_kind::gpr64) {
+			// Emit stack_reset if original write is targetting sp.
+			//
+			auto sp_reg = artifical ? reg::none : reg_sp(mach);
+			if (r == sp_reg) {
+				if (value.get_type() == ir::type::pointer)
+					push(ir::make_stack_reset(value));
+				else
+					push(ir::make_stack_reset(push(ir::make_bitcast(ir::type::pointer, value))));
+			}
+
 			// Determine limits for configuration.
 			//
 			reg_kind gpr_max = reg_kind::gpr64;
@@ -280,6 +290,12 @@ namespace retro::arch::x86 {
 					sub_val = push(ir::make_binop(ir::op::bit_and, sub_val, ir::constant(sub_ty, leftover_mask >> sub_offset)));
 					// Or with the write value.
 					wrt_val = push(ir::make_binop(ir::op::bit_or, wrt_val, sub_val));
+				}
+
+				// Emit stack_reset if sub-write is targetting sp.
+				//
+				if (sub == sp_reg) {
+					push(ir::make_stack_reset(push(ir::make_bitcast(ir::type::pointer, value))));
 				}
 
 				// Write.

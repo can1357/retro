@@ -81,6 +81,16 @@ namespace retro::core {
 		bb->ip	  = va;
 		bb->end_ip = va;
 		bb->arch	  = arch;
+
+		// If entry point, add a stack_begin opcode.
+		//
+		if (bb == rtn->get_entry()) {
+			auto frame = bb->push_bitcast(ir::int_type(arch->get_pointer_width()), bb->push_stack_begin());
+			arch->explode_write_reg(bb->push_write_reg(arch->get_stack_register(), frame));
+		}
+
+		// Until we run out of instructions to decode:
+		//
 		while (!data.empty()) {
 			// Diassemble the instruction, push trap on failure and break.
 			//

@@ -65,22 +65,42 @@ namespace retro::ldr {
 			case win::subsystem_id::efi_application:
 			case win::subsystem_id::efi_boot_service_driver:
 			case win::subsystem_id::efi_runtime_driver:
-			case win::subsystem_id::efi_rom:
-			case win::subsystem_id::native:
-			case win::subsystem_id::native_windows: {
-				out.env_privileged = true;
-				break;
-			}           
-			case win::subsystem_id::windows_gui:
-			case win::subsystem_id::windows_cui:               
-			case win::subsystem_id::os2_cui:                   
-			case win::subsystem_id::posix_cui:                
-			case win::subsystem_id::windows_ce_gui:            
-			case win::subsystem_id::xbox:                      
-			case win::subsystem_id::windows_boot_application:  
-			case win::subsystem_id::xbox_code_catalog: {
+			case win::subsystem_id::efi_rom: {
+				out.abi_name		 = "ms";
+				out.env_name		 = "efi";
+				out.env_supervisor = true;
 				break;
 			}
+			case win::subsystem_id::native:
+			case win::subsystem_id::native_windows: {
+				out.abi_name		 = "ms";
+				out.env_name		 = "windows-system";
+				out.env_supervisor = true;
+				break;
+			}
+			case win::subsystem_id::windows_boot_application: {
+				out.abi_name		 = "ms";
+				out.env_name		 = "windows-boot";
+				out.env_supervisor = true;
+				break;
+			}
+			case win::subsystem_id::windows_gui:
+			case win::subsystem_id::windows_cui:               
+			case win::subsystem_id::windows_ce_gui: {
+				out.abi_name		 = "ms";
+				out.env_name		 = "windows-user";
+				out.env_supervisor = false;
+				break;
+			}          
+			case win::subsystem_id::xbox:                      
+			case win::subsystem_id::xbox_code_catalog: {
+				out.abi_name		 = "ms";
+				out.env_name		 = "windows-xbox";
+				out.env_supervisor = false;
+				break;
+			}
+			case win::subsystem_id::os2_cui:
+			case win::subsystem_id::posix_cui:      
 			default:
 				break;
 		}

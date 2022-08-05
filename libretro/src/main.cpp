@@ -229,7 +229,7 @@ static void phase0(ref<ir::routine> rtn) {
 						range::for_each(cc->argument_gpr, push_reg);
 						range::for_each(cc->argument_fp, push_reg);
 						push_reg(cc->fp_varg_counter);
-						push_reg(sp);
+						//push_reg(sp);
 					}
 
 					// Create the call.
@@ -304,7 +304,7 @@ static void phase0(ref<ir::routine> rtn) {
 						//
 						range::for_each(cc->retval_gpr, push_reg);
 						range::for_each(cc->retval_fp, push_reg);
-						push_reg(sp);
+						//push_reg(sp);
 					}
 				}
 

@@ -36,14 +36,14 @@ namespace retro::ir::opt::util {
 		auto ai = a->get_if<insn>();
 		auto bi = b->get_if<insn>();
 		if (ai && bi && ai->op == bi->op && ai->template_types == bi->template_types) {
-			// Never merge undef values.
+			// Never merge undef values or annotations.
 			//
-			if (ai->op == opcode::undef)
+			auto& desc = ai->desc();
+			if (ai->op == opcode::undef || desc.is_annotation)
 				return false;
 
 			// If there are side effects or instruction is not pure, assume false.
 			//
-			auto& desc = ai->desc();
 			if (desc.side_effect || !desc.is_pure)
 				return false;
 
@@ -81,7 +81,7 @@ namespace retro::ir::opt::util {
 	// Simple local DCE pass.
 	//
 	static size_t local_dce(basic_block* bb) {
-		return bb->rerase_if([](insn* i) { return !i->uses() && !i->desc().side_effect; });
+		return bb->rerase_if([](insn* i) { return !i->uses() && !i->desc().side_effect && !i->desc().is_annotation; });
 	}
 
 	// Runs validation and fast local dead code elimination after a pass is done.

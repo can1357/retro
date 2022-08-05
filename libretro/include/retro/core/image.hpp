@@ -125,11 +125,13 @@ namespace retro::core {
 
 		// Identified loader, architecture, ABI and environment details.
 		//
-		ldr::handle		 ldr			= {};
-		arch::handle	 arch			= {};
-		arch::call_conv default_cc = arch::call_conv::unknown;
-		bool				 env_privileged = false;
-
+		ldr::handle		 ldr				 = {};
+		arch::handle	 arch				 = {};
+		std::string		 abi_name		 = {};
+		std::string		 env_name		 = {};
+		bool				 env_supervisor = false;
+		arch::call_conv default_cc		 = arch::call_conv::unknown;
+		
 		// Descriptor tables.
 		// - Sorted by RVA, use insert_into_rva_set for insertion.
 		//

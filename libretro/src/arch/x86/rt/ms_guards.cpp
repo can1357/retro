@@ -4,10 +4,11 @@
 #include <retro/ir/basic_block.hpp>
 #include <retro/ir/insn.hpp>
 #include <retro/arch/x86/regs.hxx>
+#include <retro/arch/x86.hpp>
 
 using namespace retro;
 using namespace retro::core;
-
+using namespace retro::arch;
 
 static constexpr u8 alloca_probe_x86_64[] = {
 	 0x48, 0x83, 0xEC, 0x10,										  //  sub     rsp, 10h
@@ -53,23 +54,25 @@ static constexpr u8 alloca_probe_i386[] = {
 	 0xEB, 0xE9							  //  jmp     short loc_4010B4
 };
 
-// Handles lifting of control flow guard.
+// Removes __guard_dispatch_icall_fptr artifacts.
 //
 RC_INSTALL_CB(on_irp_init_xcall, cfg_remove, ir::insn* i) {
 	auto method = i->get_method();
+	if (!method->arch->is<x86arch>() || method->img->abi_name != "ms")
+		return;
 
 	// Pick register.
 	//
-	arch::x86::reg reg;
+	x86::reg reg;
 	switch (method->arch.get_hash()) {
-		case arch::x86_64:
-			reg	 = arch::x86::reg::rax;
+		case x86_64:
+			reg = x86::reg::rax;
 			break;
-		case arch::i386:
-			reg	 = arch::x86::reg::eax;
+		case i386:
+			reg = x86::reg::eax;
 			break;
 		default:
-			return;
+			RC_UNREACHABLE();
 	}
 
 	// Skip if target is not a load_mem instruction.
@@ -100,23 +103,25 @@ RC_INSTALL_CB(on_irp_init_xcall, cfg_remove, ir::insn* i) {
 	}
 }
 
-// Removes crt!__alloca_probe.
+// Removes __alloca_probe artifacts.
 //
 RC_INSTALL_CB(on_irp_init_xcall, stack_probe_remove, ir::insn* i) {
 	auto method = i->get_method();
+	if (!method->arch->is<x86arch>() || method->img->abi_name != "ms")
+		return;
 
 	// Get the relavant sample.
 	//
 	std::span<const u8> sample;
 	switch (method->arch.get_hash()) {
-		case arch::x86_64:
+		case x86_64:
 			sample = alloca_probe_x86_64;
 			break;
-		case arch::i386:
+		case i386:
 			sample = alloca_probe_i386;
 			break;
 		default:
-			return;
+			RC_UNREACHABLE();
 	}
 
 	// If address is constant:

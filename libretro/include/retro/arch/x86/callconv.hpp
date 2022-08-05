@@ -10,6 +10,7 @@ namespace retro::arch::x86 {
 	//
 	inline constexpr call_conv_desc cc_msabi_x86_64 = {
 		 .name							 = "msabi-x86_64",
+		 .abi_name						 = "ms",
 		 .retval_gpr					 = {reg::rax, reg::rdx},
 		 .retval_fp						 = {reg::xmm0},
 		 .argument_gpr					 = {reg::rcx, reg::rdx, reg::r8, reg::r9},
@@ -22,6 +23,7 @@ namespace retro::arch::x86 {
 	};
 	inline constexpr call_conv_desc cc_sysv_x86_64 = {
 		 .name							 = "sysv-x86_64",
+		 .abi_name						 = "sysv",
 		 .retval_gpr					 = {reg::rax, reg::rcx, reg::rdx},
 		 .retval_fp						 = {reg::xmm0},
 		 .argument_gpr					 = {reg::rdi, reg::rsi, reg::rdx, reg::rcx, reg::r8, reg::r9},
@@ -76,6 +78,7 @@ namespace retro::arch::x86 {
 	};
 	inline constexpr call_conv_desc cc_msthiscall_i386 = {
 		 .name							 = "msthiscall-i386",
+		 .abi_name						 = "ms",
 		 .attribute						 = "__thiscall",
 		 .retval_gpr					 = {reg::eax, reg::edx},
 		 .retval_fp						 = {reg::st0},
@@ -89,6 +92,7 @@ namespace retro::arch::x86 {
 	};
 	inline constexpr call_conv_desc cc_msfastcall_i386 = {
 		 .name							 = "msfastcall-i386",
+		 .abi_name						 = "ms",
 		 .attribute						 = "__fastcall",
 		 .retval_gpr					 = {reg::eax, reg::edx},
 		 .retval_fp						 = {reg::st0},

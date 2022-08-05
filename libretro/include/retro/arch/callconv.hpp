@@ -27,9 +27,10 @@ namespace retro::arch {
 	//   treated the same as a conditionally nonvolatile one as it'd be upgraded based on call-site information.
 	//
 	struct call_conv_desc {
-		// Name of the calling convention and attribute name if not default.
+		// Name of the calling convention, ABI name, and attribute name if not default.
 		//
-		std::string_view name = {};
+		std::string_view name		= {};
+		std::string_view abi_name	= {};
 		std::string_view attribute = {};
 
 		// Return value registers.

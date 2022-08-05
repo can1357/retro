@@ -117,7 +117,7 @@ namespace retro::arch {
 			f(p);
 		}
 	}
-	ir::insn* x86arch::explode_write_reg(ir::insn* i) { return x86::explode_write_reg(this, i); }
+	ir::insn* x86arch::explode_write_reg(ir::insn* i) { return x86::explode_write_reg(this, i, true); }
 
 	// Lifting and disassembly.
 	//
@@ -133,7 +133,7 @@ namespace retro::arch {
 			out->effective_width = nat.ins.operand_width;
 			out->length				= nat.ins.length;
 			out->operand_count	= nat.ins.operand_count_visible;
-			out->is_privileged	= bool(nat.ins.attributes & ZYDIS_ATTRIB_IS_PRIVILEGED);
+			out->is_supervisor	= bool(nat.ins.attributes & ZYDIS_ATTRIB_IS_PRIVILEGED);
 			for (size_t n = 0; n != nat.ins.operand_count_visible; n++) {
 				out->op[n] = x86::to_mop(nat.ops[n], nat.ins.length);
 			}

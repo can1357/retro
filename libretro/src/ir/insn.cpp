@@ -47,6 +47,8 @@ namespace retro::ir {
 
 			if (info.side_effect)
 				result += RC_RED;
+			else if (info.is_annotation)
+				result += RC_ORANGE;
 			else
 				result += RC_TEAL;
 

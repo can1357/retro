@@ -100,6 +100,7 @@ opcode_kind = [
 	"memory",
 	"memory-rmw",
 	"arch",
+	"stack",
 	
 	"data",
 	"cast",
@@ -115,6 +116,26 @@ opcode_kind = [
 	
 	"trap"
 ]
+
+# pointer stack_begin
+[opcode.stack_begin]
+kind =           "@opcode_kind.stack"
+is-annotation =  true
+template-count = 0
+types =          ["@type.pointer"]
+templates =      [0]
+names =          [""]
+constexprs =     []
+
+# void  stack_reset pointer: sp
+[opcode.stack_reset]
+kind =           "@opcode_kind.stack"
+is-annotation =  true
+template-count = 0
+types =          ["@type.none",   "@type.pointer"]
+templates =      [0,               0]
+names =          ["",              "sp"]
+constexprs =     []
 
 # T    read_reg<T>  reg:id
 [opcode.read_reg]
