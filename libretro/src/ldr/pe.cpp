@@ -225,6 +225,25 @@ namespace retro::ldr {
 			}
 		}
 
+		// Parse config directory.
+		//
+		if (auto* dd = img->get_directory(win::directory_entry_load_config)) {
+			auto cfg = img->template rva_to_ptr<win::load_config_directory_t<x64>>(dd->rva);
+
+			auto map_va = [&](const va_t& va, std::string_view name) {
+				if (ok(&va, data) && va != 0) {
+					analysis::symbol sym = {
+						 .rva					 = va - out.base_address,
+						 .name				 = std::string{name},
+						 .read_only_ignore = true,
+					};
+					insert_into_rva_set(out.symbols, std::move(sym));
+				}
+			};
+			map_va(cfg->guard_cf_dispatch_function_ptr, "__guard_dispatch_icall_fptr");
+			map_va(cfg->guard_cf_check_function_ptr, "__guard_check_icall_fptr");
+		}
+
 		// TODO: Import directory
 		// TODO: Debug directory
 		// TODO: TLS entry_points

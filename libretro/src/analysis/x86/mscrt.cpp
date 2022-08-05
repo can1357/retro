@@ -3,6 +3,7 @@
 #include <retro/analysis/workspace.hpp>
 #include <retro/ir/basic_block.hpp>
 #include <retro/ir/insn.hpp>
+#include <retro/arch/x86/regs.hxx>
 
 using namespace retro;
 using namespace retro::analysis;
@@ -52,6 +53,52 @@ static constexpr u8 alloca_probe_i386[] = {
 	 0xEB, 0xE9							  //  jmp     short loc_4010B4
 };
 
+// Handles lifting of control flow guard.
+//
+RC_INSTALL_CB(on_irp_init_xcall, cfg_remove, ir::insn* i) {
+	auto method = i->get_method();
+
+	// Pick register.
+	//
+	arch::x86::reg reg;
+	switch (method->arch.get_hash()) {
+		case arch::x86_64:
+			reg	 = arch::x86::reg::rax;
+			break;
+		case arch::i386:
+			reg	 = arch::x86::reg::eax;
+			break;
+		default:
+			return;
+	}
+
+	// Skip if target is not a load_mem instruction.
+	//
+	auto& target = i->opr(0);
+	if (target.is_const())
+		return;
+	auto* ins = target.get_value()->get_if<ir::insn>();
+	if (!ins || ins->op != ir::opcode::load_mem)
+		return;
+
+	// Skip if address is not constant.
+	//
+	auto& adr = ins->opr(0);
+	if (!adr.is_const())
+		return;
+
+	// Lookup the symbol, if it matches __guard_dispatch_icall_fptr:
+	//
+	auto img = i->get_image();
+	auto rva = adr.get_const().get_u64() - img->base_address;
+	auto sym = find_rva_set_eq(img->symbols, rva);
+	if (sym && sym->name == "__guard_dispatch_icall_fptr") {
+		// Replace target operand with a read register.
+		//
+		auto regv = i->bb->insert(i, ir::make_read_reg(ir::type::pointer, reg));
+		target	 = regv.get();
+	}
+}
 
 // Removes crt!__alloca_probe.
 //
@@ -80,7 +127,7 @@ RC_INSTALL_CB(on_irp_init_xcall, stack_probe_remove, ir::insn* i) {
 		auto va	 = (u64) i->opr(0).get_const().get<ir::pointer>();
 		auto data = method->img->slice(va - method->img->base_address);
 		if (data.size() > sample.size() && !memcmp(data.data(), sample.data(), sample.size())) {
-			i->erase();
+			i->op = ir::opcode::nop;
 		}
 	}
 }

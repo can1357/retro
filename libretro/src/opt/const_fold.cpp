@@ -90,7 +90,7 @@ namespace retro::ir::opt {
 						if (arch) {
 							u8 ptrbytes = arch->get_pointer_width() / 8;
 							if (data.size() >= ptrbytes) {
-								RC_ASSERT(ptrbytes < 8);
+								RC_ASSERT(ptrbytes <= 8);
 								u64 pval = 0;
 								memcpy(&pval, data.data(), ptrbytes);
 								value = {ir::type::pointer, pval};
@@ -101,7 +101,17 @@ namespace retro::ir::opt {
 					}
 
 					if (!value.is<void>()) {
-						n += ins->replace_all_uses_with(std::move(value));
+						// Do not propagate the value if symbol is marked with read_only_ignore.
+						//
+						bool no_const = false;
+						for (size_t i = 0; i != value.size(); i++) {
+							if (auto s = analysis::find_rva_set_eq(img->symbols, rva + i); s && s->read_only_ignore) {
+								no_const = true;
+								break;
+							}
+						}
+						if (!no_const)
+							n += ins->replace_all_uses_with(std::move(value));
 					}
 				}
 			}

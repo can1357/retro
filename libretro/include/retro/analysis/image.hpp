@@ -72,6 +72,10 @@ namespace retro::analysis {
 		// Symbol name.
 		//
 		std::string name;
+
+		// Flags.
+		//
+		u8 read_only_ignore : 1 = false; // Value might be changed by the OS loader, do not consider constant.
 	};
 
 	// RVA-Sorted set helpers.
@@ -93,7 +97,7 @@ namespace retro::analysis {
 	}
 	template<typename Tv>
 	inline const Tv* find_rva_set_eq(const std::vector<Tv>& set, u64 rva) {
-		auto it = std::lower_bound(set.begin(), set.end(), rva, [](auto& a, auto& b) { return a < b.rva; });
+		auto it = std::lower_bound(set.begin(), set.end(), rva, [](auto& a, auto& b) { return a.rva < b; });
 		if (it != set.end() && it->rva == rva) {
 			return std::to_address(it);
 		}
