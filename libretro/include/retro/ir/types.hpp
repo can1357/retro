@@ -147,6 +147,8 @@ namespace retro::ir {
 		//
 		constant(type t, std::span<const u8> src) : constant() {
 			if (!src.empty()) {
+				RC_ASSERT(t != type::pointer);
+
 				if (t == type::i1) {
 					data[0]		= *(const bool*) src.data();
 					data_length = 1;

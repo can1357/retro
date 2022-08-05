@@ -74,13 +74,27 @@ namespace retro::ir::opt {
 				u64 rva = adr.get_const().get_u64() - domain->img->base_address;
 				auto scn = domain->img->find_section(rva);
 				if (scn && !scn->write) {
-					// If we succeded in loading a constant:
-					//
-					auto			 data = domain->img->slice(rva);
-					ir::constant value{ins->template_types[0], data};
+					auto data = domain->img->slice(rva);
+
+					ir::constant value;
+					if (ins->template_types[0] == ir::type::pointer) {
+						auto arch = ins->arch;
+						if (!arch)
+							arch = domain->arch;
+						if (arch) {
+							u8 ptrbytes = arch->get_pointer_width() / 8;
+							if (data.size() >= ptrbytes) {
+								RC_ASSERT(ptrbytes < 8);
+								u64 pval = 0;
+								memcpy(&pval, data.data(), ptrbytes);
+								value = {ir::type::pointer, pval};
+							}
+						}
+					} else {
+						value = {ins->template_types[0], data};
+					}
+
 					if (!value.is<void>()) {
-						// Replace all uses.
-						//
 						n += ins->replace_all_uses_with(std::move(value));
 					}
 				}
