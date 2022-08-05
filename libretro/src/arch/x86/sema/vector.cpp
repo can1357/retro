@@ -119,8 +119,19 @@ static diag::lazy scalar_move(SemaContext) {
 	return diag::ok;
 }
 
+// Forward MOVSD handler.
+namespace retro::arch::x86 {
+	diag::lazy make_movs(SemaContext);
+};
+
+DECL_SEMA(MOVSD) {
+	if (ins.operand_count == 0) {
+		return make_movs(sema_context());
+	} else {
+		return scalar_move<ir::type::f64x2, ir::type::f64>(sema_context());
+	}
+}
 DECL_SEMA(MOVSS) { return scalar_move<ir::type::f32x4, ir::type::f32>(sema_context()); }
-DECL_SEMA(MOVSD) { return scalar_move<ir::type::f64x2, ir::type::f64>(sema_context()); }
 DECL_SEMA(MOVD) {
 	auto& r = ins.op[0].type == arch::mop_type::reg ? ins.op[0].r : ins.op[1].r;
 	if (r.get_kind() == arch::reg_kind::simd64) {
