@@ -51,9 +51,17 @@ namespace retro::core {
 
 			// Find the label.
 			//
+			auto non_nop = false;
 			for (auto* ins : bbs->insns()) {
 				if (ins->ip != va) {
+					non_nop = non_nop || ins->op != ir::opcode::nop;
 					continue;
+				}
+
+				// No need to split if the instructions we've skipped have no effect.
+				//
+				if (!non_nop) {
+					co_return bbs;
 				}
 
 				// Split the block, add a jump from the previous block to this one.
@@ -123,7 +131,7 @@ namespace retro::core {
 
 			// If XCALL:
 			//
-			if (auto i = bb->back(); i->op == ir::opcode::xcall) {
+			if (auto i = bb->back(); i && i->op == ir::opcode::xcall) {
 				// Coerce first operand into a constant where possible.
 				//
 				z3x::variable_set vs;
@@ -157,6 +165,7 @@ namespace retro::core {
 
 		// Try to continue traversal.
 		//
+		auto*					bb_ret = bb;
 		z3x::variable_set vs;
 		switch (term->op) {
 			case ir::opcode::xjs: {
@@ -169,14 +178,13 @@ namespace retro::core {
 						//
 						if (coerce_const(vs, term->opr(i + 1))) {
 							bbs[i] = co_await build_block(term->opr(i + 1).const_val.get_u64() - img_base);
+							bb		 = term->bb;
 						}
 					}
 
 					// If we managed to lift both blocks succesfully:
 					//
 					if (bbs[0] && bbs[1]) {
-						bb = term->bb;
-
 						// Replace with js.
 						//
 						ir::variant cc{term->opr(0)};
@@ -223,7 +231,7 @@ namespace retro::core {
 			default:
 				break;
 		}
-		co_return bb;
+		co_return bb_ret;
 	}
 
 	// Lifts a new method into the image at the given RVA, if it does not already exist.

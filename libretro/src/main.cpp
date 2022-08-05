@@ -667,7 +667,7 @@ int main(int argv, const char** args) {
 	// Small C file test:
 	//
 	else {
-		std::string test_file = "S:\\Projects\\Retro\\tests\\stackanalysis.c";
+		std::string test_file = "S:\\Projects\\Retro\\tests\\simple.c";
 		if (argv > 1) {
 			test_file = args[1];
 		}

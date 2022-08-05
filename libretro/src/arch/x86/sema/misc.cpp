@@ -63,17 +63,28 @@ DECL_SEMA(LEAVE) {
 	write_reg(sema_context(), bpr, rbpv);
 	return diag::ok;
 }
-DECL_SEMA(NOP) { return diag::ok; }
+DECL_SEMA(NOP) {
+	bb->push_nop();
+	return diag::ok;
+}
+DECL_SEMA(UD0) {
+	bb->push_trap("ud0");
+	return diag::ok;
+}
+DECL_SEMA(UD1) {
+	bb->push_trap("ud1");
+	return diag::ok;
+}
 DECL_SEMA(UD2) {
 	bb->push_trap("ud2");
 	return diag::ok;
 }
-DECL_SEMA(INT3) {
-	bb->push_trap("int3");
-	return diag::ok;
-}
 DECL_SEMA(INT1) {
 	bb->push_trap("int1");
+	return diag::ok;
+}
+DECL_SEMA(INT3) {
+	bb->push_trap("int3");
 	return diag::ok;
 }
 DECL_SEMA(INT) {
