@@ -49,8 +49,21 @@ namespace retro::ir::opt::util {
 
 			// If non-constant instruction:
 			//
-			if (desc.is_const) {
-				// TODO: Trace until common dominator to ensure no side effects.
+			if (!desc.is_const) {
+				if (ai->bb != bi->bb)
+					return false;
+				auto beg = ai;
+				auto end = bi;
+				for (auto i = ai; i != ai->bb->begin(); i = i->prev) {
+					if (i == bi) {
+						std::swap(beg, end);
+						break;
+					}
+				}
+				for (auto i : list::subrange(beg, end)) {
+					if (i->desc().side_effect)
+						return false;
+				}
 			}
 
 			// If opcode is the same and operand size matches:
