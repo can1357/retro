@@ -1,12 +1,12 @@
-#include <retro/analysis/callbacks.hpp>
-#include <retro/analysis/image.hpp>
-#include <retro/analysis/workspace.hpp>
+#include <retro/core/callbacks.hpp>
+#include <retro/core/image.hpp>
+#include <retro/core/workspace.hpp>
 #include <retro/ir/basic_block.hpp>
 #include <retro/ir/insn.hpp>
 #include <retro/arch/x86/regs.hxx>
 
 using namespace retro;
-using namespace retro::analysis;
+using namespace retro::core;
 
 
 static constexpr u8 alloca_probe_x86_64[] = {

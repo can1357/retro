@@ -1,9 +1,9 @@
-#include <retro/analysis/workspace.hpp>
-#include <retro/analysis/image.hpp>
+#include <retro/core/workspace.hpp>
+#include <retro/core/image.hpp>
 #include <retro/ldr/interface.hpp>
 #include <retro/platform.hpp>
 
-namespace retro::analysis {
+namespace retro::core {
 	// Errors.
 	//
 	RC_DEF_ERR(file_read_err,      "failed to read file '%'")

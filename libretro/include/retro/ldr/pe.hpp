@@ -10,6 +10,6 @@ namespace retro::ldr {
 		//
 		std::span<const std::string_view>	 get_extensions();
 		bool											 match(std::span<const u8> data);
-		diag::expected<ref<analysis::image>> load(std::span<const u8> data);
+		diag::expected<ref<core::image>> load(std::span<const u8> data);
 	};
 };

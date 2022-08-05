@@ -11,7 +11,7 @@
 #include <vector>
 #include <variant>
 
-namespace retro::analysis {
+namespace retro::core {
 	// Image kind.
 	//
 	enum class image_kind : u8 {

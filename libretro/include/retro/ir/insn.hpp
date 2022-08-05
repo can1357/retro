@@ -5,7 +5,7 @@
 #include <retro/arch/interface.hpp>
 
 // Forwards.
-namespace retro::analysis {
+namespace retro::core {
 	struct image;
 	struct method;
 	struct workspace;
@@ -138,9 +138,9 @@ namespace retro::ir {
 		// Nested access wrappers.
 		//
 		routine*						 get_routine() const;
-		ref<analysis::method>	 get_method() const;
-		ref<analysis::image>		 get_image() const;
-		ref<analysis::workspace> get_workspace() const;
+		ref<core::method>	 get_method() const;
+		ref<core::image>		 get_image() const;
+		ref<core::workspace> get_workspace() const;
 
 		// Destroy all operands on destruction.
 		//

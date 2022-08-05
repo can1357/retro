@@ -4,7 +4,7 @@
 #include <retro/rc.hpp>
 #include <retro/interface.hpp>
 
-namespace retro::analysis {
+namespace retro::core {
 	struct image;
 };
 
@@ -28,7 +28,7 @@ namespace retro::ldr {
 
 		// Loads the binary blob into an image.
 		//
-		virtual diag::expected<ref<analysis::image>> load(std::span<const u8> data) = 0;
+		virtual diag::expected<ref<core::image>> load(std::span<const u8> data) = 0;
 	};
 	using handle = instance::handle;
 };

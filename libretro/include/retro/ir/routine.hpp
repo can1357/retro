@@ -7,7 +7,7 @@
 #include <retro/graph/search.hpp>
 #include <vector>
 
-namespace retro::analysis { struct method; };
+namespace retro::core { struct method; };
 
 namespace retro::ir {
 	// Routine type.
@@ -19,7 +19,7 @@ namespace retro::ir {
 
 		// Owning method.
 		//
-		weak<analysis::method> method = {};
+		weak<core::method> method = {};
 
 		// Entry point ip if relevant.
 		//
@@ -86,8 +86,8 @@ namespace retro::ir {
 
 		// Nested access wrappers.
 		//
-		ref<analysis::image>		 get_image() const;
-		ref<analysis::workspace> get_workspace() const;
+		ref<core::image>		 get_image() const;
+		ref<core::workspace> get_workspace() const;
 
 		// Clones the routine.
 		//

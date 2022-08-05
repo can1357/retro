@@ -8,7 +8,7 @@
 #include <retro/task.hpp>
 #include <retro/robin_hood.hpp>
 
-namespace retro::analysis {
+namespace retro::core {
 	struct image;
 
 	// IR Phases.

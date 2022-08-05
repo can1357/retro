@@ -1,8 +1,8 @@
 #include <retro/opt/interface.hpp>
 #include <retro/opt/utility.hpp>
-#include <retro/analysis/method.hpp>
-#include <retro/analysis/image.hpp>
-#include <retro/analysis/workspace.hpp>
+#include <retro/core/method.hpp>
+#include <retro/core/image.hpp>
+#include <retro/core/workspace.hpp>
 
 namespace retro::ir::opt {
 	// Local constant folding.
@@ -105,7 +105,7 @@ namespace retro::ir::opt {
 						//
 						bool no_const = false;
 						for (size_t i = 0; i != value.size(); i++) {
-							if (auto s = analysis::find_rva_set_eq(img->symbols, rva + i); s && s->read_only_ignore) {
+							if (auto s = core::find_rva_set_eq(img->symbols, rva + i); s && s->read_only_ignore) {
 								no_const = true;
 								break;
 							}

@@ -1,11 +1,11 @@
 #pragma once
 #include <retro/callback.hpp>
 #include <retro/ir/insn.hpp>
-#include <retro/analysis/method.hpp>
+#include <retro/core/method.hpp>
 
 // Analysis callbacks.
 //
-namespace retro::analysis {
+namespace retro::core {
 	// Handles resolution of an XJMP instruction with non-constant target, for instance in the case of jump tables.
 	//
 	inline handler_list<method*, ir::insn*> indirect_xjmp_resolver = {};

@@ -1,5 +1,5 @@
 #include <retro/ldr/pe.hpp>
-#include <retro/analysis/image.hpp>
+#include <retro/core/image.hpp>
 #include <retro/arch/interface.hpp>
 #include <nt/image.hpp>
 
@@ -21,7 +21,7 @@ namespace retro::ldr {
 	// Templated loader handling both 32-bit and 64-bit formats.
 	//
 	template<bool x64>
-	static diag::lazy load_pe(analysis::image& out, const win::image_t<x64>* img, std::span<const u8> data) {
+	static diag::lazy load_pe(core::image& out, const win::image_t<x64>* img, std::span<const u8> data) {
 		using va_t = std::conditional_t<x64, u64, u32>;
 
 		auto* nt = img->get_nt_headers();
@@ -36,9 +36,9 @@ namespace retro::ldr {
 		// Identify image type.
 		//
 		if (nt->file_header.characteristics.dll_file) {
-			out.kind = analysis::image_kind::dynamic_library;
+			out.kind = core::image_kind::dynamic_library;
 		} else {
-			out.kind = analysis::image_kind::executable;
+			out.kind = core::image_kind::executable;
 		}
 
 		// Identify architecture.
@@ -122,7 +122,7 @@ namespace retro::ldr {
 
 			// Create the section descriptor and insert it.
 			//
-			analysis::section res = {
+			core::section res = {
 				 .rva		 = scn.virtual_address,
 				 .rva_end = u64(scn.virtual_address) + scn.virtual_size,
 				 .name	 = std::string{scn.name.to_string()},
@@ -212,10 +212,10 @@ namespace retro::ldr {
 							//
 							auto data = out.slice(rva);
 							if (data.size() >= sizeof(va_t)) {
-								analysis::reloc entry = {
+								core::reloc entry = {
 									 .rva		= rva,
 									 .target = *(va_t*) data.data() - out.base_address,
-									 .kind	= analysis::reloc_kind::absolute,
+									 .kind	= core::reloc_kind::absolute,
 								};
 								insert_into_rva_set(out.relocs, std::move(entry));
 							}
@@ -232,7 +232,7 @@ namespace retro::ldr {
 
 			auto map_va = [&](const va_t& va, std::string_view name) {
 				if (ok(&va, data) && va != 0) {
-					analysis::symbol sym = {
+					core::symbol sym = {
 						 .rva					 = va - out.base_address,
 						 .name				 = std::string{name},
 						 .read_only_ignore = true,
@@ -252,7 +252,7 @@ namespace retro::ldr {
 
 	// Loader entry point.
 	//
-	diag::expected<ref<analysis::image>> pe_loader::load(std::span<const u8> data) {
+	diag::expected<ref<core::image>> pe_loader::load(std::span<const u8> data) {
 		// First pass the data through basic checks.
 		//
 		if (!match(data)) {
@@ -261,7 +261,7 @@ namespace retro::ldr {
 
 		// Create the image.
 		//
-		ref out	= make_rc<analysis::image>();
+		ref out	= make_rc<core::image>();
 		out->ldr = get_handle();
 
 		// Visit based on optional header magic.

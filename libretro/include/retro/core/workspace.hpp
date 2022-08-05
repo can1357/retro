@@ -5,7 +5,7 @@
 #include <retro/diag.hpp>
 #include <vector>
 
-namespace retro::analysis {
+namespace retro::core {
 	struct workspace;
 
 	// Workspace holds the document state and may represent multiple images.

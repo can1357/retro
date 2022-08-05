@@ -1,7 +1,7 @@
 #include <retro/ir/basic_block.hpp>
 #include <retro/ir/routine.hpp>
-#include <retro/analysis/method.hpp>
-#include <retro/analysis/image.hpp>
+#include <retro/core/method.hpp>
+#include <retro/core/image.hpp>
 
 namespace retro::ir {
 	RC_DEF_ERR(insn_ref_invalid, "instruction references value declared after itself: %")
@@ -160,14 +160,14 @@ namespace retro::ir {
 
 	// Nested access wrappers.
 	//
-	ref<analysis::method> basic_block::get_method() const {
+	ref<core::method> basic_block::get_method() const {
 		return rtn->method.lock();
 	}
-	ref<analysis::image>	 basic_block::get_image() const {
+	ref<core::image>	 basic_block::get_image() const {
 		 auto r = get_method();
 		 return r ? r->img.lock() : nullptr;
 	}
-	ref<analysis::workspace> basic_block::get_workspace() const {
+	ref<core::workspace> basic_block::get_workspace() const {
 		auto r = get_image();
 		return r ? r->ws.lock() : nullptr;
 	}

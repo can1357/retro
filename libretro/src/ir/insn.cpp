@@ -1,7 +1,7 @@
 #include <retro/ir/insn.hpp>
 #include <retro/ir/basic_block.hpp>
-#include <retro/analysis/method.hpp>
-#include <retro/analysis/image.hpp>
+#include <retro/core/method.hpp>
+#include <retro/core/image.hpp>
 
 namespace retro::ir {
 	RC_DEF_ERR(insn_operand_type_mismatch, "expected operand #% to be of type '%', got '%' instead: %")
@@ -85,12 +85,12 @@ namespace retro::ir {
 	// Nested access wrappers.
 	//
 	routine*					 insn::get_routine() const { return bb->rtn; }
-	ref<analysis::method> insn::get_method() const { return get_routine()->method.lock(); }
-	ref<analysis::image>	 insn::get_image() const {
+	ref<core::method> insn::get_method() const { return get_routine()->method.lock(); }
+	ref<core::image>	 insn::get_image() const {
 		 auto r = get_method();
 		 return r ? r->img.lock() : nullptr;
 	}
-	ref<analysis::workspace> insn::get_workspace() const {
+	ref<core::workspace> insn::get_workspace() const {
 		auto r = get_image();
 		return r ? r->ws.lock() : nullptr;
 	}

@@ -1,10 +1,10 @@
-#include <retro/analysis/method.hpp>
-#include <retro/analysis/workspace.hpp>
-#include <retro/analysis/image.hpp>
-#include <retro/analysis/callbacks.hpp>
+#include <retro/core/method.hpp>
+#include <retro/core/workspace.hpp>
+#include <retro/core/image.hpp>
+#include <retro/core/callbacks.hpp>
 #include <retro/ir/z3x.hpp>
 
-namespace retro::analysis {
+namespace retro::core {
 	// Helper for coercing an operand into a constant.
 	//
 	static ir::constant* coerce_const(z3x::variable_set& vs, ir::operand& op) {
