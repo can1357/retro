@@ -145,6 +145,29 @@ namespace retro::ir {
 
 		// Typed construction.
 		//
+		constant(type t, std::span<const u8> src) : constant() {
+			if (!src.empty()) {
+				if (t == type::i1) {
+					data[0]		= *(const bool*) src.data();
+					data_length = 1;
+					return;
+				}
+
+				auto bw = enum_reflect(t).bit_size;
+				RC_ASSERT(bw != 0 && is_aligned(bw, 8));
+				size_t length = bw / 8;
+				if (src.size() >= length) {
+					type_id		= (u64) t;
+					data_length = length;
+					void* dst	= data;
+					if (length > sizeof(data)) {
+						dst = operator new(length);
+						ptr = dst;
+					}
+					memcpy(dst, src.data(), length);
+				}
+			}
+		}
 		template<typename T>
 		constant(type t, T value) : constant(i64(value)) {
 			// TODO: vector broadcast.

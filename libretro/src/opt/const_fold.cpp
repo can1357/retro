@@ -1,5 +1,7 @@
 #include <retro/opt/interface.hpp>
 #include <retro/opt/utility.hpp>
+#include <retro/analysis/method.hpp>
+#include <retro/analysis/workspace.hpp>
 
 namespace retro::ir::opt {
 	// Local constant folding.
@@ -49,6 +51,38 @@ namespace retro::ir::opt {
 				auto& val = ins->opr(0);
 				if (val.is_const()) {
 					n += 1 + ins->replace_all_uses_with(ins->opr(val.const_val.get<bool>() ? 1 : 2));
+				}
+			} else if (ins->op == opcode::load_mem) {
+				// Skip if not constant.
+				//
+				auto& adr = ins->opr(0);
+				if (!adr.is_const()) {
+					continue;
+				}
+
+				// Skip if no associated image.
+				//
+				auto method = bb->rtn->method.lock();
+				if (!method)
+					continue;
+				auto domain = method->dom.lock();
+				if (!domain)
+					continue;
+
+				// If RVA maps to a constant section:
+				//
+				u64 rva = adr.get_const().get_u64() - domain->img->base_address;
+				auto scn = domain->img->find_section(rva);
+				if (scn && !scn->write) {
+					// If we succeded in loading a constant:
+					//
+					auto			 data = domain->img->slice(rva);
+					ir::constant value{ins->template_types[0], data};
+					if (!value.is<void>()) {
+						// Replace all uses.
+						//
+						n += ins->replace_all_uses_with(std::move(value));
+					}
 				}
 			}
 		}
