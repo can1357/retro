@@ -1,5 +1,7 @@
 #include <retro/ir/basic_block.hpp>
 #include <retro/ir/routine.hpp>
+#include <retro/analysis/method.hpp>
+#include <retro/analysis/image.hpp>
 
 namespace retro::ir {
 	RC_DEF_ERR(insn_ref_invalid, "instruction references value declared after itself: %")
@@ -18,7 +20,7 @@ namespace retro::ir {
 		if (!v->arch)
 			v->arch = arch;
 
-		v->block = this;
+		v->bb = this;
 		v->name	= rtn->next_ins_name++;
 		list::link_before(position.get(), v.get());
 		return {v.release()};
@@ -27,12 +29,12 @@ namespace retro::ir {
 	// Adds or removes a jump from this basic-block to another.
 	//
 	void basic_block::add_jump(basic_block* to) {
-		if(rtn) rtn->dirty_cfg();
+		rtn->dirty_cfg();
 		successors.emplace_back(to);
 		to->predecessors.emplace_back(this);
 	}
 	void basic_block::del_jump(basic_block* to, bool fix_phi) {
-		if(rtn) rtn->dirty_cfg();
+		rtn->dirty_cfg();
 		auto sit = range::find(successors, to);
 		auto pit = range::find(to->predecessors, this);
 		if (fix_phi) {
@@ -88,7 +90,7 @@ namespace retro::ir {
 		// Fix the parent pointers.
 		//
 		for (auto ins : blk->insns()) {
-			ins->block = blk;
+			ins->bb = blk;
 		}
 
 		// Fixup the successor / predecessor list.
@@ -139,7 +141,7 @@ namespace retro::ir {
 				for (auto& op : ins->operands()) {
 					if (!op.is_const()) {
 						if (auto* iref = op.get_value()->get_if<insn>()) {
-							if (iref->block == this) {
+							if (iref->bb == this) {
 								for (auto&& ins2 : slice(ins->next)) {
 									if (ins2 == iref) {
 										return err::insn_ref_invalid(ins->to_string());
@@ -154,6 +156,20 @@ namespace retro::ir {
 			}
 		}
 		return diag::ok;
+	}
+
+	// Nested access wrappers.
+	//
+	ref<analysis::method> basic_block::get_method() const {
+		return rtn->method.lock();
+	}
+	ref<analysis::image>	 basic_block::get_image() const {
+		 auto r = get_method();
+		 return r ? r->img.lock() : nullptr;
+	}
+	ref<analysis::workspace> basic_block::get_workspace() const {
+		auto r = get_image();
+		return r ? r->ws.lock() : nullptr;
 	}
 
 	// String conversion and type getter.

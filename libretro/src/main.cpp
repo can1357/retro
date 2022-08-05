@@ -4,7 +4,6 @@
 #include <retro/diag.hpp>
 #include <retro/arch/interface.hpp>
 #include <retro/ldr/interface.hpp>
-#include <retro/ldr/image.hpp>
 #include <retro/ir/insn.hpp>
 
 using namespace retro;
@@ -19,10 +18,10 @@ using namespace retro;
 #include <retro/opt/interface.hpp>
 #include <retro/opt/utility.hpp>
 
+#include <retro/analysis/image.hpp>
 #include <retro/analysis/workspace.hpp>
 #include <retro/analysis/method.hpp>
-
-
+#include <retro/analysis/callbacks.hpp>
 
 static const char code_prefix[] =
 #if RC_WINDOWS
@@ -74,17 +73,66 @@ static std::vector<u8> compile(std::string code, const char* args) {
 	return result;
 }
 
-static ref<ir::routine> analysis_test(analysis::domain* dom, const std::string& name, u64 rva) {
+
+static void whole_program_analysis_test(analysis::image* img) {
+	static auto analyse_rva_if_code = [](analysis::image* img, u64 rva) {
+		if (auto scn = img->find_section(rva); scn && scn->execute) {
+			if (!img->lookup_method(rva)) {
+				//fmt::printf("queued analysis of sub_%llx\n", rva + img->base_address);
+				analysis::lift_async(img, rva);
+			}
+		}
+	};
+
+	analysis::on_irp_complete.insert([](ir::routine* r, analysis::ir_phase ph) {
+		if (ph == analysis::IRP_INIT) {
+			auto m  = r->method.get();
+			auto va = m->rva + m->img->base_address;
+			//fmt::printf("sub_%llx: " RC_GRAY " # Successfully lifted " RC_VIOLET "%llu" RC_GRAY " instructions into " RC_GREEN "%llu" RC_RED " (avg: ~%llu/ins)" RC_RESET " #\n", va,
+			//	 m->init_info.stats_minsn_disasm, m->init_info.stats_insn_lifted, m->init_info.stats_insn_lifted / (m->init_info.stats_minsn_disasm ? m->init_info.stats_minsn_disasm : 1));
+
+			for (auto& bb : r->blocks) {
+				for (auto&& ins : bb->insns()) {
+					if (ins->op == ir::opcode::xcall) {
+						if (ins->opr(0).is_const()) {
+							analyse_rva_if_code(r->method->img.get(), ins->opr(0).get_const().get_u64() - r->method->img->base_address);
+						}
+					}
+				}
+			}
+		}
+	});
+
+	for (auto& sym : img->symbols) {
+		analyse_rva_if_code(img, sym.rva);
+	}
+	for (auto& reloc : img->relocs) {
+		if (std::holds_alternative<u64>(reloc.target)) {
+			analyse_rva_if_code(img, std::get<u64>(reloc.target));
+		}
+	}
+
+	std::this_thread::sleep_for(std::chrono::seconds(100));
+}
+
+static ref<ir::routine> analysis_test(analysis::image* img, const std::string& name, u64 rva) {
+	analysis::on_irp_complete.insert([](ir::routine* r, analysis::ir_phase ph) {
+		if (ph == analysis::IRP_INIT) {
+			auto m  = r->method.get();
+			auto va = m->rva + m->img->base_address;
+			fmt::printf("sub_%llx: " RC_GRAY " # Successfully lifted " RC_VIOLET "%llu" RC_GRAY " instructions into " RC_GREEN "%llu" RC_RED " (avg: ~%llu/ins)" RC_RESET " #\n",
+			 va, 	 m->init_info.stats_minsn_disasm, m->init_info.stats_insn_lifted, m->init_info.stats_insn_lifted / (m->init_info.stats_minsn_disasm ? m->init_info.stats_minsn_disasm : 1));
+		}
+	});
+
 	// Demo.
 	//
-	auto method = analysis::lift_async(dom, rva);
-	auto rtn = method->wait_for_irp(analysis::IRP_BUILT);
+	auto method = analysis::lift_async(img, rva);
+	auto rtn = method->wait_for_irp(analysis::IRP_INIT);
 
 	// Print statistics.
 	//
 	fmt::printf(RC_WHITE " ----- Routine '%s' -------\n", name.data());
-	fmt::printf(RC_GRAY " # Successfully lifted " RC_VIOLET "%llu" RC_GRAY " instructions into " RC_GREEN "%llu" RC_RED " (avg: ~%llu/ins) #\n" RC_RESET, method->stats.minsn_disasm,
-		 method->stats.insn_lifted, method->stats.insn_lifted / method->stats.minsn_disasm);
 	range::sort(rtn->blocks, [](auto& a, auto& b) { return a->ip < b->ip; });
 	for (auto& bb : rtn->blocks) {
 		std::string result = fmt::str(RC_CYAN "$%x:" RC_RESET, bb->name);
@@ -92,7 +140,6 @@ static ref<ir::routine> analysis_test(analysis::domain* dom, const std::string& 
 		fmt::println(result);
 		fmt::println("\t", bb->terminator()->to_string());
 	}
-
 	return rtn;
 }
 
@@ -101,28 +148,22 @@ static ref<ir::routine> analysis_test(analysis::domain* dom, const std::string& 
 static void analysis_test_from_image_va(std::filesystem::path path, u64 va) {
 	// Load the binary.
 	//
-	auto img = ldr::load_from_file(path).value();
-
-	// Create the workspace.
-	//
-	auto ws		 = analysis::workspace::create();
-	auto machine = arch::instance::lookup(img->arch_hash);
-	auto loader	 = ldr::instance::lookup(img->ldr_hash);
-	RC_ASSERT(loader && machine);
-	fmt::println("-> loader:  ", loader->get_name());
-	fmt::println("-> machine: ", machine->get_name());
+	auto ws = analysis::workspace::create();
+	auto img = ws->load_image(path).value();
+	fmt::println("-> loader:  ", img->ldr.get_name());
+	fmt::println("-> machine: ", img->arch.get_name());
 
 	// Call the demo code.
 	//
-	auto dom = ws->add_image(std::move(img));
-	analysis_test(dom, fmt::str("sub_%llx", va), va - dom->img->base_address);
+	//whole_program_analysis_test(img);
+	analysis_test(img, fmt::str("sub_%llx", va), va - img->base_address);
 }
 static void analysis_test_from_source(std::string src) {
 	// Determine flags.
 	//
 	std::string flags = "-O1";
 	if (auto it = src.find("// clang: "); it != std::string::npos) {
-		std::string_view new_flags{src.begin() + sizeof("// clang: ") - 1, src.end()};
+		std::string_view new_flags{src.begin() + it + sizeof("// clang: ") - 1, src.end()};
 		auto p = new_flags.find_first_of("\r\n");
 		if (p != std::string::npos) {
 			new_flags = new_flags.substr(0, p);
@@ -133,27 +174,25 @@ static void analysis_test_from_source(std::string src) {
 	// Compile the source code.
 	//
 	auto bin = compile(src, flags.data());
-	auto img = ldr::load_from_memory(bin).value();
 
-	// Create the workspace.
+	// Load the binary.
 	//
-	auto ws		 = analysis::workspace::create();
-	auto machine = arch::instance::lookup(img->arch_hash);
-	auto loader	 = ldr::instance::lookup(img->ldr_hash);
-	RC_ASSERT(loader && machine);
-	fmt::println("-> loader:  ", loader->get_name());
-	fmt::println("-> machine: ", machine->get_name());
+	auto ws	= analysis::workspace::create();
+	auto img = ws->load_image_in_memory(bin).value();
+	fmt::println("-> loader:  ", img->ldr.get_name());
+	fmt::println("-> machine: ", img->arch.get_name());
 
-	// Add entry point symbol if none present, create the domain.
+	// Add entry point symbol if none present.
 	//
 	if (img->symbols.empty()) {
 		img->symbols.push_back({img->base_address, "entry point"});
 	}
-	auto dom = ws->add_image(std::move(img));
-	for (auto& sym : dom->img->symbols) {
+	// whole_program_analysis_test(img);
+
+	for (auto& sym : img->symbols) {
 		if (sym.name.starts_with("_"))
 			continue;
-		auto r = analysis_test(dom, sym.name, sym.rva);
+		auto r = analysis_test(img, sym.name, sym.rva);
 		{
 			size_t n = 0;
 			for (auto& bb : r->blocks) {
@@ -200,7 +239,7 @@ int main(int argv, const char** args) {
 	// Small C file test:
 	//
 	else {
-		std::string test_file = "S:\\Projects\\Retro\\tests\\cc32.c";
+		std::string test_file = "S:\\Projects\\Retro\\tests\\stackanalysis.c";
 		if (argv > 1) {
 			test_file = args[1];
 		}

@@ -1,5 +1,7 @@
 #include <retro/ir/routine.hpp>
 #include <retro/ir/basic_block.hpp>
+#include <retro/analysis/method.hpp>
+#include <retro/analysis/image.hpp>
 
 namespace retro::ir {
 	// Creates or removes a block.
@@ -76,6 +78,17 @@ namespace retro::ir {
 			result += RC_RESET;
 			return result;
 		}
+	}
+
+	// Nested access wrappers.
+	//
+	ref<analysis::image>	 routine::get_image() const {
+		 auto r = method.lock();
+		 return r ? r->img.lock() : nullptr;
+	}
+	ref<analysis::workspace> routine::get_workspace() const {
+		auto r = get_image();
+		return r ? r->ws.lock() : nullptr;
 	}
 
 	// Clear all block references on destruction to prevent an error being raised.

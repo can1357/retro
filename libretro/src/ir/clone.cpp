@@ -65,7 +65,7 @@ namespace retro::ir {
 		new_blk->successors				= blk->successors;
 		for (auto ins : blk->insns()) {
 			auto new_ins = pre_clone(ins, mark);
-			new_ins->block = new_blk;
+			new_ins->bb = new_blk;
 			list::link_before(new_blk->end().get(), new_ins.release());
 		}
 		return new_blk;
@@ -91,11 +91,12 @@ namespace retro::ir {
 	static ref<routine> pre_clone(const routine* rtn, u64 mark) {
 		// Copy basic data.
 		//
-		auto new_rtn			  = make_rc<routine>();
-		new_rtn->ip				  = rtn->ip;
-		new_rtn->method		  = rtn->method;
-		new_rtn->next_blk_name = rtn->next_blk_name;
-		new_rtn->next_ins_name = rtn->next_ins_name;
+		auto new_rtn						 = make_rc<routine>();
+		new_rtn->ip							 = rtn->ip;
+		new_rtn->method					 = rtn->method;
+		new_rtn->next_blk_name			 = rtn->next_blk_name;
+		new_rtn->next_ins_name			 = rtn->next_ins_name;
+		new_rtn->last_cfg_modify_timer = rtn->last_cfg_modify_timer;
 
 		// Copy each basic block.
 		//

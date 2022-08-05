@@ -9,7 +9,7 @@
 #include <retro/robin_hood.hpp>
 
 namespace retro::analysis {
-	struct domain;
+	struct image;
 
 	// IR Phases.
 	//
@@ -58,12 +58,12 @@ namespace retro::analysis {
 	};
 
 	// A method describes a collection of IR routines in different states and
-	// an AST belonging to a single assembly function in the domain.
+	// an AST belonging to a single assembly function in the image.
 	//
 	struct method {
-		// Owning domain.
+		// Owning image.
 		//
-		weak<domain> dom = {};
+		weak<image> img = {};
 
 		// RVA of the method in the image.
 		//
@@ -126,9 +126,9 @@ namespace retro::analysis {
 		unique_task<ir::basic_block*> build_block(u64 rva);
 	};
 
-	// Lifts a new method into the domain at the given RVA, if it does not already exist.
+	// Lifts a new method into the image at the given RVA, if it does not already exist.
 	// - If there is an existing entry with arch/cc matching, returns it, otherwise clears it and lifts from scratch.
 	//
-	ref<method> lift(domain* dom, u64 rva, arch::handle arch = {}, const arch::call_conv_desc* cc = nullptr);
-	ref<method> lift_async(domain* dom, u64 rva, arch::handle arch = {}, const arch::call_conv_desc* cc = nullptr);
+	ref<method> lift(image* img, u64 rva, arch::handle arch = {}, const arch::call_conv_desc* cc = nullptr);
+	ref<method> lift_async(image* img, u64 rva, arch::handle arch = {}, const arch::call_conv_desc* cc = nullptr);
 }

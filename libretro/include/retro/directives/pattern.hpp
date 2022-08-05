@@ -12,19 +12,19 @@ namespace retro::pattern {
 
 	RC_INLINE static ir::insn* write_binop(ir::insn*& i, ir::op op, auto lhs, auto rhs) {
 		auto r = ir::make_binop(op, std::move(lhs), std::move(rhs));
-		auto it = i->block->insert_after(i, std::move(r));
+		auto it = i->bb->insert_after(i, std::move(r));
 		i = it.get();
 		return i;
 	}
 	RC_INLINE static ir::insn* write_cmp(ir::insn*& i, ir::op op, auto lhs, auto rhs) {
 		auto r  = ir::make_cmp(op, std::move(lhs), std::move(rhs));
-		auto it = i->block->insert_after(i, std::move(r));
+		auto it = i->bb->insert_after(i, std::move(r));
 		i		  = it.get();
 		return i;
 	}
 	RC_INLINE static ir::insn* write_unop(ir::insn*& i, ir::op op, auto rhs) {
 		auto r  = ir::make_unop(op, std::move(rhs));
-		auto it = i->block->insert_after(i, std::move(r));
+		auto it = i->bb->insert_after(i, std::move(r));
 		i		  = it.get();
 		return i;
 	}

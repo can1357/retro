@@ -28,6 +28,7 @@
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="include\retro\analysis\callbacks.hpp" />
+    <ClInclude Include="include\retro\analysis\image.hpp" />
     <ClInclude Include="include\retro\analysis\method.hpp" />
     <ClInclude Include="include\retro\analysis\workspace.hpp" />
     <ClInclude Include="include\retro\arch\callconv.hpp" />
@@ -64,7 +65,6 @@
     <ClInclude Include="include\retro\ir\types.hpp" />
     <ClInclude Include="include\retro\ir\value.hpp" />
     <ClInclude Include="include\retro\ir\z3x.hpp" />
-    <ClInclude Include="include\retro\ldr\image.hpp" />
     <ClInclude Include="include\retro\ldr\interface.hpp" />
     <ClInclude Include="include\retro\ldr\pe.hpp" />
     <ClInclude Include="include\retro\list.hpp" />
@@ -92,6 +92,8 @@
     <ClCompile Include="include\retro\directives\identity.d.cxx" />
     <ClCompile Include="include\retro\directives\preferred.d.cxx" />
     <ClCompile Include="src\analysis\lifter.cpp" />
+    <ClCompile Include="src\analysis\workspace.cpp" />
+    <ClCompile Include="src\analysis\x86\mscrt.cpp" />
     <ClCompile Include="src\arch\minsn.cpp" />
     <ClCompile Include="src\arch\x86\sema\arithmetic.cpp" />
     <ClCompile Include="src\arch\x86\sema\conditional.cpp" />

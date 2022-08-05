@@ -614,7 +614,7 @@ namespace retro::z3x {
 				auto rt = i->opr(0).get_const().get<arch::mreg>();
 
 				// For each instruction prior:
-				for (auto i2 : i->block->rslice(i)) {
+				for (auto i2 : i->bb->rslice(i)) {
 					// Break if we hit an instruction with unknown register I/O.
 					if (i2->desc().unk_reg_use)
 						break;
@@ -680,7 +680,7 @@ namespace retro::z3x {
 			// Try fetching from cache.
 			//
 			for (auto& c : vs.write_list) {
-				if (c.first && c.first->block == bb && z3::eq(c.second, expr)) {
+				if (c.first && c.first->bb == bb && z3::eq(c.second, expr)) {
 					return ir::variant(c.first);
 				}
 			}

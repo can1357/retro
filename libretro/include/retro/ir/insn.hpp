@@ -4,6 +4,17 @@
 #include <retro/diag.hpp>
 #include <retro/arch/interface.hpp>
 
+// Forwards.
+namespace retro::analysis {
+	struct image;
+	struct method;
+	struct workspace;
+};
+namespace retro::ir {
+	struct basic_block;
+	struct routine;
+};
+
 namespace retro::ir {
 	// Fake IP value.
 	//
@@ -15,9 +26,9 @@ namespace retro::ir {
 	struct insn final : dyn<insn, value> {
 		// Owning basic block and the linked list entry.
 		//
-		basic_block* block = nullptr;
-		insn*			 prev	 = this;
-		insn*			 next	 = this;
+		basic_block* bb	= nullptr;
+		insn*			 prev = this;
+		insn*			 next = this;
 
 		// Value name.
 		//
@@ -64,7 +75,7 @@ namespace retro::ir {
 		// Returns true if orphan instruction.
 		//
 		bool is_orphan() const {
-			RC_ASSERT(list::is_detached(this) == (block == nullptr));
+			RC_ASSERT(list::is_detached(this) == (bb == nullptr));
 			return list::is_detached(this);
 		}
 
@@ -74,7 +85,7 @@ namespace retro::ir {
 			// Unlink from the linked list.
 			//
 			RC_ASSERT(!is_orphan());
-			block = nullptr;
+			bb = nullptr;
 			list::unlink(this);
 
 			// Parent had a strong reference already, no need to increment anything, simply re-use it.
@@ -123,6 +134,13 @@ namespace retro::ir {
 		// Basic validation.
 		//
 		diag::lazy validate() const;
+
+		// Nested access wrappers.
+		//
+		routine*						 get_routine() const;
+		ref<analysis::method>	 get_method() const;
+		ref<analysis::image>		 get_image() const;
+		ref<analysis::workspace> get_workspace() const;
 
 		// Destroy all operands on destruction.
 		//

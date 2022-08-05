@@ -1,5 +1,6 @@
 #include <retro/analysis/method.hpp>
 #include <retro/analysis/workspace.hpp>
+#include <retro/analysis/image.hpp>
 #include <retro/analysis/callbacks.hpp>
 #include <retro/ir/z3x.hpp>
 
@@ -24,13 +25,13 @@ namespace retro::analysis {
 	//
 	unique_task<ir::basic_block*> method::build_block(u64 rva) {
 		ir::routine* rtn		 = routine[IRP_INIT].get();
-		u64			 img_base = dom->img->base_address;
+		u64			 img_base = img->base_address;
 		u64			 va		 = img_base + rva;
 
 		
 		// Invalid jump if out of image boundaries.
 		//
-		std::span<const u8> data = dom->img->slice(rva);
+		std::span<const u8> data = img->slice(rva);
 		if (data.empty()) {
 			co_return nullptr;
 		}
@@ -164,7 +165,7 @@ namespace retro::analysis {
 					// If we managed to lift both blocks succesfully:
 					//
 					if (bbs[0] && bbs[1]) {
-						bb = term->block;
+						bb = term->bb;
 
 						// Replace with js.
 						//
@@ -193,7 +194,7 @@ namespace retro::analysis {
 					// Lift the target block.
 					//
 					if (auto target = co_await build_block(term->opr(0).const_val.get_u64() - img_base)) {
-						bb = term->block;
+						bb = term->bb;
 
 						// Replace with jmp if successful.
 						//
@@ -215,23 +216,25 @@ namespace retro::analysis {
 		co_return bb;
 	}
 
-	// Lifts a new method into the domain at the given RVA, if it does not already exist.
+	// Lifts a new method into the image at the given RVA, if it does not already exist.
 	// - If there is an existing entry with arch/cc matching, returns it, otherwise clears it and lifts from scratch.
 	//
 	template<bool Async>
-	RC_INLINE static ref<method> lift_impl(domain* dom, u64 rva, arch::handle arch, const arch::call_conv_desc* cc) {
-		arch = arch ? arch : dom->arch;
-		cc = cc ? cc : dom->default_cc;
-		if (!arch || !cc)
+	RC_INLINE static ref<method> lift_impl(image* img, u64 rva, arch::handle arch, const arch::call_conv_desc* cc) {
+		arch = arch ? arch : img->arch;
+		if (!arch)
+			return nullptr;
+		cc = cc ? cc : arch->get_cc_desc(img->default_cc);
+		if (!cc)
 			return nullptr;
 
 		ref<method> m;
 		{
-			std::unique_lock _g{dom->method_map_lock};
+			std::unique_lock _g{img->method_map_lock};
 
 			// Return if there is an exact match.
 			//
-			auto& mfound = dom->method_map[rva];
+			auto& mfound = img->method_map[rva];
 			if (mfound && mfound->cc == cc && mfound->arch == arch) {
 				return mfound;
 			}
@@ -242,7 +245,7 @@ namespace retro::analysis {
 			m->rva  = rva;
 			m->arch = arch;
 			m->cc	  = cc;
-			m->dom  = dom;
+			m->img  = img;
 			mfound  = m;
 		}
 
@@ -251,7 +254,7 @@ namespace retro::analysis {
 		auto rtn					 = make_rc<ir::routine>();
 		m->routine[IRP_INIT] = rtn;
 		rtn->method				 = m;
-		rtn->ip					 = rva + dom->img->base_address;
+		rtn->ip					 = rva + img->base_address;
 
 		auto work = [=]() {
 			// If lifter fails, clear out the routine.
@@ -279,6 +282,6 @@ namespace retro::analysis {
 		return m;
 	}
 
-	ref<method> lift(domain* dom, u64 rva, arch::handle arch, const arch::call_conv_desc* cc) { return lift_impl<false>(dom, rva, arch, cc); }
-	ref<method> lift_async(domain* dom, u64 rva, arch::handle arch, const arch::call_conv_desc* cc) { return lift_impl<true>(dom, rva, arch, cc); }
+	ref<method> lift(image* img, u64 rva, arch::handle arch, const arch::call_conv_desc* cc) { return lift_impl<false>(img, rva, arch, cc); }
+	ref<method> lift_async(image* img, u64 rva, arch::handle arch, const arch::call_conv_desc* cc) { return lift_impl<true>(img, rva, arch, cc); }
 };

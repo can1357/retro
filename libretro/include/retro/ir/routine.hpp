@@ -84,6 +84,11 @@ namespace retro::ir {
 		//
 		std::string to_string(fmt_style s = {}) const;
 
+		// Nested access wrappers.
+		//
+		ref<analysis::image>		 get_image() const;
+		ref<analysis::workspace> get_workspace() const;
+
 		// Clones the routine.
 		//
 		ref<routine> clone() const;

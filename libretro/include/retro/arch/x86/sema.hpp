@@ -212,7 +212,7 @@ namespace retro::arch::x86 {
 		auto* desc = &enum_reflect(r);
 
 		ir::variant value{write->opr(1)};
-		auto push = [&, bb = write->block](ref<ir::insn> ref) -> ir::insn* {
+		auto push = [&, bb = write->bb](ref<ir::insn> ref) -> ir::insn* {
 			write = bb->insert_after(write, std::move(ref));
 			return write;
 		};

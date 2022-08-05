@@ -108,6 +108,12 @@ namespace retro::ir {
 		//
 		diag::lazy validate() const;
 
+		// Nested access wrappers.
+		//
+		ref<analysis::method>	 get_method() const;
+		ref<analysis::image>		 get_image() const;
+		ref<analysis::workspace> get_workspace() const;
+
 		// String conversion and type getter.
 		//
 		std::string to_string(fmt_style s = {}) const override;

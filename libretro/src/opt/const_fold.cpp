@@ -1,6 +1,7 @@
 #include <retro/opt/interface.hpp>
 #include <retro/opt/utility.hpp>
 #include <retro/analysis/method.hpp>
+#include <retro/analysis/image.hpp>
 #include <retro/analysis/workspace.hpp>
 
 namespace retro::ir::opt {
@@ -70,25 +71,22 @@ namespace retro::ir::opt {
 
 				// Skip if no associated image.
 				//
-				auto method = bb->rtn->method.lock();
-				if (!method)
-					continue;
-				auto domain = method->dom.lock();
-				if (!domain)
+				auto img = bb->get_image();
+				if (!img)
 					continue;
 
 				// If RVA maps to a constant section:
 				//
-				u64 rva = adr.get_const().get_u64() - domain->img->base_address;
-				auto scn = domain->img->find_section(rva);
+				u64 rva = adr.get_const().get_u64() - img->base_address;
+				auto scn = img->find_section(rva);
 				if (scn && !scn->write) {
-					auto data = domain->img->slice(rva);
+					auto data = img->slice(rva);
 
 					ir::constant value;
 					if (ins->template_types[0] == ir::type::pointer) {
 						auto arch = ins->arch;
 						if (!arch)
-							arch = domain->arch;
+							arch = img->arch;
 						if (arch) {
 							u8 ptrbytes = arch->get_pointer_width() / 8;
 							if (data.size() >= ptrbytes) {

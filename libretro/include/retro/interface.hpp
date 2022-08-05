@@ -62,6 +62,17 @@ namespace retro::interface {
 		explicit constexpr operator bool() const { return value != 0; }
 		constexpr			 operator T*() const { return get(); }
 
+		// Getters.
+		//
+		RC_CONST std::string_view get_name() const {
+			auto p = get();
+			return p ? p->get_name() : "[null-instance]";
+		}
+		RC_CONST hash get_hash() const {
+			auto p = get();
+			return p ? p->get_hash() : 0;
+		}
+
 		// Dynamic cast.
 		//
 		template<typename X>
@@ -78,13 +89,7 @@ namespace retro::interface {
 
 		// String conversion.
 		//
-		std::string_view to_string() const {
-			if (T* ptr = get()) {
-				return ptr->get_name();
-			} else {
-				return "[null-instance]";
-			}
-		}
+		std::string_view to_string() const { return get_name(); }
 	};
 
 	// Base class.

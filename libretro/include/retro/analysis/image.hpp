@@ -2,11 +2,16 @@
 #include <retro/common.hpp>
 #include <retro/dyn.hpp>
 #include <retro/arch/callconv.hpp>
+#include <retro/arch/interface.hpp>
+#include <retro/ldr/interface.hpp>
+#include <retro/interface.hpp>
+#include <retro/robin_hood.hpp>
+#include <retro/lock.hpp>
 #include <string>
 #include <vector>
 #include <variant>
 
-namespace retro::ldr {
+namespace retro::analysis {
 	// Image kind.
 	//
 	enum class image_kind : u8 {
@@ -97,32 +102,29 @@ namespace retro::ldr {
 
 	// Image type.
 	//
+	struct workspace;
+	struct method;
 	struct image final {
-		// Base address.
+		// Owning workspace.
 		//
-		u64 base_address = 0;
+		weak<workspace> ws = {};
 
-		// Raw data as mapped to memory.
+		// Image name and kind if known.
 		//
-		std::vector<u8> raw_data = {};
+		std::string name = {};
+		image_kind	kind = image_kind::unknown;
 
-		// Image name if known.
+		// Base address and raw data as it would be mapped in memory.
 		//
-		std::string image_name = {};
+		u64				 base_address = 0;
+		std::vector<u8> raw_data	  = {};
 
-		// Kind of image.
+		// Identified loader, architecture, ABI and environment details.
 		//
-		image_kind kind = image_kind::unknown;
-
-		// Identified loader and architecture.
-		//
-		interface::hash ldr_hash  = 0;
-		interface::hash arch_hash = 0;
-
-		// ABI and environment details.
-		//
+		ldr::handle		 ldr			= {};
+		arch::handle	 arch			= {};
+		arch::call_conv default_cc = arch::call_conv::unknown;
 		bool				 env_privileged = false;
-		arch::call_conv default_call_conv = arch::call_conv::unknown;
 
 		// Descriptor tables.
 		// - Sorted by RVA, use insert_into_rva_set for insertion.
@@ -135,6 +137,22 @@ namespace retro::ldr {
 		// - Unordered, first entry should be main() or equivalent.
 		//
 		std::vector<u64> entry_points = {};
+
+		// Method table.
+		// - RVA -> Method.
+		//
+		mutable rw_lock				 method_map_lock = {};
+		flat_umap<u64, ref<method>> method_map		  = {};
+
+		// Observers.
+		//
+		ref<method> lookup_method(u64 rva) const {
+			std::shared_lock _g{method_map_lock};
+			if (auto it = method_map.find(rva); it != method_map.end()) {
+				return it->second;
+			}
+			return nullptr;
+		}
 
 		// Finds a section entry given an RVA.
 		//
