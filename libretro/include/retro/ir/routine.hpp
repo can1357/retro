@@ -51,6 +51,12 @@ namespace retro::ir {
 		//
 		basic_block* get_entry() const { return blocks.empty() ? nullptr : blocks.front().get(); }
 
+		// Gets a list of terminators.
+		//
+		auto terminators() const {
+			return blocks | view::filter([e = get_entry()](auto& bb) { return (bb.get() == e || !bb->predecessors.empty()) && bb->successors.empty(); });
+		}
+
 		// Creates or removes a block.
 		//
 		basic_block* add_block();
