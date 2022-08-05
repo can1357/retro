@@ -168,49 +168,17 @@ namespace retro::ir {
 				}
 			}
 		}
-		template<typename T>
-		constant(type t, T value) : constant(i64(value)) {
-			// TODO: vector broadcast.
-			type_id = (u64) t;
-			switch (t) {
-				case type::i1:
-					std::construct_at((bool*) &data, (value & 1) != 0);
-					data_length = 1;
-					break;
-				case type::i8:
-					data_length = 1;
-					break;
-				case type::i16:
-					data_length = 2;
-					break;
-				case type::i32:
-					data_length = 4;
-					break;
-				case type::pointer:
-				case type::i64:
-					data_length = 8;
-					break;
-				case type::i128: {
-					data_length = 16;
-					if constexpr (std::is_signed_v<T>)
-						std::construct_at((i128*) &data, i128{.low = value, .high = value >= 0 ? 0 : -1});
-					else
-						std::construct_at((u128*) &data, u128{.low = value, .high = 0});
-					break;
-				}
-				case type::f32:
-					data_length = 4;
-					std::construct_at((f32*) &data, f32(value));
-					break;
-				case type::f64:
-					data_length = 8;
-					std::construct_at((f64*) &data, f64(value));
-					break;
-				default:
-					fmt::abort("invalid constant cast");
-					break;
-			}
-		}
+		constant(type t, f32 value);
+		constant(type t, f64 value);
+		constant(type t, u64 value);
+		constant(type t, i64 value);
+		constant(type t, i32 value) : constant(t, i64(value)) {}
+		constant(type t, u32 value) : constant(t, u64(value)) {}
+		constant(type t, i16 value) : constant(t, i64(value)) {}
+		constant(type t, u16 value) : constant(t, u64(value)) {}
+		constant(type t, i8 value) : constant(t, i64(value)) {}
+		constant(type t, u8 value) : constant(t, u64(value)) {}
+		constant(type t, bool value) : constant(t, value ? 1u : 0u) {}
 
 		// Copy construction and assignment.
 		//

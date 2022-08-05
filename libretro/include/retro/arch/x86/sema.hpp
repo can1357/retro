@@ -347,7 +347,7 @@ namespace retro::arch::x86 {
 		//
 		if (m.base == reg::rip) {
 			m.base = reg::none;
-			m.disp += (i64) ip;
+			m.disp += (i64) ip + ins.length;
 		}
 
 		// [base+...]

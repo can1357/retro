@@ -356,4 +356,93 @@ namespace retro::ir {
 			return visit_valid([&]<typename T>(type_tag<T>) { return std::string{fmt::to_str(get<T>())}; }, get_type());
 		}
 	}
+
+
+	// Typed construction.
+	//
+	template<typename T>
+	static void init_const(constant* c, type t, T value) {
+		c->type_id = (u64) t;
+		switch (t) {
+			case type::i1:
+				std::construct_at((bool*) &c->data[0], (i8(value) & 1) != 0);
+				c->data_length = 1;
+				break;
+			case type::i8:
+				std::construct_at((i8*) &c->data[0], i8(value));
+				c->data_length = 1;
+				break;
+			case type::i16:
+				std::construct_at((i16*) &c->data[0], i16(value));
+				c->data_length = 2;
+				break;
+			case type::i32:
+				std::construct_at((i32*) &c->data[0], i32(value));
+				c->data_length = 4;
+				break;
+			case type::pointer:
+			case type::i64:
+				std::construct_at((i64*) &c->data[0], i64(value));
+				c->data_length = 8;
+				break;
+			case type::i128: {
+				if constexpr (std::is_signed_v<T>)
+					std::construct_at((i128*) &c->data[0], i128{.low = i64(value), .high = i64(value) >= 0 ? 0 : -1});
+				else
+					std::construct_at((u128*) &c->data[0], u128{.low = u64(value), .high = 0});
+				c->data_length = 16;
+				break;
+			}
+			case type::f32:
+				std::construct_at((f32*) &c->data[0], f32(value));
+				c->data_length = 4;
+				break;
+			case type::f64:
+				std::construct_at((f64*) &c->data[0], f64(value));
+				c->data_length = 8;
+				break;
+
+				
+			#define DEF_VECTOR(VT, PT)                           \
+	case type::VT: {                                  \
+		VT* ptr = (VT*) &c->data[0];                   \
+		if constexpr (sizeof(VT) <= sizeof(c->data)) { \
+			c->ptr = operator new(sizeof(VT));          \
+			ptr	 = (VT*) c->ptr;                      \
+		}                                              \
+		c->data_length = sizeof(VT);                   \
+		ptr->fill(PT(value));                          \
+		break;                                         \
+	}
+			DEF_VECTOR(f64x8,  f64)
+			DEF_VECTOR(f64x4,  f64)
+			DEF_VECTOR(f64x2,  f64)
+			DEF_VECTOR(i64x8,  i64)
+			DEF_VECTOR(i64x4,  i64)
+			DEF_VECTOR(i64x2,  i64)
+			DEF_VECTOR(f32x16, f32)
+			DEF_VECTOR(f32x8,  f32)
+			DEF_VECTOR(f32x4,  f32)
+			DEF_VECTOR(f32x2,  f32)
+			DEF_VECTOR(i32x16, i32)
+			DEF_VECTOR(i32x8,  i32)
+			DEF_VECTOR(i32x4,  i32)
+			DEF_VECTOR(i32x2,  i32)
+			DEF_VECTOR(i16x32, i16)
+			DEF_VECTOR(i16x16, i16)
+			DEF_VECTOR(i16x8,  i16)
+			DEF_VECTOR(i16x4,  i16)
+			DEF_VECTOR(i8x64,  i8)
+			DEF_VECTOR(i8x32,  i8)
+			DEF_VECTOR(i8x16,  i8)
+			DEF_VECTOR(i8x8,   i8)
+			default:
+				fmt::abort("invalid constant cast");
+				break;
+		}
+	}
+	constant::constant(type t, f32 value) : constant() { init_const(this, t, value); }
+	constant::constant(type t, f64 value) : constant() { init_const(this, t, value); }
+	constant::constant(type t, u64 value) : constant() { init_const(this, t, value); }
+	constant::constant(type t, i64 value) : constant() { init_const(this, t, value); }
 };
