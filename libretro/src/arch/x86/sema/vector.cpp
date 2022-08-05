@@ -259,6 +259,38 @@ DECL_SEMA(PSUBW) { return vector_op<ir::op::sub, ir::type::i16x8>(sema_context()
 DECL_SEMA(PSUBD) { return vector_op<ir::op::sub, ir::type::i32x4>(sema_context()); }
 DECL_SEMA(PSUBQ) { return vector_op<ir::op::sub, ir::type::i64x2>(sema_context()); }
 
+// Scalar compare.
+//
+template<ir::type TyVec, ir::type TyPiece>
+static diag::lazy scalar_compare(SemaContext) {
+	ir::variant src;
+	if (ins.op[1].type == arch::mop_type::reg) {
+		auto srcv = read(sema_context(), 1, TyVec);
+		src		 = bb->push_extract(TyPiece, std::move(srcv), 0);
+	} else {
+		src = read(sema_context(), 1, TyPiece);
+	}
+
+	auto dst	  = read(sema_context(), 0, TyVec);
+	auto piece = bb->push_extract(TyPiece, dst, 0);
+
+	// TODO: Ignoring unordered!
+
+	// ZF = EQ || Unordered
+	bb->push_write_reg(reg::flag_zf, bb->push_cmp(ir::op::eq, piece, src));
+	// PF = Unordered
+	bb->push_write_reg(reg::flag_pf, false);
+	// CF = LT || Unordered
+	bb->push_write_reg(reg::flag_cf, bb->push_cmp(ir::op::lt, piece, src));
+	// OF AF SF = 0
+	bb->push_write_reg(reg::flag_af, false);
+	bb->push_write_reg(reg::flag_of, false);
+	bb->push_write_reg(reg::flag_sf, false);
+	return diag::ok;
+}
+DECL_SEMA(COMISD) { return scalar_compare<ir::type::f32x4, ir::type::f32>(sema_context()); }
+DECL_SEMA(COMISS) { return scalar_compare<ir::type::f64x2, ir::type::f64>(sema_context()); }
+
 // TODO:
 // RCP
 // RSQRT
@@ -266,6 +298,4 @@ DECL_SEMA(PSUBQ) { return vector_op<ir::op::sub, ir::type::i64x2>(sema_context()
 // ROUND
 // SHUFPD
 // BROADCAST
-// COMISD
-// COMISS
 // P...
