@@ -36,16 +36,16 @@ width = 80
 type  = "@ir::type.f80"
 [reg_kind.simd64]
 width = 64
-type  = "@ir::type.i8x8"
+type  = "@ir::type.i32x2"
 [reg_kind.simd128]
 width = 128
-type  = "@ir::type.i8x16"
+type  = "@ir::type.i32x4"
 [reg_kind.simd256]
 width = 256
-type  = "@ir::type.i8x32"
+type  = "@ir::type.i32x8"
 [reg_kind.simd512]
 width = 512
-type  = "@ir::type.i8x64"
+type  = "@ir::type.i32x16"
 
 # Pointer registers.
 #

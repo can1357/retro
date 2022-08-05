@@ -12,13 +12,13 @@ DECL_SEMA(XORPS) {
 	// Pattern: [xorps reg, reg] <=> [mov reg, {0....}]
 	if (ins.op[0].type == arch::mop_type::reg && ins.op[1].type == arch::mop_type::reg) {
 		if (ins.op[0].r == ins.op[1].r) {
-			write_reg(sema_context(), ins.op[0].r, ir::constant(i8x16{0}));
+			write_reg(sema_context(), ins.op[0].r, ir::constant(i32x4{0}));
 			return diag::ok;
 		}
 	}
 
-	auto lhs = read(sema_context(), 0, ir::type::i8x16);
-	auto rhs = read(sema_context(), 1, ir::type::i8x16);
+	auto lhs = read(sema_context(), 0, ir::type::i32x4);
+	auto rhs = read(sema_context(), 1, ir::type::i32x4);
 	auto res = bb->push_binop(ir::op::bit_xor, lhs, rhs);
 	write(sema_context(), 0, res);
 	return diag::ok;
@@ -27,8 +27,8 @@ DECL_SEMA(XORPD) { return lift_XORPS(sema_context()); }
 DECL_SEMA(PXOR) { return lift_XORPS(sema_context()); }
 
 DECL_SEMA(ANDPS) {
-	auto lhs = read(sema_context(), 0, ir::type::i8x16);
-	auto rhs = read(sema_context(), 1, ir::type::i8x16);
+	auto lhs = read(sema_context(), 0, ir::type::i32x4);
+	auto rhs = read(sema_context(), 1, ir::type::i32x4);
 	auto res = bb->push_binop(ir::op::bit_and, lhs, rhs);
 	write(sema_context(), 0, res);
 	return diag::ok;
@@ -37,8 +37,8 @@ DECL_SEMA(ANDPD) { return lift_ANDPS(sema_context()); }
 DECL_SEMA(PAND) { return lift_ANDPS(sema_context()); }
 
 DECL_SEMA(ANDNPS) {
-	auto lhs = read(sema_context(), 0, ir::type::i8x16);
-	auto rhs = read(sema_context(), 1, ir::type::i8x16);
+	auto lhs = read(sema_context(), 0, ir::type::i32x4);
+	auto rhs = read(sema_context(), 1, ir::type::i32x4);
 	auto res = bb->push_binop(ir::op::bit_and, bb->push_unop(ir::op::bit_not, lhs), rhs);
 	write(sema_context(), 0, res);
 	return diag::ok;
@@ -47,8 +47,8 @@ DECL_SEMA(ANDNPD) { return lift_ANDNPS(sema_context()); }
 DECL_SEMA(PANDN) { return lift_ANDNPS(sema_context()); }
 
 DECL_SEMA(ORPS) {
-	auto lhs = read(sema_context(), 0, ir::type::i8x16);
-	auto rhs = read(sema_context(), 1, ir::type::i8x16);
+	auto lhs = read(sema_context(), 0, ir::type::i32x4);
+	auto rhs = read(sema_context(), 1, ir::type::i32x4);
 	auto res = bb->push_binop(ir::op::bit_or, lhs, rhs);
 	write(sema_context(), 0, res);
 	return diag::ok;
@@ -153,9 +153,9 @@ DECL_SEMA(MOVQ) {
 // Vector test.
 //
 DECL_SEMA(PTEST) {
-	constexpr auto ty	 = ir::type::i8x16;
+	constexpr auto ty	 = ir::type::i32x4;
 
-	i8x16 vzero{0};
+	i32x4 vzero{0};
 	auto	src	= read(sema_context(), 0, ty);
 	auto	dst	= read(sema_context(), 1, ty);
 	auto	vand	= bb->push_binop(ir::op::bit_and, src, dst);

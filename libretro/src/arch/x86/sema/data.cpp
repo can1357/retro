@@ -448,11 +448,11 @@ static constexpr std::tuple<ir::intrinsic, ir::intrinsic, ir::type> nt_traits(u3
 		case 64:
 			return {ir::intrinsic::storenontemporal64, ir::intrinsic::loadnontemporal64, ir::type::i64};
 		case 128:
-			return {ir::intrinsic::storenontemporal128, ir::intrinsic::loadnontemporal128, ir::type::i8x16};
+			return {ir::intrinsic::storenontemporal128, ir::intrinsic::loadnontemporal128, ir::type::i32x4};
 		case 256:
-			return {ir::intrinsic::storenontemporal256, ir::intrinsic::loadnontemporal256, ir::type::i8x32};
+			return {ir::intrinsic::storenontemporal256, ir::intrinsic::loadnontemporal256, ir::type::i32x8};
 		case 512:
-			return {ir::intrinsic::storenontemporal512, ir::intrinsic::loadnontemporal512, ir::type::i8x64};
+			return {ir::intrinsic::storenontemporal512, ir::intrinsic::loadnontemporal512, ir::type::i32x16};
 		default:
 			RC_UNREACHABLE();
 	}

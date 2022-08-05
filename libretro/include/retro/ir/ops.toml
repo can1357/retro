@@ -309,15 +309,15 @@ ret =    "@type.i64"
 [intrinsic.loadnontemporal128]
 symbol = "__builtin_load_nontemporal128"
 args =   ["@type.pointer"]
-ret =    "@type.i8x16"
+ret =    "@type.i32x4"
 [intrinsic.loadnontemporal256]
 symbol = "__builtin_load_nontemporal256"
 args =   ["@type.pointer"]
-ret =    "@type.i8x32"
+ret =    "@type.i32x8"
 [intrinsic.loadnontemporal512]
 symbol = "__builtin_load_nontemporal512"
 args =   ["@type.pointer"]
-ret =    "@type.i8x64"
+ret =    "@type.i32x16"
 [intrinsic.storenontemporal8]
 symbol = "__builtin_store_nontemporal8"
 args =   ["@type.pointer", "@type.i8"]
@@ -336,15 +336,15 @@ args =   ["@type.pointer", "@type.i64"]
 RET =    "@type.none"
 [intrinsic.storenontemporal128]
 symbol = "__builtin_store_nontemporal128"
-args =   ["@type.pointer", "@type.i8x16"]
+args =   ["@type.pointer", "@type.i32x4"]
 RET =    "@type.none"
 [intrinsic.storenontemporal256]
 symbol = "__builtin_store_nontemporal256"
-args =   ["@type.pointer", "@type.i8x32"]
+args =   ["@type.pointer", "@type.i32x8"]
 RET =    "@type.none"
 [intrinsic.storenontemporal512]
 symbol = "__builtin_store_nontemporal512"
-args =   ["@type.pointer", "@type.i8x64"]
+args =   ["@type.pointer", "@type.i32x16"]
 RET =    "@type.none"
 
 [intrinsic.readcyclecounter]
