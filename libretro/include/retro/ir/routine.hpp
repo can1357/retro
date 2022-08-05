@@ -86,7 +86,7 @@ namespace retro::ir {
 
 		// Nested access wrappers.
 		//
-		ref<core::image>		 get_image() const;
+		ref<core::image>		get_image() const;
 		ref<core::workspace> get_workspace() const;
 
 		// Clones the routine.

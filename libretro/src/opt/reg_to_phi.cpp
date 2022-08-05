@@ -2,7 +2,6 @@
 #include <retro/opt/utility.hpp>
 
 namespace retro::ir::opt::p0 {
-
 	// The following algorithm is a modified version adapted from the paper:
 	// Braun, M., Buchwald, S., Hack, S., Leißa, R., Mallon, C., Zwinkau, A. (2013). Simple and Efficient Construction of Static Single Assignment Form.
 	// In: Jhala, R., De Bosschere, K. (eds) Compiler Construction. CC 2013. Lecture Notes in Computer Science, vol 7791. Springer, Berlin, Heidelberg.

@@ -137,9 +137,9 @@ namespace retro::ir {
 
 		// Nested access wrappers.
 		//
-		routine*						 get_routine() const;
-		ref<core::method>	 get_method() const;
-		ref<core::image>		 get_image() const;
+		routine*					get_routine() const;
+		ref<core::method>		get_method() const;
+		ref<core::image>		get_image() const;
 		ref<core::workspace> get_workspace() const;
 
 		// Destroy all operands on destruction.

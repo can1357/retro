@@ -110,8 +110,8 @@ namespace retro::ir {
 
 		// Nested access wrappers.
 		//
-		ref<core::method>	 get_method() const;
-		ref<core::image>		 get_image() const;
+		ref<core::method>		get_method() const;
+		ref<core::image>		get_image() const;
 		ref<core::workspace> get_workspace() const;
 
 		// String conversion and type getter.

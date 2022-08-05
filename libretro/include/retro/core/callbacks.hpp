@@ -17,7 +17,7 @@ namespace retro::core {
 
 	// Notifications invoked on creation of an XCALL instruction.
 	//
-	inline notification_list<ir::insn*> on_irp_init_xcall = {};
+	inline handler_list<ir::insn*> on_irp_init_xcall = {};
 
 	// Notified when an IRP is complete.
 	//

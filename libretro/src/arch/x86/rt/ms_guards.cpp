@@ -54,12 +54,39 @@ static constexpr u8 alloca_probe_i386[] = {
 	 0xEB, 0xE9							  //  jmp     short loc_4010B4
 };
 
+// Removes retpoline artifacts.
+//
+RC_INSTALL_CB(on_irp_init_xcall, retpoline_remove, ir::insn* i) {
+	auto method = i->get_method();
+	if (method->arch.get_hash() != x86_64 || method->img->abi_name != "ms")
+		return false;
+
+	// If address is constant:
+	//
+	if (i->opr(0).is_const()) {
+		static constexpr u8 sample[] = {0x48, 0x83, 0xC4, 0x08}; // add rsp, 8
+
+		// If data matches:
+		//
+		auto va	 = (u64) i->opr(0).get_const().get<ir::pointer>();
+		auto data = method->img->slice(va - method->img->base_address);
+		if (data.size() > sizeof(sample) && !memcmp(data.data(), sample, sizeof(sample))) {
+			// Replace with a XJMP, change the destination to skip the stack pointer change.
+			//
+			i->op = ir::opcode::xjmp;
+			i->opr(0) = va + sizeof(sample);
+			return true;
+		}
+	}
+	return false;
+}
+
 // Removes __guard_dispatch_icall_fptr artifacts.
 //
 RC_INSTALL_CB(on_irp_init_xcall, cfg_remove, ir::insn* i) {
 	auto method = i->get_method();
 	if (!method->arch->is<x86arch>() || method->img->abi_name != "ms")
-		return;
+		return false;
 
 	// Pick register.
 	//
@@ -79,16 +106,16 @@ RC_INSTALL_CB(on_irp_init_xcall, cfg_remove, ir::insn* i) {
 	//
 	auto& target = i->opr(0);
 	if (target.is_const())
-		return;
+		return false;
 	auto* ins = target.get_value()->get_if<ir::insn>();
 	if (!ins || ins->op != ir::opcode::load_mem)
-		return;
+		return false;
 
 	// Skip if address is not constant.
 	//
 	auto& adr = ins->opr(0);
 	if (!adr.is_const())
-		return;
+		return false;
 
 	// Lookup the symbol, if it matches __guard_dispatch_icall_fptr:
 	//
@@ -101,6 +128,7 @@ RC_INSTALL_CB(on_irp_init_xcall, cfg_remove, ir::insn* i) {
 		auto regv = i->bb->insert(i, ir::make_read_reg(ir::type::pointer, reg));
 		target	 = regv.get();
 	}
+	return false;
 }
 
 // Removes __alloca_probe artifacts.
@@ -108,7 +136,7 @@ RC_INSTALL_CB(on_irp_init_xcall, cfg_remove, ir::insn* i) {
 RC_INSTALL_CB(on_irp_init_xcall, stack_probe_remove, ir::insn* i) {
 	auto method = i->get_method();
 	if (!method->arch->is<x86arch>() || method->img->abi_name != "ms")
-		return;
+		return false;
 
 	// Get the relavant sample.
 	//
@@ -133,6 +161,8 @@ RC_INSTALL_CB(on_irp_init_xcall, stack_probe_remove, ir::insn* i) {
 		auto data = method->img->slice(va - method->img->base_address);
 		if (data.size() > sample.size() && !memcmp(data.data(), sample.data(), sample.size())) {
 			i->op = ir::opcode::nop;
+			return true;
 		}
 	}
+	return false;
 }
