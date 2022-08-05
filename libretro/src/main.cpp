@@ -186,12 +186,404 @@ static std::vector<u8> compile(std::string code, const char* args) {
 
 #include <retro/robin_hood.hpp>
 
-static void phase0(ref<ir::routine> rtn) {
-	auto dom = rtn->method->img.get();
 
-	// TODO: Detect tail call.
-	// TODO: Call $0 => push jmp.
-	// TODO: Call x -> x: add rsp, 8 -> push jmp for retpoline
+
+#include <execution>
+
+#include <retro/arch/x86/regs.hxx>
+#include <retro/arch/x86/callconv.hpp>
+
+struct save_slot_analysis {
+	arch::mreg reg					= {};
+	size_t	  num_validations = 0;
+	ir::insn*  save_point		= nullptr;
+};
+
+static void msabi_x64_stack_analysis(ir::routine* rtn) {
+
+	core::irp_init_analysis result = {};
+
+	std::optional<i64>									 rbp_offset, rbx_offset;
+	flat_umap<i64, save_slot_analysis> save_slots = {};
+
+	// Get the prologue.
+	//
+	auto* prologue = rtn->get_entry();
+
+	// Make an expression representing the initial stack pointer.
+	//
+	z3x::variable_set vs = {};
+	z3::context&		ctx = z3x::get_context();
+	z3::expr				sp_0_expr = {ctx};
+	for (ir::insn* i : prologue->insns()) {
+		if (i->op == ir::opcode::stack_begin) {
+			sp_0_expr = vs.emplace(ctx, i);
+			break;
+		}
+	}
+	RC_ASSERT(z3x::ok(sp_0_expr));
+
+	// Determine the save slots and possible frame register from the prologue.
+	//
+	auto pty = ir::int_type(prologue->arch->get_pointer_width());
+	for (ir::insn* i : prologue->insns()) {
+		// Memory writes:
+		//
+		if (i->op == ir::opcode::store_mem) {
+			auto sp_delta = z3x::to_expr(vs, ctx, i->opr(0)) - sp_0_expr;
+			auto cval	  = z3x::value_of(sp_delta, true);
+			if (!cval.is<void>()) {
+				if (i->opr(1).is_value()) {
+					if (auto i2 = i->opr(1).get_value()->get_if<ir::insn>(); i2 && i2->op == ir::opcode::read_reg) {
+						auto& si				 = save_slots[cval.get_i64()];
+						si.reg				 = i2->opr(0).const_val.get<arch::mreg>();
+						si.save_point		 = i;
+						si.num_validations = 0;
+					}
+				}
+			}
+			// Non-stack memory write, end of epilogue.
+			else {
+				break;
+			}
+		}
+		// Memory reads:
+		//
+		else if (i->op == ir::opcode::load_mem) {
+			auto sp_delta = z3x::to_expr(vs, ctx, i->opr(0)) - sp_0_expr;
+			auto cval	  = z3x::value_of(sp_delta, true);
+			// Non-stack memory read, end of epilogue.
+			if (cval.is<void>()) {
+				break;
+			}
+		}
+		// Register writes:
+		//
+		else if (i->op == ir::opcode::write_reg) {
+			auto reg = i->opr(0).const_val.get<arch::mreg>();
+			if (reg == arch::x86::reg::rbp || reg == arch::x86::reg::rbx) {
+				if (i->template_types[0] == pty || i->template_types[0] == ir::type::pointer) {
+					auto sp_delta = z3x::to_expr(vs, ctx, i->opr(1)) - sp_0_expr;
+					auto cval	  = z3x::value_of(sp_delta, true);
+					if (!cval.is<void>()) {
+						if (reg == arch::x86::reg::rbp) {
+							rbp_offset = cval.get_i64();
+						} else if (reg == arch::x86::reg::rbx) {
+							rbx_offset = cval.get_i64();
+						}
+					}
+				}
+			}
+		}
+		// Instruction with side effect, end of epilogue.
+		//
+		else if (i->desc().side_effect) {
+			break;
+		}
+	}
+
+	// For each epilogue:
+	//
+	size_t num_epi = 0;
+	for (auto& epilogue : rtn->terminators()) {
+		// Skip if not terminated or does not end with xret.
+		//
+		auto term = epilogue->terminator();
+		if (!term || term->op != ir::opcode::xret)
+			continue;
+		num_epi++;
+
+		// Make an expression representing the final stack pointer.
+		//
+		auto sp_0_expr = z3x::to_expr(vs, ctx, term->opr(0));
+		RC_ASSERT(z3x::ok(sp_0_expr));
+
+		for (auto i : epilogue->rslice(term)) {
+			//fmt::println(i->to_string());
+
+			// Register writes:
+			//
+			if (i->op == ir::opcode::write_reg) {
+				auto reg = i->opr(0).const_val.get<arch::mreg>();
+
+				if (i->opr(1).is_value()) {
+					if (auto i2 = i->opr(1).get_value()->get_if<ir::insn>(); i2 && i2->op == ir::opcode::load_mem) {
+
+						auto sp_pos	  = z3x::to_expr(vs, ctx, i2->opr(0));
+						auto sp_delta = sp_pos - sp_0_expr;
+						auto cval	  = z3x::value_of(sp_delta, true);
+						if (!cval.is<void>()) {
+							auto off = save_slots.find(cval.get_i64());
+							if (off != save_slots.end() && off->second.reg == reg) {
+								off->second.num_validations++;
+							}
+						}
+					}
+				}
+
+			}
+			// Instruction with side effect, end of epilogue.
+			//
+			else if (i->desc().side_effect) {
+				break;
+			}
+		}
+	}
+
+	// Write save slot information.
+	//
+	for (auto& [slot, data] : save_slots) {
+		// Skip if not appropriately validated.
+		//
+		if (data.num_validations != num_epi) {
+			fmt::printf(
+				 "---> [INVALID] %s = SP[%s] (%llu/%llu validations)\n", data.reg.to_string(rtn->get_image()->arch).c_str(), fmt::to_str(slot).c_str(), data.num_validations, num_epi);
+
+
+			// TODO: Probably allocating space, OK to NOP?:
+			data.save_point->op = ir::opcode::nop;
+			continue;
+		}
+
+		// Save the information.
+		//
+		result.save_area_layout.emplace(slot, data.reg);
+		fmt::printf("---> %s = SP[%s] (%llu/%llu validations)\n", data.reg.to_string(rtn->get_image()->arch).c_str(), fmt::to_str(slot).c_str(), data.num_validations, num_epi);
+
+		// Nop-out the save instruction.
+		//
+		data.save_point->op = ir::opcode::nop;
+	}
+
+	// Now validating frame registers:
+	//
+	bool rbp_valid = false, rbx_valid = false;
+	for (auto& [slot, reg] : result.save_area_layout) {
+		rbp_valid = rbp_valid || (rbp_offset && reg == arch::x86::reg::rbp);
+		rbx_valid = rbx_valid || (rbx_offset && reg == arch::x86::reg::rbx);
+	}
+	for (auto& bb : rtn->blocks) {
+		if (!bb->successors.empty() && !bb->predecessors.empty()) {
+			for (auto i : bb->insns()) {
+				if (i->op == ir::opcode::write_reg) {
+					auto reg = i->opr(0).const_val.get<arch::mreg>();
+					if (reg == arch::x86::reg::rbp) {
+						rbp_valid = false;
+					} else if (reg == arch::x86::reg::rbx) {
+						rbx_valid = false;
+					}
+				}
+			}
+		}
+	}
+	if (rbp_valid) {
+		result.frame_reg		  = arch::x86::reg::rbp;
+		result.frame_reg_delta = *rbp_offset;
+		fmt::printf("Frame register is RBP, offset: %lld\n", *rbp_offset);
+	} else if (rbx_valid) {
+		result.frame_reg		  = arch::x86::reg::rbx;
+		result.frame_reg_delta = *rbx_offset;
+		fmt::printf("Frame register is RBX, offset: %lld\n", *rbx_offset);
+	} else {
+		fmt::printf("Routine does not use a frame register\n");
+	}
+
+	// There's only one valid calling convention and SP is always callee adjusted, so apply it over all XCALL and XRETs.
+	//
+	auto* cc = &arch::x86::cc_msabi_x86_64;
+	for (auto& bb : rtn->blocks) {
+		bb->erase_if([&](ir::insn* i) {
+			// If XCALL:
+			//
+			if (i->op == ir::opcode::xcall) {
+				// Read all registers.
+				//
+				auto args	  = bb->insert(i, ir::make_undef(ir::type::context));
+				auto push_reg = [&](arch::mreg a) {
+					if (a) {
+						auto val = bb->insert(i, ir::make_read_reg(enum_reflect(a.get_kind()).type, a));
+						args		= bb->insert(i, ir::make_insert_context(args.get(), a, val.get()));
+					}
+				};
+				range::for_each(cc->argument_gpr, push_reg);
+				range::for_each(cc->argument_fp, push_reg);
+				push_reg(cc->fp_varg_counter);
+
+				// Create the call.
+				//
+				auto res		 = bb->insert(i, ir::make_call(i->opr(0), args.get()));
+				auto pop_reg = [&](arch::mreg a) {
+					if (a) {
+						auto& desc = enum_reflect(a.get_kind());
+						auto	val  = bb->insert(i, ir::make_extract_context(desc.type, res.get(), a));
+						i->arch->explode_write_reg(bb->insert(i, ir::make_write_reg(a, val.get())));
+					}
+				};
+
+				// Write back the result.
+				//
+				range::for_each(cc->retval_gpr, pop_reg);
+				range::for_each(cc->retval_fp, pop_reg);
+
+				// Trash arguments that cannot be retvals.
+				//
+				for (auto* aset : {&cc->argument_gpr, &cc->argument_fp}) {
+					auto* oset = aset == &cc->argument_gpr ? &cc->retval_gpr : &cc->retval_fp;
+					for (auto& arg : *aset) {
+						if (!range::find(*oset, arg)) {
+							auto a  = retro::bit_cast<arch::mreg>(arg);
+							auto ty = enum_reflect(a.get_kind()).type;
+							auto ud = bb->insert(i, ir::make_undef(ty));
+							i->arch->explode_write_reg(bb->insert(i, ir::make_write_reg(a, ud.get())));
+						}
+					}
+				}
+
+				// Erase the XCALL.
+				//
+				return true;
+			}
+			// If XRET:
+			//
+			else if (i->op == ir::opcode::xret) {
+				auto args = bb->insert(i, ir::make_undef(ir::type::context));
+
+				// Read the results.
+				//
+				auto push_reg = [&](arch::mreg a) {
+					if (a) {
+						auto val = bb->insert(i, ir::make_read_reg(enum_reflect(a.get_kind()).type, a));
+						args		= bb->insert(i, ir::make_insert_context(args.get(), a, val.get()));
+					}
+				};
+				range::for_each(cc->retval_gpr, push_reg);
+				range::for_each(cc->retval_fp, push_reg);
+
+				// Create the ret.
+				//
+				bb->insert(i, ir::make_ret(i->opr(0), args.get()));
+				return true;
+			}
+			// If stack_reset:
+			//
+			else if (i->op == ir::opcode::stack_reset) {
+				return true;
+			}
+			return false;
+		});
+	}
+
+	// Apply all local optimizations.
+	//
+	for (auto& bb : rtn->blocks) {
+		ir::opt::p0::reg_move_prop(bb);
+		ir::opt::const_fold(bb);
+		ir::opt::id_fold(bb);
+		ir::opt::ins_combine(bb);
+		ir::opt::const_fold(bb);
+		ir::opt::id_fold(bb);
+		// TODO: Cfg optimization
+	}
+	
+	// Convert register use to PHIs, apply local optimizations again.
+	//
+	ir::opt::p0::reg_to_phi(rtn);
+	for (auto& bb : rtn->blocks) {
+		ir::opt::p0::reg_move_prop(bb);
+		ir::opt::const_fold(bb);
+		ir::opt::id_fold(bb);
+		ir::opt::ins_combine(bb);
+		ir::opt::const_fold(bb);
+		ir::opt::id_fold(bb);
+	}
+
+	// Erase insert_context's propagated from entry block.
+	//
+	for (auto& bb : rtn->blocks) {
+		for (auto* i : bb->insns()) {
+			if (i->op == ir::opcode::insert_context) {
+				auto& v = i->opr(2);
+				if (v.is_value()) {
+					if (auto* i2 = v.get_value()->get_if<ir::insn>()) {
+						if (i2->op == ir::opcode::read_reg && (i2->bb != i->bb && i2->bb == rtn->get_entry())) {
+							i->replace_all_uses_with(i->opr(0));
+						}
+					}
+				}
+			}
+		}
+	}
+
+	// Run DCE again.
+	//
+	size_t n= 0;
+	while (true) {
+		size_t m = n;
+		for (auto& bb : rtn->blocks) {
+			n += ir::opt::util::local_dce(bb);
+		}
+		if (m == n)
+			break;
+	}
+
+	// Sort the blocks in topological order and rename all values.
+	//
+	rtn->topological_sort();
+	rtn->rename_blocks();
+	rtn->rename_insns();
+
+	// TODO: min_access
+	// TODO: max_access
+}
+
+
+static void phase0(ref<ir::routine> rtn) {
+
+	// Print disassembly.
+	// -- TODO: DEBUG
+	range::sort(rtn->blocks, [](auto& a, auto& b) { return a->ip < b->ip; });
+	for (auto& bb : rtn->blocks) {
+		auto range = rtn->get_image()->slice(bb->ip - rtn->get_image()->base_address);
+		range = range.subspan(0, bb->end_ip - bb->ip);
+
+		u64 ip = bb->ip;
+		while (!range.empty()) {
+			arch::minsn insn;
+			if (!rtn->get_image()->arch->disasm(range, &insn))
+				break;
+			fmt::println((void*) ip, ":", insn.to_string(ip));
+			ip += insn.length;
+			range = range.subspan(insn.length);
+		}
+	}
+
+	// Apply local optimizations.
+	//
+	for (auto& bb : rtn->blocks) {
+		ir::opt::p0::reg_move_prop(bb);
+		ir::opt::const_fold(bb);
+		ir::opt::id_fold(bb);
+		ir::opt::ins_combine(bb);
+		ir::opt::const_fold(bb);
+		ir::opt::id_fold(bb);
+		// TODO: Cfg optimization
+	}
+
+	// Sort the blocks in topological order and rename all values.
+	//
+	rtn->topological_sort();
+	rtn->rename_blocks();
+	rtn->rename_insns();
+
+	// Print the routine.
+	//
+	//fmt::println(rtn->to_string());
+	msabi_x64_stack_analysis(rtn);
+
+	fmt::println(rtn->to_string());
+
+#if 0
+	auto dom = rtn->method->img.get();
 
 	// Convert XCALL and XRETs.
 	//
@@ -356,7 +748,6 @@ static void phase0(ref<ir::routine> rtn) {
 	rtn->topological_sort();
 	rtn->rename_insns();
 
-#if 0
 	// Map of all registers with offset from SP.
 	//
 	constexpr i32		  no_offset			 = INT32_MAX;
@@ -566,9 +957,7 @@ static ref<ir::routine> analysis_test(core::image* img, const std::string& name,
 	}
 
 	auto clone = rtn->clone();
-	fmt::println(clone->to_string());
-
-	phase0(rtn);
+	phase0(clone);
 	return rtn;
 }
 
@@ -621,37 +1010,7 @@ static void analysis_test_from_source(std::string src) {
 	for (auto& sym : img->symbols) {
 		if (sym.name.starts_with("_"))
 			continue;
-		auto r = analysis_test(img, sym.name, sym.rva);
-		{
-			size_t n = 0;
-			for (auto& bb : r->blocks) {
-				n += ir::opt::p0::reg_move_prop(bb);
-				n += ir::opt::const_fold(bb);
-				n += ir::opt::id_fold(bb);
-				n += ir::opt::ins_combine(bb);
-				n += ir::opt::const_fold(bb);
-				n += ir::opt::id_fold(bb);
-				// TODO: Cfg optimization
-			}
-			/*core::apply_cc_info(r);
-			for (auto& bb : r->blocks) {
-				n += ir::opt::p0::reg_move_prop(bb);
-				n += ir::opt::const_fold(bb);
-				n += ir::opt::id_fold(bb);
-				n += ir::opt::ins_combine(bb);
-				n += ir::opt::const_fold(bb);
-				n += ir::opt::id_fold(bb);
-			}
-			n += ir::opt::p0::reg_to_phi(r);
-			for (auto& bb : r->blocks) {
-				n += ir::opt::const_fold(bb);
-				n += ir::opt::id_fold(bb);
-				n += ir::opt::ins_combine(bb);
-				n += ir::opt::const_fold(bb);
-				n += ir::opt::id_fold(bb);
-			}*/
-		}
-		fmt::println(r->to_string());
+		analysis_test(img, sym.name, sym.rva);
 	}
 }
 

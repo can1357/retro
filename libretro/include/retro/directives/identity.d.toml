@@ -45,6 +45,9 @@ dst = "A"
 [[replace]]
 src = "A<<0"
 dst = "A"
+[[replace]]
+src = "(B^A)^B"
+dst = "A"
 
 # Expressions with constant results.
 #
@@ -80,9 +83,6 @@ src = "A%A"
 dst = "0"
 [[replace]]
 src = "Au%A"
-dst = "0"
-[[replace]]
-src = "A*0"
 dst = "0"
 [[replace]]
 src = "A*0"

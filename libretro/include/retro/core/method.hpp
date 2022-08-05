@@ -53,7 +53,6 @@ namespace retro::core {
 		// Flags.
 		//
 		u32 is_valid : 1	  = false;
-		u32 is_noreturn : 1 = false;
 	};
 
 	// A method describes a collection of IR routines in different states and
