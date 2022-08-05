@@ -274,12 +274,10 @@ static diag::lazy scalar_compare(SemaContext) {
 	auto dst	  = read(sema_context(), 0, TyVec);
 	auto piece = bb->push_extract(TyPiece, dst, 0);
 
-	// TODO: Ignoring unordered!
-
+	// PF = Unordered
+	bb->push_write_reg(reg::flag_pf, bb->push_poison(ir::type::i1, "Unordered comparison NYI"));	 // TODO
 	// ZF = EQ || Unordered
 	bb->push_write_reg(reg::flag_zf, bb->push_cmp(ir::op::eq, piece, src));
-	// PF = Unordered
-	bb->push_write_reg(reg::flag_pf, false);
 	// CF = LT || Unordered
 	bb->push_write_reg(reg::flag_cf, bb->push_cmp(ir::op::lt, piece, src));
 	// OF AF SF = 0

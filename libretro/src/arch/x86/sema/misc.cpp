@@ -467,8 +467,101 @@ DECL_SEMA(LTR) {
 	return diag::ok;
 }
 
+DECL_SEMA(PUSHAD) {
+	constexpr reg reg_list[] = {reg::edi, reg::esi, reg::ebp, reg::esp, reg::ebx, reg::edx, reg::ecx, reg::eax};
+
+	// Read stack pointer, allocate space.
+	//
+	constexpr auto rsp = reg::esp;
+	auto sp	= read_reg(sema_context(), rsp, ir::type::i32);
+	auto nsp = bb->push_binop(ir::op::sub, sp, i32(std::size(reg_list) * 4));
+	write_reg(sema_context(), rsp, nsp);
+
+	// Read and store all registers.
+	//
+	for (size_t i = 0; i != std::size(reg_list); i++) {
+		ir::insn* value = sp;
+		if (reg_list[i] != rsp)
+			value = read_reg(sema_context(), reg_list[i], ir::type::i32);
+
+		auto ptr = bb->push_bitcast(ir::type::pointer, bb->push_binop(ir::op::add, nsp, i32(i * 4)));
+		bb->push_store_mem(ptr, value);
+	}
+	return diag::ok;
+}
+DECL_SEMA(POPAD) {
+	constexpr reg reg_list[] = {reg::edi, reg::esi, reg::ebp, reg::esp, reg::ebx, reg::edx, reg::ecx, reg::eax};
+
+	// Read stack pointer, calculate space after free.
+	//
+	constexpr auto rsp = reg::esp;
+	auto sp	= read_reg(sema_context(), rsp, ir::type::i32);
+	auto nsp = bb->push_binop(ir::op::add, sp, i32(std::size(reg_list) * 4));
+
+	// Load and write all registers.
+	//
+	for (size_t i = 0; i != std::size(reg_list); i++) {
+		if (reg_list[i] != rsp) {
+			auto ptr = bb->push_bitcast(ir::type::pointer, bb->push_binop(ir::op::add, sp, i32(i * 4)));
+			write_reg(sema_context(), reg_list[i], bb->push_load_mem(ir::type::i32, ptr));
+		}
+	}
+
+	// Update stack pointer.
+	//
+	write_reg(sema_context(), rsp, nsp);
+	return diag::ok;
+}
+DECL_SEMA(PUSHA) {
+	constexpr reg reg_list[] = {reg::di, reg::si, reg::bp, reg::sp, reg::bx, reg::dx, reg::cx, reg::ax};
+
+	// Read stack pointer, allocate space.
+	//
+	auto pty = mach->ptr_type();
+	auto rsp = reg_sp(mach);
+	auto sp	= read_reg(sema_context(), rsp, pty);
+	auto nsp = bb->push_binop(ir::op::sub, sp, ir::constant(pty, i32(std::size(reg_list) * 2)));
+	write_reg(sema_context(), rsp, nsp);
+
+	// Read and store all registers.
+	//
+	for (size_t i = 0; i != std::size(reg_list); i++) {
+		ir::insn* value;
+		if (reg_list[i] != reg::sp)
+			value = read_reg(sema_context(), reg_list[i], ir::type::i16);
+		else
+			value = bb->push_cast(ir::type::i16, sp);
+		auto ptr = bb->push_bitcast(ir::type::pointer, bb->push_binop(ir::op::add, nsp, ir::constant(pty, i32(i * 2))));
+		bb->push_store_mem(ptr, value);
+	}
+	return diag::ok;
+}
+DECL_SEMA(POPA) {
+	constexpr reg reg_list[] = {reg::di, reg::si, reg::bp, reg::sp, reg::bx, reg::dx, reg::cx, reg::ax};
+
+	// Read stack pointer, calculate space after free.
+	//
+	auto pty = mach->ptr_type();
+	auto rsp = reg_sp(mach);
+	auto sp	= read_reg(sema_context(), rsp, pty);
+	auto nsp = bb->push_binop(ir::op::add, sp, ir::constant(pty, i32(std::size(reg_list) * 2)));
+
+	// Load and write all registers.
+	//
+	for (size_t i = 0; i != std::size(reg_list); i++) {
+		if (reg_list[i] != reg::sp) {
+			auto ptr = bb->push_bitcast(ir::type::pointer, bb->push_binop(ir::op::add, sp, ir::constant(pty, i32(i * 2))));
+			write_reg(sema_context(), reg_list[i], bb->push_load_mem(ir::type::i16, ptr));
+		}
+	}
+
+	// Update stack pointer.
+	//
+	write_reg(sema_context(), rsp, nsp);
+	return diag::ok;
+}
+
 // TODO: push/popf(_/d/q)
-//       pushad/popad
 //       lahf/sahf
 //       rdrand/rdseed
 //       lsl verr verw
