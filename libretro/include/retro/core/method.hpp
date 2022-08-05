@@ -34,21 +34,21 @@ namespace retro::core {
 
 		// Difference in stack pointer after a call to this function.
 		//
-		i32 stack_delta = 0;
+		i64 stack_delta = 0;
 
 		// Frame register if any used and difference from initial SP.
 		//
 		arch::mreg frame_reg			= {};
-		i32		  frame_reg_delta = 0;
+		i64		  frame_reg_delta = 0;
 
 		// Min/Max of non-indexed accesses.
 		//
-		i32 min_access = 0;
-		i32 max_access = 0;
+		i64 min_access = 0;
+		i64 max_access = 0;
 
 		// Layout of registers saved on the stack frame.
 		//
-		flat_umap<i32, arch::mreg> save_area_layout = {};
+		flat_umap<i64, arch::mreg> save_area_layout = {};
 
 		// Flags.
 		//

@@ -18,7 +18,7 @@ DECL_SEMA(RET) {
 	auto prev_sp = read_reg(sema_context(), rsp, pty);
 
 	// Retptr = [SP]
-	auto* retptr = bb->push_load_mem(ir::type::pointer, bb->push_bitcast(ir::type::pointer, prev_sp));
+	auto* adrretptr = bb->push_bitcast(ir::type::pointer, prev_sp);
 
 	// SP = SP + Imm + sizeof Ptr.
 	i64 sp_delta = mach->ptr_width / 8;
@@ -27,8 +27,8 @@ DECL_SEMA(RET) {
 	auto new_sp = bb->push_binop(ir::op::add, prev_sp, ir::constant(pty, sp_delta));
 	write_reg(sema_context(), rsp, new_sp);
 
-	// XRET(retptr)
-	bb->push_xret(retptr);
+	// XRET(adrretptr)
+	bb->push_xret(adrretptr);
 	return diag::ok;
 }
 DECL_SEMA(LEAVE) {

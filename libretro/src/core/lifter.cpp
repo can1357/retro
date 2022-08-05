@@ -11,7 +11,7 @@ namespace retro::core {
 		if (op.is_const())
 			return &op.const_val;
 		if (auto expr = z3x::to_expr(vs, z3x::get_context(), op)) {
-			if (auto v = z3x::value_of(expr); !v.is<void>()) {
+			if (auto v = z3x::value_of(expr, true); !v.is<void>()) {
 				v = v.bitcast(op.get_type());
 				RC_ASSERT(!v.is<void>());
 				op = std::move(v);
@@ -153,20 +153,11 @@ namespace retro::core {
 			va += ins.length;
 		}
 
-		// Invoke prologue/epilogue callbacks as relevant.
-		//
-		auto* term = bb->terminator();
-		if (bb == rtn->get_entry()) {
-			on_irp_init_prologue(bb);
-		}
-		if (term->op == ir::opcode::xret) {
-			on_irp_init_epilogue(bb);
-		}
-
 		// Try to continue traversal.
 		//
-		auto*					bb_ret = bb;
 		z3x::variable_set vs;
+		auto*					bb_ret = bb;
+		auto*					term = bb->terminator();
 		switch (term->op) {
 			case ir::opcode::xjs: {
 				// If condition cannot be coerced to a constant:

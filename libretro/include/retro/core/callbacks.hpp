@@ -10,11 +10,6 @@ namespace retro::core {
 	//
 	inline handler_list<method*, ir::insn*> indirect_xjmp_resolver = {};
 
-	// Notifications invoked after the lifting of an epilogue/prologue block.
-	//
-	inline notification_list<ir::basic_block*> on_irp_init_prologue = {};
-	inline notification_list<ir::basic_block*> on_irp_init_epilogue = {};
-
 	// Notifications invoked on creation of an XCALL instruction.
 	//
 	inline handler_list<ir::insn*> on_irp_init_xcall = {};
