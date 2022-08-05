@@ -48,12 +48,12 @@ namespace retro::z3x {
 	// Converts from an IR type to a Z3 sort and vice versa.
 	//
 	ir::type						  type_of(const sort& s);
-	sort							  make_sort(context& c, ir::type ty);
+	sort							  make_sort(context& c, ir::type ty, ir::insn* i = nullptr);
 	RC_INLINE static ir::type type_of(const expr& expr) { return expr ? type_of(expr.get_sort()) : ir::type::none; }
 
 	// Converts from an IR constant to Z3 numeral and vice versa.
 	//
-	ir::constant value_of(const expr& expr);
+	ir::constant value_of(const expr& expr, bool coerce = false);
 	expr			 make_value(context& c, const ir::constant& v);
 	expr			 make_value(context& c, const ir::constant& v, u8 lane);
 	bool			 is_value(const expr& expr);
@@ -76,10 +76,10 @@ namespace retro::z3x {
 
 		// Inserts a new variable or fetches it from cache.
 		//
-		expr emplace(context& c, weak<ir::value> v) {
+		expr emplace(context& c, weak<ir::value> v, expr* value = nullptr) {
 			// Return null expression if sort is invalid.
 			//
-			auto ty = make_sort(c, v->get_type());
+			auto ty = make_sort(c, v->get_type(), v->get_if<ir::insn>());
 			if (!ok(ty)) {
 				return c;
 			}
@@ -111,7 +111,7 @@ namespace retro::z3x {
 			//
 			if (i)
 				i->tmp_mapping = idx;
-			return vars.emplace_back(v, c.constant(c.int_symbol(idx), ty)).second;
+			return vars.emplace_back(v, value ? *value : c.constant(c.int_symbol(idx), ty)).second;
 		}
 
 		// Wrapper using get_variable.

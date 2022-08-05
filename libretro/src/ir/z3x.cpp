@@ -361,7 +361,7 @@ namespace retro::z3x {
 		}
 		return ir::type::none;
 	}
-	sort make_sort(context& c, ir::type ty) {
+	sort make_sort(context& c, ir::type ty, ir::insn* i) {
 		switch (ty) {
 			case ir::type::i1:
 				return c.bool_sort();
@@ -382,14 +382,23 @@ namespace retro::z3x {
 			case ir::type::f80:
 				// TODO:
 				return c;
-			default: return c;
+			case ir::type::pointer:
+				if (i && i->arch) {
+					return make_sort(c, ir::int_type(i->arch->get_pointer_width()));
+				}
+				return c;
+			default:
+				return c;
 		}
 	}
 
 	// Converts from an IR constant to Z3 numeral and vice versa.
 	//
-	ir::constant value_of(const expr& expr) {
+	ir::constant value_of(const expr& expr, bool coerce) {
 		if (!is_value(expr)) {
+			if (coerce) {
+				return value_of(expr.simplify(), false);
+			}
 			return std::nullopt;
 		}
 		switch (type_of(expr)) {
@@ -581,7 +590,7 @@ namespace retro::z3x {
 					return z3::ite(cc, lhs, rhs);
 				}
 			} else if (i->op == ir::opcode::cast) {
-				auto into = make_sort(c, i->template_types[1]);
+				auto into = make_sort(c, i->template_types[1], i);
 				auto val	 = to_expr(vs, c, i->opr(0), max_depth);
 				if (ok(into) && ok(val)) {
 					val = cast(val, into);
@@ -590,7 +599,7 @@ namespace retro::z3x {
 					}
 				}
 			} else if (i->op == ir::opcode::cast_sx) {
-				auto into = make_sort(c, i->template_types[1]);
+				auto into = make_sort(c, i->template_types[1], i);
 				auto val	 = to_expr(vs, c, i->opr(0), max_depth);
 				if (ok(into) && ok(val)) {
 					val = cast_sx(val, into);
