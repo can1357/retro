@@ -133,23 +133,22 @@ namespace retro::ir {
 				return err;
 			}
 
-			// Value ordering checks.
+			// Operand checks.
 			//
-			if (ins->op == opcode::phi) {
-				// TODO: Phi validation.
-			} else {
-				for (auto& op : ins->operands()) {
-					if (!op.is_const()) {
-						if (auto* iref = op.get_value()->get_if<insn>()) {
-							if (iref->bb == this) {
+			for (auto& op : ins->operands()) {
+				if (op.is_value()) {
+					if (auto* iref = op.get_value()->get_if<insn>()) {
+						if (iref->bb == this) {
+							if (ins->op != opcode::phi) {
 								for (auto&& ins2 : slice(ins->next)) {
 									if (ins2 == iref) {
 										return err::insn_ref_invalid(ins->to_string());
 									}
 								}
-							} else {
-								// TODO: DOM check.
 							}
+						} else {
+							RC_ASSERT(!iref->is_orphan());
+							// TODO: DOM check, specialize for PHI.
 						}
 					}
 				}

@@ -160,42 +160,26 @@ namespace retro::core {
 		auto*					term = bb->terminator();
 		switch (term->op) {
 			case ir::opcode::xjs: {
-				// If condition cannot be coerced to a constant:
+				// Try lifting both blocks.
 				//
-				if (auto cc = coerce_const(vs, term->opr(0)); !cc) {
-					ir::basic_block* bbs[2] = {nullptr, nullptr};
-					for (size_t i = 0; i != 2; i++) {
-						// Try coercing destination into a constant.
-						//
-						if (coerce_const(vs, term->opr(i + 1))) {
-							bbs[i] = co_await build_block(term->opr(i + 1).const_val.get_u64() - img_base);
-							bb		 = term->bb;
-						}
-					}
-
-					// If we managed to lift both blocks succesfully:
-					//
-					if (bbs[0] && bbs[1]) {
-						// Replace with js.
-						//
-						ir::variant cc{term->opr(0)};
-						bb->push_js(std::move(cc), bbs[0], bbs[1]);
-						term->erase();
-						bb->add_jump(bbs[0]);
-						bb->add_jump(bbs[1]);
-						break;
-					}
-				} else {
-					fmt::printf("Optimized out constant conditional at 0x%llx!\n", term->ip);
-					// Swap with a xjmp.
-					//
-					ir::variant target{term->opr(term->opr(0).const_val.get<bool>() ? 1 : 2)};
-					auto			nterm = bb->push_xjmp(std::move(target));
-					std::exchange(term, nterm)->erase();
+				ir::basic_block* bbs[2] = {nullptr, nullptr};
+				for (size_t i = 0; i != 2; i++) {
+					bbs[i] = co_await build_block(term->opr(i + 1).const_val.get_u64() - img_base);
+					bb		 = term->bb;
 				}
-				// Fallthrough to xjmp handler.
+
+				// If we managed to lift both blocks succesfully:
 				//
-				[[fallthrough]];
+				if (bbs[0] && bbs[1]) {
+					// Replace with js.
+					//
+					ir::variant cc{term->opr(0)};
+					bb->push_js(std::move(cc), bbs[0], bbs[1]);
+					term->erase();
+					bb->add_jump(bbs[0]);
+					bb->add_jump(bbs[1]);
+				}
+				break;
 			}
 			case ir::opcode::xjmp: {
 				// Try coercing destination into a constant.

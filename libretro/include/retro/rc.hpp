@@ -146,20 +146,20 @@ namespace retro {
 
 		// Comparison.
 		//
-		RC_INLINE constexpr bool		  operator==(const T* o) const { return ptr == o; }
+		RC_INLINE constexpr bool		  operator==(T* o) const { return ptr == o; }
 		RC_INLINE constexpr bool		  operator==(const ref<T>& o) const { return ptr == o.ptr; }
 		RC_INLINE constexpr bool		  operator==(std::nullptr_t) const { return ptr == ((T*) nullptr); }
-		RC_INLINE friend constexpr bool operator==(const T* o, const ref<T>& s) { return s.ptr == o; }
+		RC_INLINE friend constexpr bool operator==(T* o, const ref<T>& s) { return s.ptr == o; }
 
-		RC_INLINE constexpr bool		  operator!=(const T* o) const { return ptr != o; }
+		RC_INLINE constexpr bool		  operator!=(T* o) const { return ptr != o; }
 		RC_INLINE constexpr bool		  operator!=(const ref<T>& o) const { return ptr != o.ptr; }
 		RC_INLINE constexpr bool		  operator!=(std::nullptr_t) const { return ptr != ((T*) nullptr); }
-		RC_INLINE friend constexpr bool operator!=(const T* o, const ref<T>& s) { return s.ptr != o; }
+		RC_INLINE friend constexpr bool operator!=(T* o, const ref<T>& s) { return s.ptr != o; }
 
-		RC_INLINE constexpr bool		  operator<(const T* o) const { return ptr < o; }
+		RC_INLINE constexpr bool		  operator<(T* o) const { return ptr < o; }
 		RC_INLINE constexpr bool		  operator<(const ref<T>& o) const { return ptr < o.ptr; }
 		RC_INLINE constexpr bool		  operator<(std::nullptr_t) const { return ptr < ((T*) nullptr); }
-		RC_INLINE friend constexpr bool operator<(const T* o, const ref<T>& s) { return s.ptr < o; }
+		RC_INLINE friend constexpr bool operator<(T* o, const ref<T>& s) { return s.ptr < o; }
 
 		// Release without reference tracking.
 		//
@@ -253,7 +253,7 @@ namespace retro {
 		}
 		RC_INLINE T*	  operator->() const { return get(); }
 		RC_INLINE size_t use_count() const { return ptr ? rc_header::from(ptr)->ref_counter & bit_mask(32) : 0; }
-		RC_INLINE bool	  expired() const { return !ptr || (rc_header::from(ptr)->ref_counter & bit_mask(32)) == 0; }
+		RC_INLINE bool	  expired() const { return ptr && (rc_header::from(ptr)->ref_counter & bit_mask(32)) == 0; }
 		RC_INLINE ref<T> lock() const {
 			if (!ptr || !rc_header::from(ptr)->inc_ref())
 				return nullptr;
@@ -267,25 +267,25 @@ namespace retro {
 
 		// Comparison.
 		//
-		RC_INLINE constexpr bool		  operator==(const T* o) const { return ptr == o; }
+		RC_INLINE constexpr bool		  operator==(T* o) const { return ptr == o; }
 		RC_INLINE constexpr bool		  operator==(const weak<T>& o) const { return ptr == o.ptr; }
 		RC_INLINE constexpr bool		  operator==(const ref<T>& o) const { return ptr == o.ptr; }
 		RC_INLINE constexpr bool		  operator==(std::nullptr_t) const { return ptr == ((T*) nullptr); }
-		RC_INLINE friend constexpr bool operator==(const T* o, const weak<T>& s) { return s.ptr == o; }
+		RC_INLINE friend constexpr bool operator==(T* o, const weak<T>& s) { return s.ptr == o; }
 		RC_INLINE friend constexpr bool operator==(const ref<T>& o, const weak<T>& s) { return s.ptr == o.ptr; }
 
-		RC_INLINE constexpr bool		  operator!=(const T* o) const { return ptr != o; }
+		RC_INLINE constexpr bool		  operator!=(T* o) const { return ptr != o; }
 		RC_INLINE constexpr bool		  operator!=(const weak<T>& o) const { return ptr != o.ptr; }
 		RC_INLINE constexpr bool		  operator!=(const ref<T>& o) const { return ptr != o.ptr; }
 		RC_INLINE constexpr bool		  operator!=(std::nullptr_t) const { return ptr != ((T*) nullptr); }
-		RC_INLINE friend constexpr bool operator!=(const T* o, const weak<T>& s) { return s.ptr != o; }
+		RC_INLINE friend constexpr bool operator!=(T* o, const weak<T>& s) { return s.ptr != o; }
 		RC_INLINE friend constexpr bool operator!=(const ref<T>& o, const weak<T>& s) { return s.ptr != o.ptr; }
 
-		RC_INLINE constexpr bool		  operator<(const T* o) const { return ptr < o; }
+		RC_INLINE constexpr bool		  operator<(T* o) const { return ptr < o; }
 		RC_INLINE constexpr bool		  operator<(const weak<T>& o) const { return ptr < o.ptr; }
 		RC_INLINE constexpr bool		  operator<(const ref<T>& o) const { return ptr < o.ptr; }
 		RC_INLINE constexpr bool		  operator<(std::nullptr_t) const { return ptr < ((T*) nullptr); }
-		RC_INLINE friend constexpr bool operator<(const T* o, const weak<T>& s) { return s.ptr < o; }
+		RC_INLINE friend constexpr bool operator<(T* o, const weak<T>& s) { return s.ptr < o; }
 		RC_INLINE friend constexpr bool operator<(const ref<T>& o, const weak<T>& s) { return s.ptr < o.ptr; }
 
 		// Release without reference tracking.
@@ -322,6 +322,12 @@ namespace retro {
 	template<typename Ty, typename T>
 	inline static ref<Ty> static_rc_cast(ref<T> ptr) {
 		ref<Ty> result = {};
+		result.ptr		= (Ty*) ptr.release();
+		return result;
+	}
+	template<typename Ty, typename T>
+	inline static weak<Ty> static_rc_cast(weak<T> ptr) {
+		weak<Ty> result = {};
 		result.ptr		= (Ty*) ptr.release();
 		return result;
 	}
