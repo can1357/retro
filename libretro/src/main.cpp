@@ -355,7 +355,7 @@ static void msabi_x64_stack_analysis(ir::routine* rtn) {
 		data.save_point->op = ir::opcode::nop;
 	}
 
-	// Now validating frame registers:
+	// Validate the frame registers:
 	//
 	bool rbp_valid = false, rbx_valid = false;
 	for (auto& [slot, reg] : result.save_area_layout) {
@@ -408,6 +408,7 @@ static void msabi_x64_stack_analysis(ir::routine* rtn) {
 				range::for_each(cc->argument_gpr, push_reg);
 				range::for_each(cc->argument_fp, push_reg);
 				push_reg(cc->fp_varg_counter);
+				push_reg(arch::x86::reg::rsp);
 
 				// Create the call.
 				//
@@ -478,6 +479,7 @@ static void msabi_x64_stack_analysis(ir::routine* rtn) {
 	for (auto& bb : rtn->blocks) {
 		ir::opt::p0::reg_move_prop(bb);
 		ir::opt::const_fold(bb);
+		ir::opt::const_load(bb);
 		ir::opt::id_fold(bb);
 		ir::opt::ins_combine(bb);
 		ir::opt::const_fold(bb);
@@ -491,6 +493,7 @@ static void msabi_x64_stack_analysis(ir::routine* rtn) {
 	for (auto& bb : rtn->blocks) {
 		ir::opt::p0::reg_move_prop(bb);
 		ir::opt::const_fold(bb);
+		ir::opt::const_load(bb);
 		ir::opt::id_fold(bb);
 		ir::opt::ins_combine(bb);
 		ir::opt::const_fold(bb);
@@ -562,6 +565,7 @@ static void phase0(ref<ir::routine> rtn) {
 	for (auto& bb : rtn->blocks) {
 		ir::opt::p0::reg_move_prop(bb);
 		ir::opt::const_fold(bb);
+		ir::opt::const_load(bb);
 		ir::opt::id_fold(bb);
 		ir::opt::ins_combine(bb);
 		ir::opt::const_fold(bb);
@@ -909,7 +913,7 @@ static void whole_program_analysis_test(core::image* img) {
 				for (auto&& ins : bb->insns()) {
 					if (ins->op == ir::opcode::xcall) {
 						if (ins->opr(0).is_const()) {
-							analyse_rva_if_code(r->method->img.get(), ins->opr(0).get_const().get_u64() - r->method->img->base_address);
+							analyse_rva_if_code(r->method->img.get(), ins->opr(0).get_const().get_u64() - r->get_image()->base_address);
 						}
 					}
 				}

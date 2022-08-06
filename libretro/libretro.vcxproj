@@ -114,6 +114,7 @@
     <ClCompile Include="src\opt\ins_combine.cpp" />
     <ClCompile Include="src\opt\const_fold.cpp" />
     <ClCompile Include="src\opt\id_fold.cpp" />
+    <ClCompile Include="src\opt\load_to_const.cpp" />
     <ClCompile Include="src\opt\reg_prop.cpp" />
     <ClCompile Include="src\opt\reg_to_phi.cpp" />
     <ClCompile Include="src\platform.cpp" />

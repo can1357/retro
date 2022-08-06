@@ -27,4 +27,8 @@ namespace retro::ir::opt {
 	// Local instruction combination.
 	//
 	size_t ins_combine(basic_block* bb);
+
+	// Conversion of load_mem with constant address.
+	//
+	size_t const_load(basic_block* bb);
 };

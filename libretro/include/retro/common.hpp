@@ -318,11 +318,16 @@ namespace retro {
 	#define RC_CONST		  __attribute__((const))
 	#define RC_FLATTEN	  __attribute__((flatten))
 	#define RC_COLD		  __attribute__((cold, noinline, disable_tail_calls))
+#if RC_CLANG
+	#define RC_TRIVIAL_ABI __attribute__((trivial_abi))
 	#define RC_INLINE		  __attribute__((always_inline))
+#else
+	#define RC_TRIVIAL_ABI
+	#define RC_INLINE		  
+#endif
 	#define RC_NOINLINE	  __attribute__((noinline))
 	#define RC_USED    	  __attribute__((used))
 	#define RC_ALIGN(x)	  __attribute__((aligned(x)))
-	#define RC_TRIVIAL_ABI __attribute__((trivial_abi))
 	#define RC_DBGBREAK	  __builtin_trap
 #elif RC_MSVC
 	#define RC_PURE

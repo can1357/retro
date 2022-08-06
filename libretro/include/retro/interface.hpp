@@ -30,25 +30,25 @@ namespace retro::interface {
 	// Define the handle type.
 	//
 	template<typename T>
-	struct RC_TRIVIAL_ABI handle {
+	struct RC_TRIVIAL_ABI handle_type {
 		u32 value = 0;
 
 		// Default copy move construct.
 		//
-		constexpr handle()									  = default;
-		constexpr handle(handle&&) noexcept				  = default;
-		constexpr handle(const handle&)					  = default;
-		constexpr handle& operator=(handle&&) noexcept = default;
-		constexpr handle& operator=(const handle&)	  = default;
+		constexpr handle_type()									  = default;
+		constexpr handle_type(handle_type&&) noexcept				  = default;
+		constexpr handle_type(const handle_type&)					  = default;
+		constexpr handle_type& operator=(handle_type&&) noexcept = default;
+		constexpr handle_type& operator=(const handle_type&)	  = default;
 
 		// Construction by value.
 		//
-		constexpr handle(u32 v) : value(v) {}
-		constexpr handle(std::nullopt_t) : value(0) {}
+		constexpr handle_type(u32 v) : value(v) {}
+		constexpr handle_type(std::nullopt_t) : value(0) {}
 
 		// Default comparison.
 		//
-		constexpr auto operator<=>(const handle& o) const = default;
+		constexpr auto operator<=>(const handle_type& o) const = default;
 
 		// Conversion to native value.
 		//
@@ -96,7 +96,7 @@ namespace retro::interface {
 	//
 	template<typename T>
 	struct base : dyn<T> {
-		using handle = handle<T>;
+		using handle_t = handle_type<T>;
 
 	  private:
 		// Instance map.
@@ -109,13 +109,13 @@ namespace retro::interface {
 		//
 		std::string name;
 		hash			name_hash = 0;
-		handle		hnd		 = std::nullopt;
+		handle_t		hnd		 = std::nullopt;
 
 	  public:
 		// Getters.
 		//
 		RC_CONST std::string_view get_name() const { return name; }
-		RC_CONST handle			  get_handle() const { return hnd; }
+		RC_CONST handle_t			  get_handle() const { return hnd; }
 		RC_CONST hash				  get_hash() const { return name_hash; }
 
 		// String conversion for formatting.
@@ -128,7 +128,7 @@ namespace retro::interface {
 
 		// Registers an instance of the interface.
 		//
-		RC_NOINLINE static handle register_as(std::string name, ref<T> instance) {
+		RC_NOINLINE static handle_t register_as(std::string name, ref<T> instance) {
 			// Make sure name is not empty.
 			//
 			if (name.empty()) {
@@ -163,10 +163,10 @@ namespace retro::interface {
 			u32 idx				  = ++list_last_handle;
 			instance->hnd.value = idx;
 			list[idx]			  = std::move(instance);
-			return handle(idx);
+			return handle_t(idx);
 		}
 		template<typename Ty, typename... Tx>
-		static handle register_as(std::string name, Tx&&... args) {
+		static handle_t register_as(std::string name, Tx&&... args) {
 			auto instance = make_rc<Ty>(std::forward<Tx>(args)...);
 			return register_as(std::move(name), std::move(instance));
 		}
@@ -178,32 +178,32 @@ namespace retro::interface {
 		// Instance search.
 		//
 		template<typename F>
-		static handle find_if(F&& fn) {
+		static handle_t find_if(F&& fn) {
 			for (auto& e : all()) {
 				if (fn(e)) {
-					return handle(u32(&e - &list[0]));
+					return handle_t(u32(&e - &list[0]));
 				}
 			}
 			return std::nullopt;
 		}
-		static handle lookup(hash name_hash) {
+		static handle_t lookup(hash name_hash) {
 			// TODO: Optimize later.
 			for (auto& e : all()) {
 				if (e->name_hash == name_hash) {
-					return handle(u32(&e - &list[0]));
+					return handle_t(u32(&e - &list[0]));
 				}
 			}
 			return std::nullopt;
 		}
-		static handle lookup(std::string_view name) {
+		static handle_t lookup(std::string_view name) {
 			for (auto& e : all()) {
 				if (e->name == name) {
-					return handle(u32(&e - &list[0]));
+					return handle_t(u32(&e - &list[0]));
 				}
 			}
 			return std::nullopt;
 		}
-		static T* resolve(handle h) { return list[h.value].get(); }
+		static T* resolve(handle_t h) { return list[h.value].get(); }
 
 		// Virtual destructor for user instances.
 		//

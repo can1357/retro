@@ -70,5 +70,5 @@ namespace retro::arch {
 			}
 		}
 	};
-	using handle = instance::handle;
+	using handle = instance::handle_t;
 };
