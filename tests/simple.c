@@ -31,6 +31,12 @@ EXPORT int _fn_2(int a) {
 OUTLINE int me_take_long(char x, ...) { asm volatile("" :: "r"(x)); return x;}
 
 EXPORT int test(int a) {
+	if(a == 12515) {
+		int* p = (int*)__builtin_alloca(a);
+		asm volatile("" : "+m" (*p));
+		asm volatile("" ::: "xmm7");
+		return *p;
+	}
 
 
     int x = me_take_long(

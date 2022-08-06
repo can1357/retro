@@ -87,15 +87,21 @@ struct save_slot_analysis {
 
 static void msabi_x64_stack_analysis(ir::routine* rtn) {
 
-	core::irp_init_analysis result = {};
+	core::irp_init_analysis				  result			 = {};
+	flat_umap<i32, i64>					  frame_offsets = {};
+	flat_umap<i64, save_slot_analysis> save_slots	 = {};
 
-	std::optional<i64>									 rbp_offset, rbx_offset;
-	flat_umap<i64, save_slot_analysis> save_slots = {};
+	// Get method information.
+	//
+	auto* cc	  = rtn->method->cc;
+	auto	mach = rtn->method->arch;
+	auto	spr  = mach->get_stack_register();
+	auto	pty  = ir::int_type(mach->get_pointer_width());
 
 	// Get the prologue.
 	//
 	auto* prologue = rtn->get_entry();
-
+	
 	// Make an expression representing the initial stack pointer.
 	//
 	z3x::variable_set vs = {};
@@ -111,7 +117,6 @@ static void msabi_x64_stack_analysis(ir::routine* rtn) {
 
 	// Determine the save slots and possible frame register from the prologue.
 	//
-	auto pty = ir::int_type(prologue->arch->get_pointer_width());
 	for (ir::insn* i : prologue->insns()) {
 		// Memory writes:
 		//
@@ -152,17 +157,24 @@ static void msabi_x64_stack_analysis(ir::routine* rtn) {
 		//
 		else if (i->op == ir::opcode::write_reg) {
 			auto reg = i->opr(0).const_val.get<arch::mreg>();
-			if (reg == arch::x86::reg::rbp || reg == arch::x86::reg::rbx) {
-				if (i->template_types[0] == pty || i->template_types[0] == ir::type::pointer) {
-					auto base = z3x::to_expr(vs, ctx, i->opr(1));
-					if (z3x::ok(base)) {
-						auto sp_delta = base - sp_0_expr;
-						auto cval	  = z3x::value_of(sp_delta, true);
-						if (!cval.is<void>()) {
-							if (reg == arch::x86::reg::rbp) {
-								rbp_offset = cval.get_i64();
-							} else if (reg == arch::x86::reg::rbx) {
-								rbx_offset = cval.get_i64();
+
+			// If pointer size:
+			//
+			if (i->template_types[0] == pty || i->template_types[0] == ir::type::pointer) {
+				// If valid frame register:
+				//
+				if (range::contains(cc->frame_gpr, reg)) {
+					// If saved in the frame:
+					//
+					if (range::contains_if(save_slots, [reg](auto& pair) { return pair.second.reg == reg; })) {
+						// If valid constant offset from stack:
+						//
+						auto base = z3x::to_expr(vs, ctx, i->opr(1));
+						if (z3x::ok(base)) {
+							auto sp_delta = base - sp_0_expr;
+							auto cval	  = z3x::value_of(sp_delta, true);
+							if (!cval.is<void>()) {
+								frame_offsets[reg.uid()] = cval.get_i64();
 							}
 						}
 					}
@@ -234,9 +246,11 @@ static void msabi_x64_stack_analysis(ir::routine* rtn) {
 		// Skip if not appropriately validated.
 		//
 		if (data.num_validations != num_epi) {
-			fmt::printf(
-				 "---> [INVALID] %s = SP[%s] (%llu/%llu validations)\n", data.reg.to_string(rtn->get_image()->arch).c_str(), fmt::to_str(slot).c_str(), data.num_validations, num_epi);
+			fmt::printf("---> [INVALID] %s = SP[%s] (%llu/%llu validations)\n", data.reg.to_string(mach).c_str(), fmt::to_str(slot).c_str(), data.num_validations, num_epi);
 
+			if (auto it = frame_offsets.find(data.reg.uid()); it != frame_offsets.end()) {
+				frame_offsets.erase(it);
+			}
 
 			// TODO: Probably allocating space, OK to NOP?:
 			data.save_point->op = ir::opcode::nop;
@@ -246,7 +260,7 @@ static void msabi_x64_stack_analysis(ir::routine* rtn) {
 		// Save the information.
 		//
 		result.save_area_layout.emplace(slot, data.reg);
-		fmt::printf("---> %s = SP[%s] (%llu/%llu validations)\n", data.reg.to_string(rtn->get_image()->arch).c_str(), fmt::to_str(slot).c_str(), data.num_validations, num_epi);
+		fmt::printf("---> %s = SP[%s] (%llu/%llu validations)\n", data.reg.to_string(mach).c_str(), fmt::to_str(slot).c_str(), data.num_validations, num_epi);
 
 		// Nop-out the save instruction.
 		//
@@ -255,40 +269,28 @@ static void msabi_x64_stack_analysis(ir::routine* rtn) {
 
 	// Validate the frame registers:
 	//
-	bool rbp_valid = false, rbx_valid = false;
-	for (auto& [slot, reg] : result.save_area_layout) {
-		rbp_valid = rbp_valid || (rbp_offset && reg == arch::x86::reg::rbp);
-		rbx_valid = rbx_valid || (rbx_offset && reg == arch::x86::reg::rbx);
-	}
 	for (auto& bb : rtn->blocks) {
 		if (!bb->successors.empty() && !bb->predecessors.empty()) {
 			for (auto i : bb->insns()) {
 				if (i->op == ir::opcode::write_reg) {
 					auto reg = i->opr(0).const_val.get<arch::mreg>();
-					if (reg == arch::x86::reg::rbp) {
-						rbp_valid = false;
-					} else if (reg == arch::x86::reg::rbx) {
-						rbx_valid = false;
+					if (auto it = frame_offsets.find(reg.uid()); it != frame_offsets.end()) {
+						frame_offsets.erase(it);
 					}
 				}
 			}
 		}
 	}
-	if (rbp_valid) {
-		result.frame_reg		  = arch::x86::reg::rbp;
-		result.frame_reg_delta = *rbp_offset;
-		fmt::printf("Frame register is RBP, offset: %lld\n", *rbp_offset);
-	} else if (rbx_valid) {
-		result.frame_reg		  = arch::x86::reg::rbx;
-		result.frame_reg_delta = *rbx_offset;
-		fmt::printf("Frame register is RBX, offset: %lld\n", *rbx_offset);
+	if (auto it = frame_offsets.begin(); it != frame_offsets.end()) {
+		result.frame_reg		  = retro::bit_cast<arch::mreg>(it->first);
+		result.frame_reg_delta = it->second;
+		fmt::printf("Frame register is %s, offset: %lld\n", result.frame_reg.to_string(mach).c_str(), result.frame_reg_delta);
 	} else {
 		fmt::printf("Routine does not use a frame register\n");
 	}
 
 	// There's only one valid calling convention and SP is always callee adjusted, so apply it over all XCALL and XRETs.
 	//
-	auto* cc = &arch::x86::cc_msabi_x86_64;
 	for (auto& bb : rtn->blocks) {
 		bb->erase_if([&](ir::insn* i) {
 			// If XCALL:

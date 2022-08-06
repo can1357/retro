@@ -62,6 +62,10 @@ namespace retro::range {
 	inline static constexpr auto find_if(R&& r, F&& fn) {
 		return std::find_if(r.begin(), r.end(), std::forward<F>(fn));
 	}
+	template<typename R, typename F>
+	inline static constexpr auto contains_if(R&& r, F&& fn) {
+		return std::find_if(r.begin(), r.end(), std::forward<F>(fn)) != r.end();
+	}
 	template<typename R, typename V>
 	inline static constexpr size_t count(R&& r, V&& val) {
 		return std::count(r.begin(), r.end(), std::forward<V>(val));

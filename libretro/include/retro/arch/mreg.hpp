@@ -27,7 +27,7 @@ namespace retro::arch {
 		// Automatic resolution from enum types.
 		//
 		template<typename T>
-			requires std::is_scoped_enum_v<T>
+			requires std::is_enum_v<T>
 		constexpr mreg(T id) : id((u32) id), kind((u32) enum_reflect(id).kind) {}
 
 		// Gets the kind in the enum type.

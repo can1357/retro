@@ -62,7 +62,7 @@ namespace retro::ir {
 	RC_INLINE static auto apply_bit_lsb(Integer auto rhs, ...) -> decltype(rhs) { return (decltype(rhs)) (std::countl_zero(to_unsigned(rhs))); }
 	RC_INLINE static auto apply_bit_msb(Integer auto rhs, ...) -> decltype(rhs) { return (decltype(rhs)) (sizeof(rhs) * 8 - std::countr_zero(to_unsigned(rhs))); }
 	RC_INLINE static auto apply_bit_popcnt(Integer auto rhs, ...) -> decltype(rhs) { return (decltype(rhs)) (std::popcount(to_unsigned(rhs))); }
-	RC_INLINE static auto apply_bit_byteswap(Integer auto rhs, ...) -> decltype(rhs) { return (decltype(rhs)) (std::byteswap(to_unsigned(rhs))); }
+	RC_INLINE static auto apply_bit_byteswap(Integer auto rhs, ...) -> decltype(rhs) { return (decltype(rhs)) (bswap(to_unsigned(rhs))); }
 
 	// Bitwise binary.
 	//

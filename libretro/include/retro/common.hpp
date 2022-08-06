@@ -369,35 +369,40 @@ namespace retro {
 		u64 base = num_bits ? ~0ull : 0;
 		return (base >> (64 - num_bits)) << offset;
 	}
-	template<typename T>
-	RC_INLINE inline static constexpr T bswap(T value) {
-#if RC_GNU || RC_CLANG
-		if constexpr (sizeof(T) == 1) {
-			return value;
-		} else if constexpr (sizeof(T) == 2) {
-	#if __has_builtin(__builtin_bswap16)
-			if (!std::is_constant_evaluated())
-				return __builtin_bswap16(u16(value));
-	#endif
-			return T(u16((u16(value) & 0xFF) << 8) | u16((u16(value) & 0xFF00) >> 8));
-		} else if constexpr (sizeof(T) == 4) {
-	#if __has_builtin(__builtin_bswap32)
-			if (!std::is_constant_evaluated())
-				return __builtin_bswap32(u32(value));
-	#endif
-			return T(u32(bswap(u16((u32(value) << 16) >> 16))) << 16) | (u32(bswap(u16((u32(value) >> 16)))));
-		} else if constexpr (sizeof(T) == 8) {
-	#if __has_builtin(__builtin_bswap64)
-			if (!std::is_constant_evaluated())
-				return __builtin_bswap64(value);
-	#endif
-			return T(u64(bswap(u32((u64(value) << 32) >> 32))) << 32) | (u64(bswap(u32((u64(value) >> 32)))));
-		} else {
-			static_assert(sizeof(T) == -1, "unexpected integer size");
-		}
-#else
-		return std::byteswap<T>(value);
+	RC_INLINE inline static constexpr u16 bswapw(uint16_t value) noexcept {
+#if __has_builtin(__builtin_bswap16)
+		if (!std::is_constant_evaluated())
+			return __builtin_bswap16(value);
 #endif
+		return (u16((u16(value) & 0xFF) << 8) | u16((u16(value) & 0xFF00) >> 8));
+	}
+	RC_INLINE inline static constexpr u32 bswapd(uint32_t value) noexcept {
+#if __has_builtin(__builtin_bswap32)
+		if (!std::is_constant_evaluated())
+			return __builtin_bswap32(value);
+#endif
+		return (u32(bswapw(u16((u32(value) << 16) >> 16))) << 16) | (u32(bswapw(u16((u32(value) >> 16)))));
+	}
+	RC_INLINE inline static constexpr u64 bswapq(uint64_t value) noexcept {
+#if __has_builtin(__builtin_bswap64)
+		if (!std::is_constant_evaluated())
+			return __builtin_bswap64(value);
+#endif
+		return (u64(bswapd(u32((u64(value) << 32) >> 32))) << 32) | (u64(bswapd(u32((u64(value) >> 32)))));
+	}
+
+	template<typename T>
+	RC_INLINE inline static constexpr T bswap(T value) noexcept {
+		if constexpr (sizeof(T) == 8)
+			return bit_cast<T>(bswapq(bit_cast<u64>(value)));
+		else if constexpr (sizeof(T) == 4)
+			return bit_cast<T>(bswapd(bit_cast<u32>(value)));
+		else if constexpr (sizeof(T) == 2)
+			return bit_cast<T>(bswapw(bit_cast<u16>(value)));
+		else if constexpr (sizeof(T) == 1)
+			return value;
+		else
+			static_assert(sizeof(T) == -1, "unexpected integer size");
 	}
 	template<typename To, typename From>
 	RC_INLINE inline static constexpr To bit_cast(const From& x) noexcept {
