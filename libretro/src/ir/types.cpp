@@ -285,7 +285,7 @@ namespace retro::ir {
 		RC_INLINE static i1 sx(Src i) { return (i & 1) != 0; }
 	};
 
-	// Vector handler.
+	// Vector cast handler.
 	//
 	template<typename Src, typename Dst>
 	concept ScalarConvertible = (!std::is_same_v<std::nullopt_t, decltype(cast_visitor<Src, Dst>::zx(std::declval<Src>()))>);
@@ -293,19 +293,35 @@ namespace retro::ir {
 		requires ScalarConvertible<Src, Dst>
 	struct cast_visitor<vec<Src, N>, vec<Dst, N>> {
 		RC_INLINE static vec<Dst, N> zx(const vec<Src, N>& v) {
-			vec<Dst, N> result = {};
+			vec<Dst, N> result;
 			for (size_t i = 0; i != N; i++) {
 				result[i] = cast_visitor<Src, Dst>::zx(v[i]);
 			}
 			return result;
 		}
 		RC_INLINE static vec<Dst, N> sx(const vec<Src, N>& v) {
-			vec<Dst, N> result = {};
+			vec<Dst, N> result;
 			for (size_t i = 0; i != N; i++) {
 				result[i] = cast_visitor<Src, Dst>::sx(v[i]);
 			}
 			return result;
 		}
+	};
+
+	// Vector resize handler.
+	//
+	template<typename T, size_t M, size_t N>
+		requires(M !=N)
+	struct cast_visitor<vec<T, N>, vec<T, M>> {
+		RC_INLINE static vec<T, M> zx(const vec<T, N>& v) {
+			vec<T, M> result;
+			result.fill(T());
+			for (size_t i = 0; i != std::min(N, M); i++) {
+				result[i] = v[i];
+			}
+			return result;
+		}
+		RC_INLINE static vec<T, M> sx(const vec<T, N>& v) { return zx(v); }
 	};
 
 	template<typename F>
