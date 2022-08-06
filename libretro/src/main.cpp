@@ -21,120 +21,6 @@ using namespace retro;
 #include <retro/core/method.hpp>
 #include <retro/core/workspace.hpp>
 
-#if 0
-namespace retro::core {
-	// Converts xcall/xret into call/ret where possible.
-	//
-	static size_t apply_cc_info(ir::routine* rtn) {
-		// Get image for CC analysis.
-		//
-		auto* img = rtn->img.get();
-		if (!img)
-			return 0;
-
-		// For each instruction.
-		//
-		size_t n = 0;
-		for (auto& bb : rtn->blocks) {
-			n += bb->erase_if([&](ir::insn* i) {
-				// If XCALL:
-				//
-				if (i->op == ir::opcode::xcall) {
-					// Determine the calling convention.
-					//
-					auto* cc = dom->get_routine_cc(i);
-					if (!cc)
-						return false;
-
-					// First read each argument:
-					//
-					auto args	  = bb->insert(i, ir::make_undef(ir::type::context));
-					auto push_reg = [&](arch::mreg a) {
-						if (a) {
-							auto val = bb->insert(i, ir::make_read_reg(enum_reflect(a.get_kind()).type, a));
-							args		= bb->insert(i, ir::make_insert_context(args.get(), a, val.get()));
-						}
-					};
-					range::for_each(cc->argument_gpr, push_reg);
-					range::for_each(cc->argument_fp, push_reg);
-					push_reg(cc->fp_varg_counter);
-
-					// Create the call.
-					//
-					auto res = bb->insert(i, ir::make_call(i->opr(0), args.get()));
-
-					// Read each result.
-					//
-					auto pop_reg = [&](arch::mreg a) {
-						if (a) {
-							auto& desc = enum_reflect(a.get_kind());
-							auto	val  = bb->insert(i, ir::make_extract_context(desc.type, res.get(), a));
-							i->arch->explode_write_reg(bb->insert(i, ir::make_write_reg(a, val.get())));
-						}
-					};
-					range::for_each(cc->retval_gpr, pop_reg);
-					range::for_each(cc->retval_fp, pop_reg);
-					// stack if sp_caller_adjusted?
-					// eflags?
-
-					return true;
-				}
-				// If XRET:
-				//
-				else if (i->op == ir::opcode::xret) {
-					// Determine the calling convention.
-					//
-					auto* cc = dom->get_routine_cc(rtn);
-					if (!cc)
-						return false;
-				
-					// Read each result:
-					//
-					auto args	  = bb->insert(i, ir::make_undef(ir::type::context));
-					auto push_reg = [&](arch::mreg a) {
-						if (a) {
-							auto val = bb->insert(i, ir::make_read_reg(enum_reflect(a.get_kind()).type, a));
-							args		= bb->insert(i, ir::make_insert_context(args.get(), a, val.get()));
-						}
-					};
-					range::for_each(cc->retval_gpr, push_reg);
-					range::for_each(cc->retval_fp, push_reg);
-
-					// TODO: assert retptr == [rsp] from entry point??
-
-					// Create the ret.
-					//
-					bb->insert(i, ir::make_ret(args.get()));
-					return true;
-				}
-				return false;
-			});
-		}
-		return ir::opt::util::complete(rtn, n);
-	}
-
-	//
-	//
-	static void auto_cc(ir::routine* rtn) {
-
-		// Split blocks at xcall boundaries.
-		//
-		//graph::bfs(rtn->get_entry(), [](ir::basic_block* bb) {
-		//	auto it = range::find_if(bb->insns(), [&](ir::insn* ins) { return ins->op == ir::opcode::xcall; });
-		//	if (it != bb->end() && std::next(it).get() != bb->back()) {
-		//		auto nb = bb->split(std::next(it));
-		//		RC_ASSERT(nb);
-		//		bb->push_jmp(nb);
-		//		bb->add_jump(nb);
-		//	}
-		//});
-		//
-		//fmt::println(rtn->to_string());
-		//fmt::println(rtn->to_string());
-	}
-};
-#endif
-
 static const char code_prefix[] =
 #if RC_WINDOWS
 	 "#define EXPORT __attribute__((noinline)) __declspec(dllexport)\n"
@@ -407,7 +293,7 @@ static void msabi_x64_stack_analysis(ir::routine* rtn) {
 			if (i->op == ir::opcode::xcall) {
 				// Read all registers.
 				//
-				auto args	  = bb->insert(i, ir::make_undef(ir::type::context));
+				auto args	  = bb->insert(i, ir::make_context_begin(bb->insert(i, ir::make_read_reg(ir::type::pointer, arch::x86::reg::rsp)).get()));
 				auto push_reg = [&](arch::mreg a) {
 					if (a) {
 						auto val = bb->insert(i, ir::make_read_reg(enum_reflect(a.get_kind()).type, a));
@@ -417,7 +303,6 @@ static void msabi_x64_stack_analysis(ir::routine* rtn) {
 				range::for_each(cc->argument_gpr, push_reg);
 				range::for_each(cc->argument_fp, push_reg);
 				push_reg(cc->fp_varg_counter);
-				push_reg(arch::x86::reg::rsp);
 
 				// Create the call.
 				//
@@ -456,7 +341,7 @@ static void msabi_x64_stack_analysis(ir::routine* rtn) {
 			// If XRET:
 			//
 			else if (i->op == ir::opcode::xret) {
-				auto args = bb->insert(i, ir::make_undef(ir::type::context));
+				auto args = bb->insert(i, ir::make_context_begin(bb->insert(i, ir::make_read_reg(ir::type::pointer, arch::x86::reg::rsp)).get()));
 
 				// Read the results.
 				//
@@ -471,7 +356,7 @@ static void msabi_x64_stack_analysis(ir::routine* rtn) {
 
 				// Create the ret.
 				//
-				bb->insert(i, ir::make_ret(i->opr(0), args.get()));
+				bb->insert(i, ir::make_ret(args.get()));
 				return true;
 			}
 			// If stack_reset:
@@ -1033,7 +918,7 @@ int main(int argv, const char** args) {
 
 	// Large function test:
 	//
-	if (true) {
+	if (false) {
 		analysis_test_from_image_va("S:\\Dumps\\ntoskrnl_2004.exe", 0x140A1AEE4);
 	}
 	// Small C file test:

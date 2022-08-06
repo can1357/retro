@@ -112,7 +112,7 @@ opcode_kind = [
 	"phi",
 	"branch",
 	"external-branch",
-	"intrinsic",
+	"intrinsic", 
 	
 	"trap"
 ]
@@ -220,6 +220,18 @@ templates =      [1,            1,            0,           2]
 names =          ["",           "vector",     "Lane",      "element"]
 constexprs =     [2]
 
+#context    context_begin pointer:sp
+[opcode.context_begin]
+kind =           "@opcode_kind.data"
+is-const =       true
+is-pure =        true
+is-annotation =  true
+template-count = 0
+types =          ["@type.context", "@type.pointer"]
+templates =      [0,               0,             ]
+names =          ["",              "sp",          ]
+constexprs =     []
+
 #E  extract_context<E> context:rpack, reg:reg, i32:Lane
 [opcode.extract_context]
 kind =           "@opcode_kind.data"
@@ -230,7 +242,7 @@ types =          ["@type.none", "@type.context", "@type.reg"]
 templates =      [1,            0,               0]
 names =          ["",           "ctx",           "regid"]
 constexprs =     [2]
-#V  insert_context<E>  context:rpack, reg:reg, E:element
+#context  insert_context<E>  context:rpack, reg:reg, E:element
 [opcode.insert_context]
 kind =           "@opcode_kind.data"
 is-const =       true
@@ -447,18 +459,15 @@ bb-terminator  = true
 types =          ["@type.none", "@type.pointer"]
 templates =      [0,            0]
 names =          ["",           "ptr"]
-#void  ret       pointer:ptr context:ctx
+#void  ret       context:ctx
 [opcode.ret]
 kind =           "@opcode_kind.branch"
 side-effect    = true
 terminator =     true
 bb-terminator  = true
-types =          ["@type.none", "@type.pointer", "@type.context"]
-templates =      [0,            0,               0]
-names =          ["",           "ptr",           "ctx"]
-
-
-
+types =          ["@type.none", "@type.context"]
+templates =      [0,            0]
+names =          ["",           "ctx"]
 
 #void  trap      str:Reason
 [opcode.trap]
