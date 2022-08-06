@@ -200,6 +200,7 @@ namespace retro::ir {
 		//
 		bool is_const() const { return const_val.__rsvd == 1; }
 		bool is_value() const { return !is_const(); }
+		bool is(type t) const { return get_type() == t; }
 
 		constant&& get_const() && {
 			RC_ASSERT(is_const());

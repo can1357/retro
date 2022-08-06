@@ -29,7 +29,7 @@ namespace retro::ir::opt {
 
 				// If RVA maps to a constant section:
 				//
-				u64  rva = adr.get_const().get_u64() - img->base_address;
+				u64  rva = adr.get_const().get_u64() + ins->opr(1).get_const().get_i64() - img->base_address;
 				auto scn = img->find_section(rva);
 				if (scn && !scn->write) {
 					auto data = img->slice(rva);

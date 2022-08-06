@@ -355,9 +355,12 @@ namespace retro::arch::x86 {
 
 	// Address generation helper.
 	//
-	inline ir::variant agen(SemaContext, mem m, bool as_ptr = true) {
+	inline ir::variant agen(SemaContext, mem m, bool as_ptr = true, i64* offset_out = nullptr) {
 		auto ptyr = mach->ptr_type();
 		auto pty	 = (m.base.get_kind() == reg_kind::gpr32 || m.index.get_kind() == reg_kind::gpr32) ? ir::type::i32 : ptyr;
+
+		if (offset_out)
+			*offset_out = 0;
 
 		// Handle RIP.
 		//
@@ -370,6 +373,24 @@ namespace retro::arch::x86 {
 		ir::insn* result = nullptr;
 		if (m.base) {
 			result = read_reg(sema_context(), m.base, pty);
+		}
+
+		// gs/fs:[...]
+		if (mach->is_16()) {
+			// TODO:.
+		} else {
+			ir::insn* base = nullptr;
+			if (m.segr == reg::fs) {
+				base = bb->push_intrinsic(pty == ir::type::i64 ? ir::intrinsic::ia32_rdfsbase64 : ir::intrinsic::ia32_rdfsbase32);
+			} else if (m.segr == reg::gs) {
+				base = bb->push_intrinsic(pty == ir::type::i64 ? ir::intrinsic::ia32_rdgsbase64 : ir::intrinsic::ia32_rdgsbase32);
+			}
+			if (base) {
+				if (result)
+					result = bb->push_binop(ir::op::add, result, bb->push_extract(pty, base, 0));
+				else
+					result = base;
+			}
 		}
 
 		// [index*scale+...]
@@ -386,26 +407,12 @@ namespace retro::arch::x86 {
 
 		// [...+disp]
 		if (!result) {
-			// gsbase/fsbase requires fs:|gs: instead of value, so this will always map to uniform memory under x86_64.
-			//
 			return ir::constant(as_ptr ? ir::type::pointer : pty, m.disp);
 		} else if (m.disp) {
-			result = bb->push_binop(ir::op::add, result, ir::constant(pty, m.disp));
-		}
-
-
-		if (mach->is_16()) {
-			// TODO:.
-		} else {
-			ir::insn* base = nullptr;
-			if (m.segr == reg::fs) {
-				base = bb->push_intrinsic(pty == ir::type::i64 ? ir::intrinsic::ia32_rdfsbase64 : ir::intrinsic::ia32_rdfsbase32);
-			} else if (m.segr == reg::gs) {
-				base = bb->push_intrinsic(pty == ir::type::i64 ? ir::intrinsic::ia32_rdgsbase64 : ir::intrinsic::ia32_rdgsbase32);
-			}
-			if (base) {
-				result = bb->push_binop(ir::op::add, result, bb->push_extract(pty, base, 0));
-			}
+			if (offset_out)
+				*offset_out = m.disp;
+			else
+				result = bb->push_binop(ir::op::add, result, ir::constant(pty, m.disp));
 		}
 
 		// If pointer type mismatches, add a cast.
@@ -418,7 +425,7 @@ namespace retro::arch::x86 {
 		// Finally cast to pointer and return.
 		//
 		if (as_ptr) {
-			result = bb->push_cast(ir::type::pointer, result);
+			result = bb->push_bitcast(ir::type::pointer, result);
 		}
 		return result;
 	}
@@ -426,12 +433,14 @@ namespace retro::arch::x86 {
 	// Memory read/write helper.
 	//
 	inline ir::insn* read_mem(SemaContext, mem m, ir::type ty) {
-		auto ptr = agen(sema_context(), m);
-		return bb->push_load_mem(ty, std::move(ptr));
+		i64  offset;
+		auto ptr = agen(sema_context(), m, true, &offset);
+		return bb->push_load_mem(ty, std::move(ptr), offset);
 	}
 	inline ir::insn* write_mem(SemaContext, mem m, ir::variant&& value) {
-		auto ptr = agen(sema_context(), m);
-		return bb->push_store_mem(std::move(ptr), std::move(value));
+		i64  offset;
+		auto ptr = agen(sema_context(), m, true, &offset);
+		return bb->push_store_mem(std::move(ptr), offset, std::move(value));
 	}
 
 	// Common read/write helper.

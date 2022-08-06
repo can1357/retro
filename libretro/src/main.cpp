@@ -230,27 +230,32 @@ static void msabi_x64_stack_analysis(ir::routine* rtn) {
 		// Memory writes:
 		//
 		if (i->op == ir::opcode::store_mem) {
-			auto sp_delta = z3x::to_expr(vs, ctx, i->opr(0)) - sp_0_expr;
-			auto cval	  = z3x::value_of(sp_delta, true);
-			if (!cval.is<void>()) {
-				if (i->opr(1).is_value()) {
-					if (auto i2 = i->opr(1).get_value()->get_if<ir::insn>(); i2 && i2->op == ir::opcode::read_reg) {
-						auto& si				 = save_slots[cval.get_i64()];
-						si.reg				 = i2->opr(0).const_val.get<arch::mreg>();
-						si.save_point		 = i;
-						si.num_validations = 0;
-					}
-				}
-			}
-			// Non-stack memory write, end of epilogue.
-			else {
+			auto base	  = z3x::to_expr(vs, ctx, i->opr(0));
+			if (!z3x::ok(base))
 				break;
+			auto sp_delta = base - sp_0_expr;
+			auto cval	  = z3x::value_of(sp_delta, true);
+			// Non-stack memory write, end of epilogue.
+			if (cval.is<void>()) {
+				break;
+			}
+			auto spd = cval.get_i64() + i->opr(1).get_const().get_i64();
+			if (i->opr(2).is_value()) {
+				if (auto i2 = i->opr(2).get_value()->get_if<ir::insn>(); i2 && i2->op == ir::opcode::read_reg) {
+					auto& si				 = save_slots[spd];
+					si.reg				 = i2->opr(0).const_val.get<arch::mreg>();
+					si.save_point		 = i;
+					si.num_validations = 0;
+				}
 			}
 		}
 		// Memory reads:
 		//
 		else if (i->op == ir::opcode::load_mem) {
-			auto sp_delta = z3x::to_expr(vs, ctx, i->opr(0)) - sp_0_expr;
+			auto base = z3x::to_expr(vs, ctx, i->opr(0));
+			if (!z3x::ok(base))
+				break;
+			auto sp_delta = base - sp_0_expr;
 			auto cval	  = z3x::value_of(sp_delta, true);
 			// Non-stack memory read, end of epilogue.
 			if (cval.is<void>()) {
@@ -263,13 +268,16 @@ static void msabi_x64_stack_analysis(ir::routine* rtn) {
 			auto reg = i->opr(0).const_val.get<arch::mreg>();
 			if (reg == arch::x86::reg::rbp || reg == arch::x86::reg::rbx) {
 				if (i->template_types[0] == pty || i->template_types[0] == ir::type::pointer) {
-					auto sp_delta = z3x::to_expr(vs, ctx, i->opr(1)) - sp_0_expr;
-					auto cval	  = z3x::value_of(sp_delta, true);
-					if (!cval.is<void>()) {
-						if (reg == arch::x86::reg::rbp) {
-							rbp_offset = cval.get_i64();
-						} else if (reg == arch::x86::reg::rbx) {
-							rbx_offset = cval.get_i64();
+					auto base = z3x::to_expr(vs, ctx, i->opr(1));
+					if (z3x::ok(base)) {
+						auto sp_delta = base - sp_0_expr;
+						auto cval	  = z3x::value_of(sp_delta, true);
+						if (!cval.is<void>()) {
+							if (reg == arch::x86::reg::rbp) {
+								rbp_offset = cval.get_i64();
+							} else if (reg == arch::x86::reg::rbx) {
+								rbx_offset = cval.get_i64();
+							}
 						}
 					}
 				}
@@ -308,14 +316,15 @@ static void msabi_x64_stack_analysis(ir::routine* rtn) {
 
 				if (i->opr(1).is_value()) {
 					if (auto i2 = i->opr(1).get_value()->get_if<ir::insn>(); i2 && i2->op == ir::opcode::load_mem) {
-
-						auto sp_pos	  = z3x::to_expr(vs, ctx, i2->opr(0));
-						auto sp_delta = sp_pos - sp_0_expr;
-						auto cval	  = z3x::value_of(sp_delta, true);
-						if (!cval.is<void>()) {
-							auto off = save_slots.find(cval.get_i64());
-							if (off != save_slots.end() && off->second.reg == reg) {
-								off->second.num_validations++;
+						auto base	  = z3x::to_expr(vs, ctx, i2->opr(0));
+						if (z3x::ok(base)) {
+							auto sp_delta = base - sp_0_expr;
+							auto cval	  = z3x::value_of(sp_delta, true);
+							if (!cval.is<void>()) {
+								auto off = save_slots.find(cval.get_i64() + i2->opr(1).get_const().get_i64());
+								if (off != save_slots.end() && off->second.reg == reg) {
+									off->second.num_validations++;
+								}
 							}
 						}
 					}
@@ -903,8 +912,8 @@ static void whole_program_analysis_test(core::image* img) {
 
 	core::on_irp_complete.insert([](ir::routine* r, core::ir_phase ph) {
 		if (ph == core::IRP_INIT) {
-			auto m  = r->method.get();
-			auto va = m->rva + m->img->base_address;
+			// auto m  = r->method.get();
+			// auto va = m->rva + m->img->base_address;
 			// fmt::printf("sub_%llx: " RC_GRAY " # Successfully lifted " RC_VIOLET "%llu" RC_GRAY " instructions into " RC_GREEN "%llu" RC_RED " (avg: ~%llu/ins)" RC_RESET " #\n",
 			// va, 	 m->init_info.stats_minsn_disasm, m->init_info.stats_insn_lifted, m->init_info.stats_insn_lifted / (m->init_info.stats_minsn_disasm ? m->init_info.stats_minsn_disasm
 			//: 1));
@@ -1024,7 +1033,7 @@ int main(int argv, const char** args) {
 
 	// Large function test:
 	//
-	if (false) {
+	if (true) {
 		analysis_test_from_image_va("S:\\Dumps\\ntoskrnl_2004.exe", 0x140A1AEE4);
 	}
 	// Small C file test:

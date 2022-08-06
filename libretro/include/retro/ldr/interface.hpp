@@ -11,7 +11,7 @@ namespace retro::core {
 namespace retro::ldr {
 	// Hashcodes for each builtin instance defined.
 	//
-	enum {
+	enum : u32 {
 		coff_pe = "coff-pe"_ihash,
 	};
 

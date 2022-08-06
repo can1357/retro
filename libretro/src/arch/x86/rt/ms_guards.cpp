@@ -120,7 +120,7 @@ RC_INSTALL_CB(on_irp_init_xcall, cfg_remove, ir::insn* i) {
 	// Lookup the symbol, if it matches __guard_dispatch_icall_fptr:
 	//
 	auto img = i->get_image();
-	auto rva = adr.get_const().get_u64() - img->base_address;
+	auto rva = adr.get_const().get_u64() + ins->opr(1).get_const().get_i64() - img->base_address;
 	auto sym = find_rva_set_eq(img->symbols, rva);
 	if (sym && sym->name == "__guard_dispatch_icall_fptr") {
 		// Replace target operand with a read register.

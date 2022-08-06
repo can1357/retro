@@ -18,7 +18,7 @@ namespace retro::ir {
 namespace retro::arch {
 	// Hashcodes for each builtin instance defined.
 	//
-	enum {
+	enum : u32 {
 		i386	 = "i386"_ihash,
 		x86_64 = "x86_64"_ihash,
 	};

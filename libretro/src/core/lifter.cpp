@@ -186,6 +186,7 @@ namespace retro::core {
 						break;
 					}
 				} else {
+					fmt::printf("Optimized out constant conditional at 0x%llx!\n", term->ip);
 					// Swap with a xjmp.
 					//
 					ir::variant target{term->opr(term->opr(0).const_val.get<bool>() ? 1 : 2)};

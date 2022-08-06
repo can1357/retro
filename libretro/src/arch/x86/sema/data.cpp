@@ -97,7 +97,7 @@ static diag::lazy make_stos(SemaContext) {
 		write_reg(sema_context(), dst, bb->push_select(df, tmp1, tmp2));
 	} else {
 		// DEST <- *
-		bb->push_store_mem(bb->push_bitcast(ir::type::pointer, dstv), datav);
+		bb->push_store_mem(bb->push_bitcast(ir::type::pointer, dstv), 0, datav);
 		// DI += DF ? -delta : +delta
 		auto dv = bb->push_select(df, ir::constant(dstv->get_type(), -delta), ir::constant(dstv->get_type(), +delta));
 		write_reg(sema_context(), dst, bb->push_binop(ir::op::add, dstv, dv));
@@ -309,7 +309,7 @@ DECL_SEMA(PUSH) {
 	write_reg(sema_context(), rsp, new_sp);
 
 	// Write the value.
-	bb->push_store_mem(bb->push_bitcast(ir::type::pointer, new_sp), std::move(value));
+	bb->push_store_mem(bb->push_bitcast(ir::type::pointer, prev_sp), -dif, std::move(value));
 	return diag::ok;
 }
 DECL_SEMA(POP) {
@@ -320,7 +320,7 @@ DECL_SEMA(POP) {
 	auto prev_sp = read_reg(sema_context(), rsp, pty);
 
 	// Read the value.
-	auto value = bb->push_load_mem(ty, bb->push_bitcast(ir::type::pointer, prev_sp));
+	auto value = bb->push_load_mem(ty, bb->push_bitcast(ir::type::pointer, prev_sp), 0);
 
 	// Update SP.
 	auto new_sp = bb->push_binop(ir::op::add, prev_sp, ir::constant(pty, dif));

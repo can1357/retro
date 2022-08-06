@@ -157,25 +157,25 @@ templates =      [0,            0,           1]
 names =          ["",           "regid",     "value"]
 constexprs =     [1]
 
-#T    load_mem<T>   pointer:adr	
+#T    load_mem<T>   pointer:adr	constexpr i64: offset
 [opcode.load_mem]
 kind =           "@opcode_kind.memory"
 is-pure =        true
 template-count = 1
-types =          ["@type.none", "@type.pointer"]
-templates =      [1,            0]
-names =          ["",           "pointer"]
-constexprs =     []
+types =          ["@type.none", "@type.pointer", "@type.i64"]
+templates =      [1,            0,               0]
+names =          ["",           "pointer",       "offset"]
+constexprs =     [2]
 
-#void store_mem<T>  pointer:adr	T:value
+#void store_mem<T>  pointer:adr constexpr i64: offset T:value
 [opcode.store_mem]
 kind =           "@opcode_kind.memory"
 side-effect    = true
 template-count = 1
-types =          ["@type.none", "@type.pointer", "@type.none"]
-templates =      [0,            0,             1]
-names =          ["",           "pointer",     "value"]
-constexprs =     []
+types =          ["@type.none", "@type.pointer", "@type.i64", "@type.none"]
+templates =      [0,            0,               0,           1]
+names =          ["",           "pointer",       "offset",    "value"]
+constexprs =     [2]
 
 #T    undef<T>
 [opcode.undef]

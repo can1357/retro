@@ -232,6 +232,18 @@ namespace retro::ir {
 			return is(type_v<T>);
 		}
 		template<typename T>
+		decltype(auto) get() {
+			constexpr type Id = type_v<T>;
+			RC_ASSERT(type_id == u64(Id));
+			if constexpr (Id == type::str) {
+				return std::string_view{(char*) address(), size()};
+			} else if (sizeof(T) > sizeof(data)) {
+				return *(T*) ptr;
+			} else {
+				return *(T*) &data[0];
+			}
+		}
+		template<typename T>
 		decltype(auto) get() const {
 			constexpr type Id = type_v<T>;
 			RC_ASSERT(type_id == u64(Id));

@@ -56,7 +56,7 @@ DECL_SEMA(LEAVE) {
 	// RSP <- RBP;
 	auto rsp = read_reg(sema_context(), bpr, ty);
 	// RBP <- POP();
-	auto rbpv = bb->push_load_mem(ty, bb->push_bitcast(ir::type::pointer, rsp));
+	auto rbpv = bb->push_load_mem(ty, bb->push_bitcast(ir::type::pointer, rsp), 0);
 	auto rspv = bb->push_binop(ir::op::add, std::move(rsp), ir::constant(ty, n));
 
 	write_reg(sema_context(), spr, rspv);
@@ -479,13 +479,12 @@ DECL_SEMA(PUSHAD) {
 
 	// Read and store all registers.
 	//
+	auto spp = bb->push_bitcast(ir::type::pointer, sp);
 	for (size_t i = 0; i != std::size(reg_list); i++) {
 		ir::insn* value = sp;
 		if (reg_list[i] != rsp)
 			value = read_reg(sema_context(), reg_list[i], ir::type::i32);
-
-		auto ptr = bb->push_bitcast(ir::type::pointer, bb->push_binop(ir::op::add, nsp, i32(i * 4)));
-		bb->push_store_mem(ptr, value);
+		bb->push_store_mem(spp, i64(i * 4) - i64(std::size(reg_list) * 4), value);
 	}
 	return diag::ok;
 }
@@ -500,10 +499,10 @@ DECL_SEMA(POPAD) {
 
 	// Load and write all registers.
 	//
+	auto spp = bb->push_bitcast(ir::type::pointer, sp);
 	for (size_t i = 0; i != std::size(reg_list); i++) {
 		if (reg_list[i] != rsp) {
-			auto ptr = bb->push_bitcast(ir::type::pointer, bb->push_binop(ir::op::add, sp, i32(i * 4)));
-			write_reg(sema_context(), reg_list[i], bb->push_load_mem(ir::type::i32, ptr));
+			write_reg(sema_context(), reg_list[i], bb->push_load_mem(ir::type::i32, spp, i64(i)*4));
 		}
 	}
 
@@ -525,14 +524,14 @@ DECL_SEMA(PUSHA) {
 
 	// Read and store all registers.
 	//
+	auto spp = bb->push_bitcast(ir::type::pointer, sp);
 	for (size_t i = 0; i != std::size(reg_list); i++) {
 		ir::insn* value;
 		if (reg_list[i] != reg::sp)
 			value = read_reg(sema_context(), reg_list[i], ir::type::i16);
 		else
 			value = bb->push_cast(ir::type::i16, sp);
-		auto ptr = bb->push_bitcast(ir::type::pointer, bb->push_binop(ir::op::add, nsp, ir::constant(pty, i32(i * 2))));
-		bb->push_store_mem(ptr, value);
+		bb->push_store_mem(spp, i64(i * 2) - i64(std::size(reg_list) * 2), value);
 	}
 	return diag::ok;
 }
@@ -548,10 +547,10 @@ DECL_SEMA(POPA) {
 
 	// Load and write all registers.
 	//
+	auto spp = bb->push_bitcast(ir::type::pointer, sp);
 	for (size_t i = 0; i != std::size(reg_list); i++) {
 		if (reg_list[i] != reg::sp) {
-			auto ptr = bb->push_bitcast(ir::type::pointer, bb->push_binop(ir::op::add, sp, ir::constant(pty, i32(i * 2))));
-			write_reg(sema_context(), reg_list[i], bb->push_load_mem(ir::type::i16, ptr));
+			write_reg(sema_context(), reg_list[i], bb->push_load_mem(ir::type::i32, spp, i64(i) * 2));
 		}
 	}
 

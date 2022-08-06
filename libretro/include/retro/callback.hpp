@@ -29,8 +29,10 @@ namespace retro {
 		};
 
 	  protected:
-		mutable rw_lock	  lock = {};
-		list::head<entry>	  list = {};
+		mutable rw_lock lock		  = {};
+		entry*			 list_prev = nullptr; // Can't use list::head<> as it needs to be trivially initializable.
+		entry*			 list_next = nullptr;
+		entry*			 get_entry() const { return (entry*) &list_prev; }
 
 	  public:
 		// Default ctor, no copy.
@@ -46,20 +48,23 @@ namespace retro {
 			//
 			if constexpr (std::is_void_v<R>) {
 				std::shared_lock _g{lock};
-				for (auto* e : list) {
-					e->fn(args...);
+				if (list_next) {
+					for (auto it = list_next; it != get_entry(); it = it->next) {
+						it->fn(args...);
+					}
 				}
 			}
 			// Callback:
 			//
 			else {
 				std::shared_lock _g{lock};
-
 				R result = {};
-				for (auto* e : list) {
-					result = e->fn(args...);
-					if (result)
-						break;
+				if (list_next) {
+					for (auto it = list_next; it != get_entry(); it = it->next) {
+						result = it->fn(args...);
+						if (result)
+							break;
+					}
 				}
 				return result;
 			}
@@ -75,7 +80,11 @@ namespace retro {
 
 			auto v = new entry();
 			v->fn	 = std::move(f);
-			list::link_after(list.end().get(), v);
+
+			if (!list_prev) {
+				list::init(get_entry());
+			}
+			list::link_after(get_entry(), v);
 			return handle{v};
 		}
 
@@ -92,9 +101,10 @@ namespace retro {
 		// Destructor deletes all entries.
 		//
 		~callback_list() {
-			auto it = list.begin();
-			while (it != list.end()) {
-				delete std::exchange(it, it->next);
+			if (auto it = list_next) {
+				while (it != get_entry()) {
+					delete std::exchange(it, it->next);
+				}
 			}
 		}
 	};

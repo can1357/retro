@@ -23,35 +23,89 @@ namespace retro::ir::opt {
 						}
 					}
 				}
+				// Memory offset propagation.
+				//
+				else if (ins->op == opcode::store_mem || ins->op == opcode::load_mem) {
+					auto get_if = [](const operand& op, opcode o) -> insn* {
+						if (op.is_value()) {
+							auto i = op.get_value()->get_if<insn>();
+							if (i && i->op == o)
+								return i;
+						}
+						return nullptr;
+					};
+
+					if (auto ptrcast = get_if(ins->opr(0), opcode::bitcast)) {
+						// bitcast [binop add %0, $const]
+						if (auto add = get_if(ptrcast->opr(0), opcode::binop); add && add->opr(0).get_const().get<op>() == op::add) {
+							auto& lhs = add->opr(1);
+							auto& rhs = add->opr(2);
+
+							if (rhs.is_const()) {
+								auto new_op0 = ins->bb->insert(ins, make_bitcast(type::pointer, lhs));
+								ins->opr(0)	 = new_op0.get();
+								ins->opr(1).get_const().get<i64>() += rhs.get_const().get_i64();
+								n++;
+							} else if (lhs.is_const()) {
+								auto new_op0 = ins->bb->insert(ins, make_bitcast(type::pointer, rhs));
+								ins->opr(0)	 = new_op0.get();
+								ins->opr(1).get_const().get<i64>() += lhs.get_const().get_i64();
+								n++;
+							}
+						}
+						// bitcast [binop sub %0, $const]
+						else if (auto sub = get_if(ptrcast->opr(0), opcode::binop); sub && sub->opr(0).get_const().get<op>() == op::sub) {
+							auto& lhs = add->opr(1);
+							auto& rhs = add->opr(2);
+
+							if (rhs.is_const()) {
+								auto new_op0 = ins->bb->insert(ins, make_bitcast(type::pointer, lhs));
+								ins->opr(0)	 = new_op0.get();
+								ins->opr(1).get_const().get<i64>() += rhs.get_const().get_i64();
+								n++;
+							}
+						}
+					}
+				}
 				// Casts.
 				//
 				else if (ins->op == opcode::bitcast) {
+					// If RHS is not an instruction, nothing else to match.
+					//
+					auto& rhsv = ins->opr(0);
+					if (!rhsv.is_const()) {
+						auto rhs = rhsv.get_value()->get_if<insn>();
+						if (rhs) {
+							// If RHS is also a bitcast, propagate.
+							//
+							if (rhs->op == opcode::bitcast) {
+								ins->template_types[0] = rhs->opr(0).get_type();
+								ins->opr(0)				  = rhs->opr(0);
+								n++;
+							}
+						}
+					}
+					// Try to cast it away if constant.
+					//
+					else {
+						auto ccast = rhsv.get_const().bitcast(ins->template_types[1]);
+						if (!ccast.is<void>()) {
+							ins->replace_all_uses_with(ccast);
+							ins->erase();
+							n++;
+							continue;
+						}
+					}
+
 					// If cast between same types, no op.
 					//
-					auto ty1 = ins->template_types[0];
-					auto ty2 = ins->template_types[1];
+					auto& ty1 = ins->template_types[0];
+					auto& ty2 = ins->template_types[1];
 					if (ty1 == ty2) {
 						ins->replace_all_uses_with(ins->opr(0));
 						ins->erase();
 						n++;
 						continue;
-					}
-
-					// If RHS is not an instruction, nothing else to match.
-					//
-					auto& rhsv = ins->opr(0);
-					if (rhsv.is_const())
-						continue;
-					auto rhs = rhsv.get_value()->get_if<insn>();
-					if (!rhs)
-						continue;
-
-					// If RHS is also a bitcast, propagate.
-					//
-					if (rhs->op == opcode::bitcast) {
-						ins->template_types[0] = rhs->opr(0).get_type();
-						ins->opr(0)				  = rhs->opr(0);
-						n++;
 					}
 				} else if (ins->op == opcode::cast || ins->op == opcode::cast_sx) {
 					// If cast between same types, no op.
