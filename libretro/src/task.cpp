@@ -90,8 +90,15 @@ namespace retro {
 
 	// Global list of workers, will not be resized.
 	//
-	static std::vector<work_list> work_lists(std::bit_ceil(std::thread::hardware_concurrency()));
-	static std::atomic<u32>			work_balancer = 0;
+	static work_list*			g_work_lists			= nullptr;
+	static u32					g_work_list_mask		= 0;
+	static std::atomic<u32> g_work_list_balancer = 0;
+
+	RC_INITIALIZER {
+		u32 n				  = std::bit_ceil(std::thread::hardware_concurrency());
+		g_work_lists	  = new work_list[n];
+		g_work_list_mask = n - 1;
+	};
 
 	// Queues the work.
 	//
@@ -100,7 +107,7 @@ namespace retro {
 
 		// Pick the list and queue the work.
 		//
-		auto& list = work_lists[++work_balancer & (work_lists.size() - 1)];
+		auto& list = g_work_lists[++g_work_list_balancer & g_work_list_mask];
 		list.push(this);
 	}
 };
