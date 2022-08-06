@@ -62,37 +62,68 @@ endif()
 add_subdirectory(scripts)
 set(CMAKE_FOLDER ${CMKR_CMAKE_FOLDER})
 
+# z3
+set(CMKR_CMAKE_FOLDER ${CMAKE_FOLDER})
+if(CMAKE_FOLDER)
+	set(CMAKE_FOLDER "${CMAKE_FOLDER}/z3")
+else()
+	set(CMAKE_FOLDER z3)
+endif()
+add_subdirectory(z3)
+set(CMAKE_FOLDER ${CMKR_CMAKE_FOLDER})
+
 # Target libretro
 set(CMKR_TARGET libretro)
 set(libretro_SOURCES "")
 
 list(APPEND libretro_SOURCES
 	"libretro/src/arch/minsn.cpp"
+	"libretro/src/arch/x86/rt/ms_guards.cpp"
+	"libretro/src/arch/x86/rt/ms_stack_analysis.cpp"
 	"libretro/src/arch/x86/sema/arithmetic.cpp"
 	"libretro/src/arch/x86/sema/conditional.cpp"
 	"libretro/src/arch/x86/sema/data.cpp"
 	"libretro/src/arch/x86/sema/logical.cpp"
 	"libretro/src/arch/x86/sema/misc.cpp"
+	"libretro/src/arch/x86/sema/vector.cpp"
 	"libretro/src/arch/x86/x86.cpp"
+	"libretro/src/core/lifter.cpp"
+	"libretro/src/core/workspace.cpp"
 	"libretro/src/ir/basic_block.cpp"
+	"libretro/src/ir/clone.cpp"
 	"libretro/src/ir/insn.cpp"
 	"libretro/src/ir/routine.cpp"
 	"libretro/src/ir/types.cpp"
+	"libretro/src/ir/z3x.cpp"
 	"libretro/src/ldr/pe.cpp"
 	"libretro/src/main.cpp"
+	"libretro/src/opt/const_fold.cpp"
+	"libretro/src/opt/id_fold.cpp"
+	"libretro/src/opt/ins_combine.cpp"
+	"libretro/src/opt/load_to_const.cpp"
+	"libretro/src/opt/reg_prop.cpp"
+	"libretro/src/opt/reg_to_phi.cpp"
 	"libretro/src/platform.cpp"
+	"libretro/src/task.cpp"
+	"libretro/include/retro/arch/callconv.hpp"
 	"libretro/include/retro/arch/interface.hpp"
 	"libretro/include/retro/arch/minsn.hpp"
 	"libretro/include/retro/arch/mreg.hpp"
 	"libretro/include/retro/arch/x86.hpp"
+	"libretro/include/retro/arch/x86/callconv.hpp"
 	"libretro/include/retro/arch/x86/sema.hpp"
 	"libretro/include/retro/arch/x86/zy2rc.hpp"
 	"libretro/include/retro/bitset.hpp"
+	"libretro/include/retro/callback.hpp"
 	"libretro/include/retro/common.hpp"
+	"libretro/include/retro/core/callbacks.hpp"
+	"libretro/include/retro/core/image.hpp"
+	"libretro/include/retro/core/method.hpp"
+	"libretro/include/retro/core/workspace.hpp"
 	"libretro/include/retro/coro.hpp"
 	"libretro/include/retro/ctti.hpp"
 	"libretro/include/retro/diag.hpp"
-	"libretro/include/retro/doc/workspace.hpp"
+	"libretro/include/retro/directives/pattern.hpp"
 	"libretro/include/retro/dyn.hpp"
 	"libretro/include/retro/format.hpp"
 	"libretro/include/retro/func.hpp"
@@ -106,14 +137,18 @@ list(APPEND libretro_SOURCES
 	"libretro/include/retro/ir/routine.hpp"
 	"libretro/include/retro/ir/types.hpp"
 	"libretro/include/retro/ir/value.hpp"
-	"libretro/include/retro/ldr/image.hpp"
+	"libretro/include/retro/ir/z3x.hpp"
 	"libretro/include/retro/ldr/interface.hpp"
 	"libretro/include/retro/ldr/pe.hpp"
 	"libretro/include/retro/list.hpp"
 	"libretro/include/retro/lock.hpp"
+	"libretro/include/retro/opt/interface.hpp"
+	"libretro/include/retro/opt/utility.hpp"
 	"libretro/include/retro/platform.hpp"
+	"libretro/include/retro/ranges.hpp"
 	"libretro/include/retro/rc.hpp"
 	"libretro/include/retro/robin_hood.hpp"
+	"libretro/include/retro/task.hpp"
 	"libretro/include/retro/utf.hpp"
 	"libretro/include/retro/arch/reg_kind.hxx"
 	"libretro/include/retro/arch/x86/regs.hxx"
@@ -136,16 +171,19 @@ endif()
 source_group(TREE ${CMAKE_CURRENT_SOURCE_DIR} FILES ${libretro_SOURCES})
 
 target_compile_features(libretro PUBLIC
-	cxx_std_23
+	cxx_std_20
 )
 
 target_include_directories(libretro PUBLIC
 	"libretro/include"
+	"z3/src/api"
+	"z3/src/api/c++"
 )
 
 target_link_libraries(libretro PUBLIC
 	Zydis
 	linux-pe
+	Z3
 )
 
 unset(CMKR_TARGET)
