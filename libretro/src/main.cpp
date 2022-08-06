@@ -179,7 +179,10 @@ static void msabi_x64_stack_analysis(ir::routine* rtn) {
 	// For each epilogue:
 	//
 	size_t num_epi = 0;
-	for (auto& epilogue : rtn->terminators()) {
+	for (auto& epilogue : rtn->blocks) {
+		if ((epilogue != rtn->get_entry() && epilogue->predecessors.empty()) || !epilogue->successors.empty())
+			continue;
+
 		// Skip if not terminated or does not end with xret.
 		//
 		auto term = epilogue->terminator();

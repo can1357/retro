@@ -43,6 +43,10 @@ namespace retro::arch {
 		small_array<mreg> argument_gpr = {};
 		small_array<mreg> argument_fp	 = {};
 
+		// Valid frame pointers.
+		//
+		small_array<mreg> frame_gpr = {};
+
 		// Register holding the count of FP registers used by the caller upon calling a vararg function, or none if not relevant.
 		//
 		mreg fp_varg_counter = {};

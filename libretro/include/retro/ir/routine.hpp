@@ -12,7 +12,7 @@ namespace retro::core { struct method; };
 namespace retro::ir {
 	// Routine type.
 	//
-	struct routine : range::view_base {
+	struct routine  {
 		using container		= std::vector<ref<basic_block>>;
 		using iterator			= typename container::iterator;
 		using const_iterator = typename container::const_iterator;
@@ -50,12 +50,6 @@ namespace retro::ir {
 		// Gets the entry point.
 		//
 		basic_block* get_entry() const { return blocks.empty() ? nullptr : blocks.front().get(); }
-
-		// Gets a list of terminators.
-		//
-		auto terminators() const {
-			return blocks | view::filter([e = get_entry()](auto& bb) { return (bb.get() == e || !bb->predecessors.empty()) && bb->successors.empty(); });
-		}
 
 		// Creates or removes a block.
 		//

@@ -34,7 +34,7 @@ namespace retro::ir {
 		// Container observers.
 		//
 		list::iterator<insn> end_phi() const {
-			return range::find_if(begin(), end(), [](insn* i) { return i->op != opcode::phi; });
+			return range::find_if(*this, [](insn* i) { return i->op != opcode::phi; });
 		}
 		auto phis() const { return range::subrange(begin(), end_phi()); }
 		auto insns() const { return range::subrange(begin(), end()); }

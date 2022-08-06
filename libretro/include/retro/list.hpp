@@ -124,7 +124,7 @@ namespace retro::list {
 	// List head helper.
 	//
 	template<typename T>
-	struct head : pinned, range::view_base {
+	struct head : pinned {
 		using iterator = iterator<T>;
 	  private:
 		T* prev = entry();

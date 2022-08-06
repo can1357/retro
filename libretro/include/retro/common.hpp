@@ -11,8 +11,8 @@
 #include <span>
 #include <string_view>
 #include <numeric>
-#include <ranges>
 #include <algorithm>
+#include <retro/ranges.hpp>
 
 // Compiler details.
 //
@@ -193,9 +193,6 @@
 #endif
 
 namespace retro {
-	namespace view	 = std::views;
-	namespace range = std::ranges;
-
 	// Short names for builtin types.
 	//
 	using u8	  = uint8_t;

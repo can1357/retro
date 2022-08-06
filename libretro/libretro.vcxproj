@@ -72,6 +72,7 @@
     <ClInclude Include="include\retro\opt\interface.hpp" />
     <ClInclude Include="include\retro\opt\utility.hpp" />
     <ClInclude Include="include\retro\platform.hpp" />
+    <ClInclude Include="include\retro\ranges.hpp" />
     <ClInclude Include="include\retro\rc.hpp" />
     <ClInclude Include="include\retro\robin_hood.hpp" />
     <ClInclude Include="include\retro\task.hpp" />
