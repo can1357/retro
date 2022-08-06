@@ -81,7 +81,6 @@ namespace retro::arch {
 	mreg_info x86arch::get_register_info(mreg r) {
 		auto& desc = enum_reflect(x86::reg(r.id));
 		mreg_info info{r, desc.offset, desc.width};
-		// TODO: Fix for x86 non 64-bit.
 		if (desc.super != x86::reg::none) {
 			info.full_reg = desc.super;
 		}
@@ -91,9 +90,11 @@ namespace retro::arch {
 		if (!is_64()) {
 			auto match = is_32() ? reg_kind::gpr32 : reg_kind::gpr16;
 			if (auto& i = enum_reflect(x86::reg(info.full_reg.id)); i.kind == reg_kind::gpr64) {
+				info.full_reg = r;
 				for (auto part : i.parts) {
 					if (enum_reflect(part).kind == match) {
 						info.full_reg = part;
+						break;
 					}
 				}
 			}

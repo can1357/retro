@@ -186,6 +186,18 @@ namespace retro::ir {
 				result += fmt::str(RC_GRAY " [%llx => ...]" RC_RESET, ip);
 			}
 
+			if (predecessors.empty()) {
+				result += " {" RC_GREEN "Entry" RC_RESET "}";
+			} else {
+				result += " {";
+				for (auto& p : predecessors) {
+					result += p->to_string(fmt_style::concise);
+					result += ",";
+				}
+				result.pop_back();
+				result += RC_RESET "}";
+			}
+
 			auto			last_label = NO_LABEL;
 			for (insn* i : *this) {
 				auto str = i->to_string();

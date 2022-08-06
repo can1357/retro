@@ -87,14 +87,11 @@ namespace retro::ir::opt {
 					}
 					// Try to cast it away if constant.
 					//
-					else {
-						auto ccast = rhsv.get_const().bitcast(ins->template_types[1]);
-						if (!ccast.is<void>()) {
-							ins->replace_all_uses_with(ccast);
-							ins->erase();
-							n++;
-							continue;
-						}
+					else if (auto ccast = rhsv.get_const().bitcast(ins->template_types[1])) {
+						ins->replace_all_uses_with(ccast);
+						ins->erase();
+						n++;
+						continue;
 					}
 
 					// If cast between same types, no op.

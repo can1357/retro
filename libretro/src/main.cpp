@@ -127,7 +127,7 @@ static void msabi_x64_stack_analysis(ir::routine* rtn) {
 			auto sp_delta = base - sp_0_expr;
 			auto cval	  = z3x::value_of(sp_delta, true);
 			// Non-stack memory write, end of epilogue.
-			if (cval.is<void>()) {
+			if (!cval) {
 				break;
 			}
 			auto spd = cval.get_i64() + i->opr(1).get_const().get_i64();
@@ -149,7 +149,7 @@ static void msabi_x64_stack_analysis(ir::routine* rtn) {
 			auto sp_delta = base - sp_0_expr;
 			auto cval	  = z3x::value_of(sp_delta, true);
 			// Non-stack memory read, end of epilogue.
-			if (cval.is<void>()) {
+			if (!cval) {
 				break;
 			}
 		}
@@ -172,8 +172,7 @@ static void msabi_x64_stack_analysis(ir::routine* rtn) {
 						auto base = z3x::to_expr(vs, ctx, i->opr(1));
 						if (z3x::ok(base)) {
 							auto sp_delta = base - sp_0_expr;
-							auto cval	  = z3x::value_of(sp_delta, true);
-							if (!cval.is<void>()) {
+							if (auto cval = z3x::value_of(sp_delta, true)) {
 								frame_offsets[reg.uid()] = cval.get_i64();
 							}
 						}
@@ -220,8 +219,7 @@ static void msabi_x64_stack_analysis(ir::routine* rtn) {
 						auto base	  = z3x::to_expr(vs, ctx, i2->opr(0));
 						if (z3x::ok(base)) {
 							auto sp_delta = base - sp_0_expr;
-							auto cval	  = z3x::value_of(sp_delta, true);
-							if (!cval.is<void>()) {
+							if (auto cval = z3x::value_of(sp_delta, true)) {
 								auto off = save_slots.find(cval.get_i64() + i2->opr(1).get_const().get_i64());
 								if (off != save_slots.end() && off->second.reg == reg) {
 									off->second.num_validations++;
@@ -346,7 +344,19 @@ static void msabi_x64_stack_analysis(ir::routine* rtn) {
 			// If XRET:
 			//
 			else if (i->op == ir::opcode::xret) {
-				auto args = bb->insert(i, ir::make_context_begin(bb->insert(i, ir::make_read_reg(ir::type::pointer, arch::x86::reg::rsp)).get()));
+
+				auto sp	 = bb->insert(i, ir::make_read_reg(ir::type::pointer, arch::x86::reg::rsp));
+				auto spex = z3x::to_expr(vs, ctx, sp);
+				auto retex = z3x::to_expr(vs, ctx, i->opr(0));
+
+				i64 delta = 8;
+				if (z3x::ok(spex) && z3x::ok(retex)) {
+					if (auto delta_expr = z3x::value_of(spex - retex, true)) {
+						delta = delta_expr.get_i64();
+					}
+				}
+
+				auto args = bb->insert(i, ir::make_context_begin(i->opr(0)));
 
 				// Read the results.
 				//
@@ -361,7 +371,7 @@ static void msabi_x64_stack_analysis(ir::routine* rtn) {
 
 				// Create the ret.
 				//
-				bb->insert(i, ir::make_ret(args.get()));
+				bb->insert(i, ir::make_ret(args.get(), delta));
 				return true;
 			}
 			// If stack_reset:

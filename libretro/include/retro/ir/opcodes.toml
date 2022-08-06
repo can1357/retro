@@ -459,15 +459,16 @@ bb-terminator  = true
 types =          ["@type.none", "@type.pointer"]
 templates =      [0,            0]
 names =          ["",           "ptr"]
-#void  ret       context:ctx
+#void  ret       context:ctx constexpr offset: i64
 [opcode.ret]
 kind =           "@opcode_kind.branch"
 side-effect    = true
 terminator =     true
 bb-terminator  = true
-types =          ["@type.none", "@type.context"]
-templates =      [0,            0]
-names =          ["",           "ctx"]
+types =          ["@type.none", "@type.context", "@type.i64"]
+templates =      [0,            0,               0]
+names =          ["",           "ctx",           "offset"]
+constexprs =     [2]
 
 #void  trap      str:Reason
 [opcode.trap]

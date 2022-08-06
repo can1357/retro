@@ -29,7 +29,7 @@ namespace retro::core {
 		// Statistics.
 		//
 		u64 stats_minsn_disasm = 0;  // Machine instructions diassembled.
-		u64 stats_insn_lifted = 0;	 // IR instructions created to represent the disassembled instructions.
+		u64 stats_insn_lifted  = 0;  // IR instructions created to represent the disassembled instructions.
 		u64 stats_block_count  = 0;  // Blocks parsed.
 
 		// Difference in stack pointer after a call to this function.
@@ -41,18 +41,13 @@ namespace retro::core {
 		arch::mreg frame_reg			= {};
 		i64		  frame_reg_delta = 0;
 
-		// Min/Max of non-indexed accesses.
+		// Maximum addressed stack location.
 		//
-		i64 min_access = 0;
-		i64 max_access = 0;
+		i64 max_sp_used = 0;
 
 		// Layout of registers saved on the stack frame.
 		//
 		flat_umap<i64, arch::mreg> save_area_layout = {};
-
-		// Flags.
-		//
-		u32 is_valid : 1	  = false;
 	};
 
 	// A method describes a collection of IR routines in different states and

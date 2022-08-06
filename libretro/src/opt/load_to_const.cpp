@@ -52,7 +52,7 @@ namespace retro::ir::opt {
 						value = {ins->template_types[0], data};
 					}
 
-					if (!value.is<void>()) {
+					if (value) {
 						// Do not propagate the value if symbol is marked with read_only_ignore.
 						//
 						bool no_const = false;

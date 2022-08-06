@@ -11,7 +11,7 @@ namespace retro::core {
 		if (op.is_const())
 			return &op.const_val;
 		if (auto expr = z3x::to_expr(vs, z3x::get_context(), op)) {
-			if (auto v = z3x::value_of(expr, true); !v.is<void>()) {
+			if (auto v = z3x::value_of(expr, true)) {
 				v = v.bitcast(op.get_type());
 				RC_ASSERT(!v.is<void>());
 				op = std::move(v);

@@ -310,6 +310,10 @@ namespace retro::ir {
 		bool operator==(const constant& other) const { return equals(other); }
 		bool operator!=(const constant& other) const { return !equals(other); }
 
+		// Void check.
+		//
+		explicit operator bool() const { return get_type() != type::none; }
+
 		// Application of an operator over constants, returns "none" on failure.
 		//
 		constant apply(op o, const constant& rhs) const;

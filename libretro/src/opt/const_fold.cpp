@@ -20,7 +20,7 @@ namespace retro::ir::opt {
 				auto& lhs = ins->opr(1);
 				auto& rhs = ins->opr(2);
 				if (lhs.is_const() && rhs.is_const()) {
-					if (auto res = lhs.get_const().apply(opc.get_const().get<op>(), rhs.get_const()); !res.is<void>()) {
+					if (auto res = lhs.get_const().apply(opc.get_const().get<op>(), rhs.get_const())) {
 						n += 1 + ins->replace_all_uses_with(res);
 					}
 				}
@@ -28,7 +28,7 @@ namespace retro::ir::opt {
 				auto& opc = ins->opr(0);
 				auto& lhs = ins->opr(1);
 				if (lhs.is_const()) {
-					if (auto res = lhs.get_const().apply(opc.get_const().get<op>()); !res.is<void>()) {
+					if (auto res = lhs.get_const().apply(opc.get_const().get<op>())) {
 						n += 1 + ins->replace_all_uses_with(res);
 					}
 				}
@@ -36,7 +36,7 @@ namespace retro::ir::opt {
 				auto	into = ins->template_types[1];
 				auto& val  = ins->opr(0);
 				if (val.is_const()) {
-					if (auto res = val.get_const().cast_zx(into); !res.is<void>()) {
+					if (auto res = val.get_const().cast_zx(into)) {
 						n += 1 + ins->replace_all_uses_with(res);
 					}
 				}
@@ -44,7 +44,7 @@ namespace retro::ir::opt {
 				auto	into = ins->template_types[1];
 				auto& val  = ins->opr(0);
 				if (val.is_const()) {
-					if (auto res = val.get_const().cast_sx(into); !res.is<void>()) {
+					if (auto res = val.get_const().cast_sx(into)) {
 						n += 1 + ins->replace_all_uses_with(res);
 					}
 				}
@@ -53,7 +53,7 @@ namespace retro::ir::opt {
 				auto& val  = ins->opr(0);
 				if (val.is_const()) {
 					auto cv = val.get_const().bitcast(into);
-					RC_ASSERT(!cv.is<void>());
+					RC_ASSERT(cv);
 					n += ins->replace_all_uses_with(cv);
 				}
 			} else if (ins->op == opcode::select) {

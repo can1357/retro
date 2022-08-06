@@ -699,7 +699,7 @@ namespace retro::z3x {
 			std::vector<ir::variant> args(expr.num_args());
 			for (size_t i = 0; i != args.size(); i++) {
 				args[i] = from_expr(vs, expr.arg((u32) i), bb, it);
-				if (args[i].is_const() && args[i].const_val.is<void>())
+				if (args[i].is_const() && !args[i].get_const())
 					return {};
 			}
 
