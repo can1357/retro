@@ -95,7 +95,7 @@ namespace retro::z3x {
 	}
 	RC_INLINE static expr bit_and(const expr& lhs, const expr& rhs) {
 		if (lhs.is_bv()) {
-			return {lhs.ctx(), Z3_mk_bvor(lhs.ctx(), lhs, rhs)};
+			return {lhs.ctx(), Z3_mk_bvand(lhs.ctx(), lhs, rhs)};
 		} else {
 			Z3_ast l[] = {lhs, rhs};
 			return {lhs.ctx(), Z3_mk_and(lhs.ctx(), 2, l)};
