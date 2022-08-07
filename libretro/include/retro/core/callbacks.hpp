@@ -1,11 +1,16 @@
 #pragma once
 #include <retro/callback.hpp>
 #include <retro/ir/insn.hpp>
+#include <retro/arch/minsn.hpp>
 #include <retro/core/method.hpp>
 
 // Analysis callbacks.
 //
 namespace retro::core {
+	// Handles lifting of instructions.
+	//
+	inline handler_list<arch::handle, ir::basic_block*, arch::minsn&, u64> on_minsn_lift;
+
 	// Handles resolution of an XJMP instruction with non-constant target, for instance in the case of jump tables.
 	//
 	inline handler_list<method*, ir::insn*> indirect_xjmp_resolver = {};

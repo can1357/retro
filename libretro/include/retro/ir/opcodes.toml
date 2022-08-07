@@ -470,7 +470,16 @@ templates =      [0,            0,               0]
 names =          ["",           "ctx",           "offset"]
 constexprs =     [2]
 
-#void  trap      str:Reason
+#T  annotation<T> constexpr str:Name
+[opcode.annotation]
+is-annotation =  true
+template-count = 1
+types =          ["@type.none", "@type.str"]
+templates =      [1,            0]
+names =          ["",           "Name"]
+constexprs =     [1]
+
+#void  trap      constexpr str:Reason
 [opcode.trap]
 kind =           "@opcode_kind.trap"
 side-effect    = true

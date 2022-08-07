@@ -36,6 +36,20 @@ __attribute__((noinline)) static void sinku(unsigned int _) { asm volatile(""); 
 __attribute__((noinline)) static void sinki(int _) { asm volatile(""); }
 __attribute__((noinline)) static void sinkf(float _) { asm volatile(""); }
 __attribute__((noinline)) static void sinkl(double _) { asm volatile(""); }
+
+__attribute__((always_inline)) int marker(const char* msg) {
+   void* x;
+	asm volatile("vmread %0, %1" : "+a"(x) : "m"(*msg));
+	asm volatile("mov %0, %0" : "+a"(x));
+	asm volatile("mov %0, %0" : "+a"(x));
+   return (int)(long)x;
+}
+__attribute__((always_inline)) int short_marker(const char* msg) {
+   void* x;
+	asm volatile("vmread %0, %1" : "+a"(x) : "m"(*msg));
+   return (int)(long)x;
+}
+
 int main() {}
 )";
 
@@ -640,7 +654,21 @@ static void analysis_test_from_image_va(std::filesystem::path path, u64 va) {
 	whole_program_analysis_test(img);
 	analysis_test(img, fmt::str("sub_%llx", va), va - img->base_address);
 }
+
+#include <Zydis/Zydis.h>
 static void analysis_test_from_source(std::string src) {
+	core::on_minsn_lift.insert([](arch::handle arch, ir::basic_block* bb, arch::minsn& i, u64 va) {
+		if (i.mnemonic == ZYDIS_MNEMONIC_VMREAD) {
+			auto str = (const char*)bb->get_image()->slice(i.op[0].m.disp + va + i.length - bb->get_image()->base_address).data();
+			auto result = bb->push_annotation(ir::int_type(i.op[1].get_width()), std::string_view{str});
+			auto write	= bb->push_write_reg(i.op[1].r, result);
+			arch->explode_write_reg(write);
+			return true;
+		}
+		return false;
+	});
+
+
 	// Determine flags.
 	//
 	std::string flags = "-O1";
@@ -686,7 +714,7 @@ int main(int argv, const char** args) {
 
 	// Large function test:
 	//
-	if (true) {
+	if (false) {
 		analysis_test_from_image_va("S:\\Dumps\\ntoskrnl_2004.exe", 0x140A1AEE4);
 	}
 	// Small C file test:

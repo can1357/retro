@@ -120,11 +120,13 @@ namespace retro::core {
 
 			// Lift the instruction, push trap on failure and break.
 			//
-			if (auto err = arch->lift(bb, ins, va)) {
-				bb->push_trap("lifter error: " + err.to_string())->ip = va;
-				// TODO: Log
-				fmt::println(err.to_string());
-				break;
+			if (!on_minsn_lift(arch, bb, ins, va)) {
+				if (auto err = arch->lift(bb, ins, va)) {
+					bb->push_trap("lifter error: " + err.to_string())->ip = va;
+					// TODO: Log
+					fmt::println(err.to_string());
+					break;
+				}
 			}
 			if (!bb->empty()) {
 				auto it = std::prev(bb->end());
