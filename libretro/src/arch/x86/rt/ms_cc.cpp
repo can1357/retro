@@ -20,6 +20,11 @@ RC_INSTALL_CB(on_cc_analysis, msabi_x64, ir::routine* rtn, irp_phi_info& info) {
 	z3x::variable_set vs	 = {};
 	auto&					ctx = z3x::get_context();
 
+	// Write some assumptions.
+	//
+	rtn->get_entry()->insert(rtn->get_entry()->begin(), ir::make_write_reg(x86::reg::flag_df, false));
+	// TODO: X87 stack == empty on i386 version.
+
 	// There's only one valid calling convention and SP is always callee adjusted, so apply it over all XCALL and XRETs.
 	//
 	auto* cc = &x86::cc_msabi_x86_64;

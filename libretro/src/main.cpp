@@ -1,25 +1,25 @@
-#include <retro/arch/interface.hpp>
 #include <retro/common.hpp>
 #include <retro/diag.hpp>
 #include <retro/format.hpp>
-#include <retro/ir/insn.hpp>
-#include <retro/ldr/interface.hpp>
+#include <retro/utf.hpp>
 #include <retro/platform.hpp>
-
-using namespace retro;
-
-#include <retro/arch/x86/regs.hxx>
-#include <retro/ir/routine.hpp>
 #include <retro/robin_hood.hpp>
-
+#include <retro/arch/interface.hpp>
+#include <retro/arch/x86/regs.hxx>
+#include <retro/arch/x86/callconv.hpp>
+#include <retro/ldr/interface.hpp>
+#include <retro/ir/insn.hpp>
+#include <retro/ir/routine.hpp>
 #include <retro/ir/z3x.hpp>
-
 #include <retro/opt/interface.hpp>
 #include <retro/opt/utility.hpp>
-
 #include <retro/core/image.hpp>
 #include <retro/core/method.hpp>
 #include <retro/core/workspace.hpp>
+#include <retro/core/callbacks.hpp>
+#include <retro/llvm/clang.hpp>
+#include <Zydis/Zydis.h>
+using namespace retro;
 
 static const char code_prefix[] =
 #if RC_WINDOWS
@@ -52,17 +52,6 @@ __attribute__((always_inline)) int short_marker(const char* msg) {
 
 int main() {}
 )";
-
-#include <retro/llvm/clang.hpp>
-#include <retro/robin_hood.hpp>
-
-
-
-#include <execution>
-
-#include <retro/arch/x86/regs.hxx>
-#include <retro/arch/x86/callconv.hpp>
-#include <retro/core/callbacks.hpp>
 
 
 struct save_slot_analysis {
@@ -435,36 +424,7 @@ static bool irp_phi_queue(core::method* m, neo::scheduler* sched = nullptr) {
 	return true;
 }
 
-/*
-static void phase0(ref<ir::routine> rtn) {
-	fmt::println(rtn->to_string());
-
-	// Print disassembly.
-	// -- TODO: DEBUG
-	range::sort(rtn->blocks, [](auto& a, auto& b) { return a->ip < b->ip; });
-	for (auto& bb : rtn->blocks) {
-		auto range = rtn->get_image()->slice(bb->ip - rtn->get_image()->base_address);
-		range = range.subspan(0, bb->end_ip - bb->ip);
-
-		u64 ip = bb->ip;
-		while (!range.empty()) {
-			arch::minsn insn;
-			if (!rtn->get_image()->arch->disasm(range, &insn))
-				break;
-			fmt::println((void*) ip, ":", insn.to_string(ip));
-			ip += insn.length;
-			range = range.subspan(insn.length);
-		}
-	}
-
-	// Print the routine.
-	//
-	apply_stack_analysis(rtn);
-
-	fmt::println(rtn->to_string());
-}*/
-
-static umutex __out_mtx;
+inline static umutex __out_mtx;
 
 static void whole_program_analysis_test(core::image* img) {
 	fmt::println("Starting whole program analysis...\n");
@@ -525,8 +485,7 @@ static void whole_program_analysis_test(core::image* img) {
 			//
 			irp_phi_queue(m);
 		} else if (ph == core::IRP_PHI) {
-			auto va = m->rva + m->img->base_address;
-
+			//auto va = m->rva + m->img->base_address;
 			//__out_mtx.lock();
 			//if (r) {
 			//	fmt::printf("sub_%llx: " RC_GRAY " # Basic analysis " RC_GREEN "finished" RC_GRAY " #\n" RC_RESET, va);
@@ -569,6 +528,79 @@ static void whole_program_analysis_test(core::image* img) {
 	fmt::printf(" - Took %.2f seconds\n", (t1-t0)/1.0s);
 }
 
+static std::string write_graph(ref<ir::routine> rtn) {
+	std::string out = R"(digraph G {
+	mclimit	= 1.5;
+	rankdir	= TD;
+	ordering = out;
+   node[shape="box"]
+
+)";
+
+	for (auto& bb : rtn->blocks) {
+		auto it = range::find_if(bb->insns(), [](auto i) { return i->op == ir::opcode::annotation; });
+		std::string res;
+		if (it != bb->end()) {
+			for (auto i : bb->insns()) {
+				if (i->op == ir::opcode::annotation) {
+					res += i->opr(0).get_const().get<std::string_view>();
+					res += "\\n";
+				}
+			}
+			res.pop_back();
+			res.pop_back();
+		} else {
+			res = fmt::strip_ansi(bb->to_string());
+			while (true) {
+				auto it = res.find('\n');
+				if (it != std::string::npos) {
+					res[it] = 'l';
+					res.insert(res.begin() + it, '\\');
+				} else {
+					break;
+				}
+			}
+			while (true) {
+				auto it = res.find('"');
+				if (it != std::string::npos) {
+					res[it] = '\'';
+				} else {
+					break;
+				}
+			}
+			while (true) {
+				auto it = res.find('\t');
+				if (it != std::string::npos) {
+					res.erase(res.begin() + it);
+				} else {
+					break;
+				}
+			}
+		}
+		out += fmt::str("\tblk_%x[label = \"%s\"]\n", bb->name, res.c_str());
+	}
+
+	for (auto& bb : rtn->blocks) {
+		auto t = bb->terminator();
+		if (t->op == ir::opcode::js) {
+			auto tc = t->opr(1).get_value()->get_if<ir::basic_block>()->name;
+			auto fc = t->opr(2).get_value()->get_if<ir::basic_block>()->name;
+
+
+			out += fmt::str("\tblk_%x->blk_%x[color=\"green\"];\n", bb->name, tc);
+			out += fmt::str("\tblk_%x->blk_%x[color=\"red\"];\n", bb->name, fc);
+		} else {
+			for (auto& suc : bb->successors) {
+				out += fmt::str("\tblk_%x->blk_%x;\n", bb->name, suc->name);
+			}
+		}
+	}
+	out += "\n}";
+	return out;
+}
+
+
+
 static ref<ir::routine> analysis_test(core::image* img, const std::string& name, u64 rva) {
 	// Demo.
 	//
@@ -604,8 +636,28 @@ static ref<ir::routine> analysis_test(core::image* img, const std::string& name,
 			fmt::printf("Max SP delta: %x\n", m->phi_info.max_sp_used);
 			fmt::printf("Min SP delta: -%x\n", -m->phi_info.min_sp_used);
 			fmt::println(nrtn->to_string());
+			fmt::println(write_graph(nrtn));
+
+			/*
+			range::sort(rtn->blocks, [](auto& a, auto& b) { return a->ip < b->ip; });
+			for (auto& bb : rtn->blocks) {
+				auto range = rtn->get_image()->slice(bb->ip - rtn->get_image()->base_address);
+				range		  = range.subspan(0, bb->end_ip - bb->ip);
+
+				u64 ip = bb->ip;
+				while (!range.empty()) {
+					arch::minsn insn;
+					if (!rtn->get_image()->arch->disasm(range, &insn))
+						break;
+					fmt::println((void*) ip, ":", insn.to_string(ip));
+					ip += insn.length;
+					range = range.subspan(insn.length);
+				}
+			}*/
 		}
 	}
+
+
 	return rtn;
 }
 
@@ -624,8 +676,6 @@ static void analysis_test_from_image_va(std::filesystem::path path, u64 va) {
 	whole_program_analysis_test(img);
 	analysis_test(img, fmt::str("sub_%llx", va), va - img->base_address);
 }
-
-#include <Zydis/Zydis.h>
 static void analysis_test_from_source(std::string src) {
 	core::on_minsn_lift.insert([](arch::handle arch, ir::basic_block* bb, arch::minsn& i, u64 va) {
 		if (i.mnemonic == ZYDIS_MNEMONIC_VMREAD) {
@@ -680,7 +730,6 @@ static void analysis_test_from_source(std::string src) {
 	}
 }
 
-#include <retro/utf.hpp>
 int main(int argv, const char** args) {
 	platform::setup_ansi_escapes();
 	// TODO: Assumes its a UI app and we want responsive UX, should be handled by a launch flag or sthg.

@@ -28,6 +28,50 @@ EXPORT int _fn_2(int a) {
 
 
 
+EXPORT int cftest() {
+
+	while(1){
+		if (!short_marker("if(x)")) {
+			marker("doshit1()");
+			break;
+		}
+		if (!short_marker("if(y)")) {
+			marker("doshit2()");
+			break;
+		}
+		if (!short_marker("if(z)")) {
+			return 0;
+		}
+		marker("rest-of-the-loop-body");
+	}
+	marker("long shit #1");
+	marker("long shit #2");
+	marker("long shit #3");
+	return marker("long shit #4");
+
+	/*if(!marker("if-cc")){
+		marker("if-body");
+	} else {
+		marker("else-body");
+	}
+
+	while(!short_marker("while-cc")){
+		marker("loop-body-begin");
+		if(!short_marker("bif")) {
+			marker("break");
+			break;
+		}
+		if(!short_marker("cif")) {
+			marker("continue");
+			continue;
+		}
+		marker("loop-body-end");
+	}
+
+	return marker("end");*/
+}
+
+/*
 OUTLINE int me_take_long(char x, ...) { asm volatile("" :: "r"(x)); return x;}
 
 EXPORT int fn_2(int a, int b) {
@@ -64,4 +108,4 @@ EXPORT int test(int a, int _0, int _1, int _2, int _3, int _4, int xx) {
    // y = 2*me_take_big(a, {}, a);
 
     return x+y;
-}
+}*/

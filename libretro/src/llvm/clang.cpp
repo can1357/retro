@@ -13,6 +13,7 @@ namespace retro::llvm {
 	// Default list of tried strings.
 	//
 	static constexpr std::string_view base_directories[] = {
+		 "",
 #if RC_WINDOWS
 		 "%LLVMInstallDir%/bin/",
 		 "%LLVM_PATH%/bin/",
@@ -22,7 +23,6 @@ namespace retro::llvm {
 		 "$LLVMInstallDir/bin/",
 		 "$LLVM_PATH/bin/",
 #endif
-		 ""
 	};
 
 	// Attempts to find the LLVM setup directory, returns nullptr on failure.
