@@ -69,6 +69,37 @@
     <ClInclude Include="include\retro\ir\z3x.hpp" />
     <ClInclude Include="include\retro\ldr\interface.hpp" />
     <ClInclude Include="include\retro\ldr\pe.hpp" />
+    <ClInclude Include="include\retro\ldr\pe\coff\archive.hpp" />
+    <ClInclude Include="include\retro\ldr\pe\coff\auxiliaries\aux_file_name.hpp" />
+    <ClInclude Include="include\retro\ldr\pe\coff\auxiliaries\aux_function.hpp" />
+    <ClInclude Include="include\retro\ldr\pe\coff\auxiliaries\aux_function_delimiter.hpp" />
+    <ClInclude Include="include\retro\ldr\pe\coff\auxiliaries\aux_section.hpp" />
+    <ClInclude Include="include\retro\ldr\pe\coff\auxiliaries\aux_weak_external.hpp" />
+    <ClInclude Include="include\retro\ldr\pe\coff\file_header.hpp" />
+    <ClInclude Include="include\retro\ldr\pe\coff\image.hpp" />
+    <ClInclude Include="include\retro\ldr\pe\coff\import_library.hpp" />
+    <ClInclude Include="include\retro\ldr\pe\coff\line_number.hpp" />
+    <ClInclude Include="include\retro\ldr\pe\coff\reloc.hpp" />
+    <ClInclude Include="include\retro\ldr\pe\coff\section_header.hpp" />
+    <ClInclude Include="include\retro\ldr\pe\coff\string.hpp" />
+    <ClInclude Include="include\retro\ldr\pe\coff\symbol.hpp" />
+    <ClInclude Include="include\retro\ldr\pe\coff\uleb128.hpp" />
+    <ClInclude Include="include\retro\ldr\pe\img_common.hpp" />
+    <ClInclude Include="include\retro\ldr\pe\nt\data_directories.hpp" />
+    <ClInclude Include="include\retro\ldr\pe\nt\directories\dir_debug.hpp" />
+    <ClInclude Include="include\retro\ldr\pe\nt\directories\dir_delay_load.hpp" />
+    <ClInclude Include="include\retro\ldr\pe\nt\directories\dir_exceptions.hpp" />
+    <ClInclude Include="include\retro\ldr\pe\nt\directories\dir_export.hpp" />
+    <ClInclude Include="include\retro\ldr\pe\nt\directories\dir_iat.hpp" />
+    <ClInclude Include="include\retro\ldr\pe\nt\directories\dir_import.hpp" />
+    <ClInclude Include="include\retro\ldr\pe\nt\directories\dir_load_config.hpp" />
+    <ClInclude Include="include\retro\ldr\pe\nt\directories\dir_relocs.hpp" />
+    <ClInclude Include="include\retro\ldr\pe\nt\directories\dir_resource.hpp" />
+    <ClInclude Include="include\retro\ldr\pe\nt\directories\dir_security.hpp" />
+    <ClInclude Include="include\retro\ldr\pe\nt\directories\dir_tls.hpp" />
+    <ClInclude Include="include\retro\ldr\pe\nt\image.hpp" />
+    <ClInclude Include="include\retro\ldr\pe\nt\nt_headers.hpp" />
+    <ClInclude Include="include\retro\ldr\pe\nt\optional_header.hpp" />
     <ClInclude Include="include\retro\list.hpp" />
     <ClInclude Include="include\retro\umutex.hpp" />
     <ClInclude Include="include\retro\opt\interface.hpp" />
@@ -199,21 +230,21 @@
     <LinkIncremental>true</LinkIncremental>
     <OutDir>$(SolutionDir)\build\$(ProjectName)\$(Platform)\$(Configuration)\</OutDir>
     <IntDir>$(SolutionDir)\build\$(ProjectName)-tmp\$(Platform)\$(Configuration)\</IntDir>
-    <IncludePath>$(ProjectDir)include;$(SolutionDir)zydis\dependencies\zycore\include;$(SolutionDir)zydis\include;$(SolutionDir)linux-pe\includes;$(VC_IncludePath);$(WindowsSDK_IncludePath)</IncludePath>
+    <IncludePath>$(ProjectDir)include;$(SolutionDir)zydis\dependencies\zycore\include;$(SolutionDir)zydis\include;$(VC_IncludePath);$(WindowsSDK_IncludePath)</IncludePath>
     <PublicIncludeDirectories>$(ProjectDir)include;</PublicIncludeDirectories>
   </PropertyGroup>
   <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Release|Win32'">
     <LinkIncremental>false</LinkIncremental>
     <OutDir>$(SolutionDir)\build\$(ProjectName)\$(Platform)\$(Configuration)\</OutDir>
     <IntDir>$(SolutionDir)\build\$(ProjectName)-tmp\$(Platform)\$(Configuration)\</IntDir>
-    <IncludePath>$(ProjectDir)include;$(SolutionDir)zydis\dependencies\zycore\include;$(SolutionDir)zydis\include;$(SolutionDir)linux-pe\includes;$(VC_IncludePath);$(WindowsSDK_IncludePath)</IncludePath>
+    <IncludePath>$(ProjectDir)include;$(SolutionDir)zydis\dependencies\zycore\include;$(SolutionDir)zydis\include;$(VC_IncludePath);$(WindowsSDK_IncludePath)</IncludePath>
     <PublicIncludeDirectories>$(ProjectDir)include;</PublicIncludeDirectories>
   </PropertyGroup>
   <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Release-LLVM|Win32'">
     <LinkIncremental>false</LinkIncremental>
     <OutDir>$(SolutionDir)\build\$(ProjectName)\$(Platform)\$(Configuration)\</OutDir>
     <IntDir>$(SolutionDir)\build\$(ProjectName)-tmp\$(Platform)\$(Configuration)\</IntDir>
-    <IncludePath>$(ProjectDir)include;$(SolutionDir)zydis\dependencies\zycore\include;$(SolutionDir)zydis\include;$(SolutionDir)linux-pe\includes;$(LLVM_PATH)\lib\clang\$(LLVMToolsVersion)\include;$(VC_IncludePath);$(WindowsSDK_IncludePath)</IncludePath>
+    <IncludePath>$(ProjectDir)include;$(SolutionDir)zydis\dependencies\zycore\include;$(SolutionDir)zydis\include;$(LLVM_PATH)\lib\clang\$(LLVMToolsVersion)\include;$(VC_IncludePath);$(WindowsSDK_IncludePath)</IncludePath>
     <PublicIncludeDirectories>$(ProjectDir)include;</PublicIncludeDirectories>
     <ExecutablePath>$(LLVM_PATH)\bin;$(ExecutablePath)</ExecutablePath>
   </PropertyGroup>
@@ -221,21 +252,21 @@
     <LinkIncremental>true</LinkIncremental>
     <OutDir>$(SolutionDir)\build\$(ProjectName)\$(Platform)\$(Configuration)\</OutDir>
     <IntDir>$(SolutionDir)\build\$(ProjectName)-tmp\$(Platform)\$(Configuration)\</IntDir>
-    <IncludePath>$(ProjectDir)include;$(SolutionDir)zydis\dependencies\zycore\include;$(SolutionDir)zydis\include;$(SolutionDir)z3\build\install-x64\include;$(SolutionDir)linux-pe\includes;$(VC_IncludePath);$(WindowsSDK_IncludePath)</IncludePath>
+    <IncludePath>$(ProjectDir)include;$(SolutionDir)zydis\dependencies\zycore\include;$(SolutionDir)zydis\include;$(SolutionDir)z3\build\install-x64\include;$(VC_IncludePath);$(WindowsSDK_IncludePath)</IncludePath>
     <PublicIncludeDirectories>$(ProjectDir)include;</PublicIncludeDirectories>
   </PropertyGroup>
   <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Release|x64'">
     <LinkIncremental>false</LinkIncremental>
     <OutDir>$(SolutionDir)\build\$(ProjectName)\$(Platform)\$(Configuration)\</OutDir>
     <IntDir>$(SolutionDir)\build\$(ProjectName)-tmp\$(Platform)\$(Configuration)\</IntDir>
-    <IncludePath>$(ProjectDir)include;$(SolutionDir)zydis\dependencies\zycore\include;$(SolutionDir)zydis\include;$(SolutionDir)z3\build\install-x64-release\include;$(SolutionDir)linux-pe\includes;$(VC_IncludePath);$(WindowsSDK_IncludePath)</IncludePath>
+    <IncludePath>$(ProjectDir)include;$(SolutionDir)zydis\dependencies\zycore\include;$(SolutionDir)zydis\include;$(SolutionDir)z3\build\install-x64-release\include;$(VC_IncludePath);$(WindowsSDK_IncludePath)</IncludePath>
     <PublicIncludeDirectories>$(ProjectDir)include;</PublicIncludeDirectories>
   </PropertyGroup>
   <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Release-LLVM|x64'">
     <LinkIncremental>false</LinkIncremental>
     <OutDir>$(SolutionDir)\build\$(ProjectName)\$(Platform)\$(Configuration)\</OutDir>
     <IntDir>$(SolutionDir)\build\$(ProjectName)-tmp\$(Platform)\$(Configuration)\</IntDir>
-    <IncludePath>$(ProjectDir)include;$(SolutionDir)zydis\dependencies\zycore\include;$(SolutionDir)zydis\include;$(SolutionDir)z3\build\install-x64-release\include;$(SolutionDir)linux-pe\includes;$(LLVM_PATH)\lib\clang\$(LLVMToolsVersion)\include;$(VC_IncludePath);$(WindowsSDK_IncludePath)</IncludePath>
+    <IncludePath>$(ProjectDir)include;$(SolutionDir)zydis\dependencies\zycore\include;$(SolutionDir)zydis\include;$(SolutionDir)z3\build\install-x64-release\include;$(LLVM_PATH)\lib\clang\$(LLVMToolsVersion)\include;$(VC_IncludePath);$(WindowsSDK_IncludePath)</IncludePath>
     <PublicIncludeDirectories>$(ProjectDir)include;</PublicIncludeDirectories>
     <ExecutablePath>$(LLVM_PATH)\bin;$(ExecutablePath)</ExecutablePath>
   </PropertyGroup>

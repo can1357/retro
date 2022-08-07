@@ -1,9 +1,6 @@
 [submodule "zydis"]
 	path = zydis
 	url = https://github.com/zyantific/zydis.git
-[submodule "linux-pe"]
-	path = linux-pe
-	url = https://github.com/can1357/linux-pe.git
 [submodule "z3"]
 	path = "z3"
 	url = https://github.com/Z3Prover/z3.git

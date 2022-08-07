@@ -1,7 +1,7 @@
 #include <retro/ldr/pe.hpp>
 #include <retro/core/image.hpp>
 #include <retro/arch/interface.hpp>
-#include <nt/image.hpp>
+#include <retro/ldr/pe/nt/image.hpp>
 
 namespace retro::ldr {
 	// Errors.

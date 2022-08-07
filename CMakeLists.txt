@@ -42,16 +42,6 @@ endif()
 add_subdirectory(zydis)
 set(CMAKE_FOLDER ${CMKR_CMAKE_FOLDER})
 
-# linux-pe
-set(CMKR_CMAKE_FOLDER ${CMAKE_FOLDER})
-if(CMAKE_FOLDER)
-	set(CMAKE_FOLDER "${CMAKE_FOLDER}/linux-pe")
-else()
-	set(CMAKE_FOLDER linux-pe)
-endif()
-add_subdirectory(linux-pe)
-set(CMAKE_FOLDER ${CMKR_CMAKE_FOLDER})
-
 # z3
 set(CMKR_CMAKE_FOLDER ${CMAKE_FOLDER})
 if(CMAKE_FOLDER)
@@ -135,6 +125,37 @@ list(APPEND libretro_SOURCES
 	"libretro/include/retro/ir/z3x.hpp"
 	"libretro/include/retro/ldr/interface.hpp"
 	"libretro/include/retro/ldr/pe.hpp"
+	"libretro/include/retro/ldr/pe/coff/archive.hpp"
+	"libretro/include/retro/ldr/pe/coff/auxiliaries/aux_file_name.hpp"
+	"libretro/include/retro/ldr/pe/coff/auxiliaries/aux_function.hpp"
+	"libretro/include/retro/ldr/pe/coff/auxiliaries/aux_function_delimiter.hpp"
+	"libretro/include/retro/ldr/pe/coff/auxiliaries/aux_section.hpp"
+	"libretro/include/retro/ldr/pe/coff/auxiliaries/aux_weak_external.hpp"
+	"libretro/include/retro/ldr/pe/coff/file_header.hpp"
+	"libretro/include/retro/ldr/pe/coff/image.hpp"
+	"libretro/include/retro/ldr/pe/coff/import_library.hpp"
+	"libretro/include/retro/ldr/pe/coff/line_number.hpp"
+	"libretro/include/retro/ldr/pe/coff/reloc.hpp"
+	"libretro/include/retro/ldr/pe/coff/section_header.hpp"
+	"libretro/include/retro/ldr/pe/coff/string.hpp"
+	"libretro/include/retro/ldr/pe/coff/symbol.hpp"
+	"libretro/include/retro/ldr/pe/coff/uleb128.hpp"
+	"libretro/include/retro/ldr/pe/img_common.hpp"
+	"libretro/include/retro/ldr/pe/nt/data_directories.hpp"
+	"libretro/include/retro/ldr/pe/nt/directories/dir_debug.hpp"
+	"libretro/include/retro/ldr/pe/nt/directories/dir_delay_load.hpp"
+	"libretro/include/retro/ldr/pe/nt/directories/dir_exceptions.hpp"
+	"libretro/include/retro/ldr/pe/nt/directories/dir_export.hpp"
+	"libretro/include/retro/ldr/pe/nt/directories/dir_iat.hpp"
+	"libretro/include/retro/ldr/pe/nt/directories/dir_import.hpp"
+	"libretro/include/retro/ldr/pe/nt/directories/dir_load_config.hpp"
+	"libretro/include/retro/ldr/pe/nt/directories/dir_relocs.hpp"
+	"libretro/include/retro/ldr/pe/nt/directories/dir_resource.hpp"
+	"libretro/include/retro/ldr/pe/nt/directories/dir_security.hpp"
+	"libretro/include/retro/ldr/pe/nt/directories/dir_tls.hpp"
+	"libretro/include/retro/ldr/pe/nt/image.hpp"
+	"libretro/include/retro/ldr/pe/nt/nt_headers.hpp"
+	"libretro/include/retro/ldr/pe/nt/optional_header.hpp"
 	"libretro/include/retro/list.hpp"
 	"libretro/include/retro/opt/interface.hpp"
 	"libretro/include/retro/opt/utility.hpp"
@@ -176,7 +197,6 @@ target_include_directories(libretro PUBLIC
 
 target_link_libraries(libretro PUBLIC
 	Zydis
-	linux-pe
 	libz3
 )
 
