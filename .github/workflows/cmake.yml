@@ -25,7 +25,7 @@ jobs:
           - target: macos
             os: macOS-latest
             build-type: Release
-            extra-cmake-flags: "-DCMAKE_CXX_FLAGS=\"-Wno-attributes -msse4.2\""
+            extra-cmake-flags: "-DCMAKE_CXX_FLAGS=\"-Wno-attributes -msse4.2 -mmacosx-version-min=11.0\""
     steps:
     - name: Checkout
       uses: actions/checkout@v2
