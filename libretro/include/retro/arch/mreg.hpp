@@ -36,7 +36,7 @@ namespace retro::arch {
 
 		// Gets the unique identifier.
 		//
-		constexpr u32 uid() const { return retro::bit_cast<u32>(*this); }
+		constexpr u32 uid() const { return bitcast<u32>(*this); }
 
 		// Validity checks.
 		//

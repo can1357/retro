@@ -92,23 +92,23 @@ namespace retro::intrin {
 	RC_INLINE static u32 ia32_crc32c(u32 chk, const T& value) {
 		#if RC_MSVC
 		if constexpr (sizeof(T) == 1) {
-			return (u32) _mm_crc32_u8(chk, retro::bit_cast<u8>(value));
+			return (u32) _mm_crc32_u8(chk, bitcast<u8>(value));
 		} else if constexpr (sizeof(T) == 2) {
-			return (u32) _mm_crc32_u16(chk, retro::bit_cast<u16>(value));
+			return (u32) _mm_crc32_u16(chk, bitcast<u16>(value));
 		} else if constexpr (sizeof(T) == 4) {
-			return (u32) _mm_crc32_u32(chk, retro::bit_cast<u32>(value));
+			return (u32) _mm_crc32_u32(chk, bitcast<u32>(value));
 		} else {
-			return (u32) _mm_crc32_u64(chk, retro::bit_cast<u64>(value));
+			return (u32) _mm_crc32_u64(chk, bitcast<u64>(value));
 		}
 		#else
 		if constexpr (sizeof(T) == 1) {
-			return (u32) __builtin_ia32_crc32qi(chk, retro::bit_cast<u8>(value));
+			return (u32) __builtin_ia32_crc32qi(chk, bitcast<u8>(value));
 		} else if constexpr (sizeof(T) == 2) {
-			return (u32) __builtin_ia32_crc32hi(chk, retro::bit_cast<u16>(value));
+			return (u32) __builtin_ia32_crc32hi(chk, bitcast<u16>(value));
 		} else if constexpr (sizeof(T) == 4) {
-			return (u32) __builtin_ia32_crc32si(chk, retro::bit_cast<u32>(value));
+			return (u32) __builtin_ia32_crc32si(chk, bitcast<u32>(value));
 		} else {
-			return (u32) __builtin_ia32_crc32di(chk, retro::bit_cast<u64>(value));
+			return (u32) __builtin_ia32_crc32di(chk, bitcast<u64>(value));
 		}
 		#endif
 	}
@@ -142,13 +142,13 @@ namespace retro::intrin {
 	template<typename T>
 	RC_INLINE static u32 arm_crc32c(u32 chk, const T& value) {
 		if constexpr (sizeof(T) == 1) {
-			return (u32) __crc32cb(chk, retro::bit_cast<u8>(value));
+			return (u32) __crc32cb(chk, bitcast<u8>(value));
 		} else if constexpr (sizeof(T) == 2) {
-			return (u32) __crc32ch(chk, retro::bit_cast<u16>(value));
+			return (u32) __crc32ch(chk, bitcast<u16>(value));
 		} else if constexpr (sizeof(T) == 4) {
-			return (u32) __crc32cw(chk, retro::bit_cast<u32>(value));
+			return (u32) __crc32cw(chk, bitcast<u32>(value));
 		} else {
-			return (u32) __crc32cd(chk, retro::bit_cast<u64>(value));
+			return (u32) __crc32cd(chk, bitcast<u64>(value));
 		}
 	}
 	#endif

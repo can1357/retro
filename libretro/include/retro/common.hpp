@@ -370,6 +370,10 @@ namespace retro {
 		u64 base = num_bits ? ~0ull : 0;
 		return (base >> (64 - num_bits)) << offset;
 	}
+	template<typename To, typename From>
+	RC_INLINE inline static constexpr To bitcast(const From& x) noexcept {
+		return __builtin_bit_cast(To, x);
+	}
 	RC_INLINE inline static constexpr u16 bswapw(uint16_t value) noexcept {
 #if __has_builtin(__builtin_bswap16)
 		if (!std::is_constant_evaluated())
@@ -391,23 +395,18 @@ namespace retro {
 #endif
 		return (u64(bswapd(u32((u64(value) << 32) >> 32))) << 32) | (u64(bswapd(u32((u64(value) >> 32)))));
 	}
-
 	template<typename T>
 	RC_INLINE inline static constexpr T bswap(T value) noexcept {
 		if constexpr (sizeof(T) == 8)
-			return bit_cast<T>(bswapq(bit_cast<u64>(value)));
+			return bitcast<T>(bswapq(bitcast<u64>(value)));
 		else if constexpr (sizeof(T) == 4)
-			return bit_cast<T>(bswapd(bit_cast<u32>(value)));
+			return bitcast<T>(bswapd(bitcast<u32>(value)));
 		else if constexpr (sizeof(T) == 2)
-			return bit_cast<T>(bswapw(bit_cast<u16>(value)));
+			return bitcast<T>(bswapw(bitcast<u16>(value)));
 		else if constexpr (sizeof(T) == 1)
 			return value;
 		else
 			static_assert(sizeof(T) == -1, "unexpected integer size");
-	}
-	template<typename To, typename From>
-	RC_INLINE inline static constexpr To bit_cast(const From& x) noexcept {
-		return __builtin_bit_cast(To, x);
 	}
 	template<typename T>
 	RC_INLINE inline static constexpr T align_up(T value, size_t boundary) {

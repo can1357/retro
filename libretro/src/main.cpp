@@ -280,7 +280,7 @@ static void msabi_x64_stack_analysis(ir::routine* rtn) {
 		}
 	}
 	if (auto it = frame_offsets.begin(); it != frame_offsets.end()) {
-		result.frame_reg		  = retro::bit_cast<arch::mreg>(it->first);
+		result.frame_reg		  = bitcast<arch::mreg>(it->first);
 		result.frame_reg_delta = it->second;
 		fmt::printf("Frame register is %s, offset: %lld\n", result.frame_reg.to_string(mach).c_str(), result.frame_reg_delta);
 	} else {
@@ -329,7 +329,7 @@ static void msabi_x64_stack_analysis(ir::routine* rtn) {
 					auto* oset = aset == &cc->argument_gpr ? &cc->retval_gpr : &cc->retval_fp;
 					for (auto& arg : *aset) {
 						if (!range::find(*oset, arg)) {
-							auto a  = retro::bit_cast<arch::mreg>(arg);
+							auto a  = bitcast<arch::mreg>(arg);
 							auto ty = enum_reflect(a.get_kind()).type;
 							auto ud = bb->insert(i, ir::make_undef(ty));
 							i->arch->explode_write_reg(bb->insert(i, ir::make_write_reg(a, ud.get())));
@@ -611,7 +611,7 @@ static void phase0(ref<ir::routine> rtn) {
 					//
 					for (auto& arg : read_set) {
 						if (arg != sp.uid() && !write_set.contains(arg)) {
-							auto a  = retro::bit_cast<arch::mreg>(arg);
+							auto a  = bitcast<arch::mreg>(arg);
 							auto ty = enum_reflect(a.get_kind()).type;
 							auto ud = bb->insert(i, ir::make_undef(ty));
 							i->arch->explode_write_reg(bb->insert(i, ir::make_write_reg(a, ud.get())));
@@ -796,7 +796,7 @@ static void phase0(ref<ir::routine> rtn) {
 			if (i->op == ir::opcode::xcall) {
 				auto cc = dom->default_cc;	 // TODO: dom->get_routine_cc(i);
 				for (auto it = r_sp_offset_map.begin(); it != r_sp_offset_map.end();) {
-					if (range::find(cc->retval_gpr, retro::bit_cast<arch::mreg>(it->first)) != cc->retval_gpr.end()) {
+					if (range::find(cc->retval_gpr, bitcast<arch::mreg>(it->first)) != cc->retval_gpr.end()) {
 						it = r_sp_offset_map.erase(it);
 					} else {
 						++it;
@@ -835,7 +835,7 @@ static void phase0(ref<ir::routine> rtn) {
 		}
 
 		for (auto& [reg, offset] : r_sp_offset_map) {
-			fmt::println("'", retro::bit_cast<arch::mreg>(reg).to_string(dom->arch), "' => $sp +", offset);
+			fmt::println("'", bitcast<arch::mreg>(reg).to_string(dom->arch), "' => $sp +", offset);
 		}
 	}
 #endif
