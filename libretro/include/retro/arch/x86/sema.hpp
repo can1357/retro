@@ -496,7 +496,7 @@ namespace retro::arch::x86 {
 				if (result)
 					result = bb->push_binop(ir::op::add, result, bb->push_extract(pty, base, 0));
 				else
-					result = base;
+					result = bb->push_extract(pty, base, 0);
 			}
 		}
 
