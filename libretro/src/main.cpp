@@ -436,7 +436,7 @@ static bool irp_phi_queue(core::method* m, neo::scheduler* sched = nullptr) {
 	// Acquire the lock, if there already is a busy task, skip.
 	//
 	std::unique_lock wl{m->irp_write_lock};
-	if (m->irp_busy(core::IRP_PHI))
+	if (m->irp_busy(core::IRP_PHI) || m->irp_present(core::IRP_PHI))
 		return true;
 
 	// Clone the routine and set it.
