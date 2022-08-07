@@ -101,6 +101,7 @@
     <ClInclude Include="include\retro\ldr\pe\nt\nt_headers.hpp" />
     <ClInclude Include="include\retro\ldr\pe\nt\optional_header.hpp" />
     <ClInclude Include="include\retro\list.hpp" />
+    <ClInclude Include="include\retro\llvm\clang.hpp" />
     <ClInclude Include="include\retro\umutex.hpp" />
     <ClInclude Include="include\retro\opt\interface.hpp" />
     <ClInclude Include="include\retro\opt\utility.hpp" />
@@ -145,6 +146,7 @@
     <ClCompile Include="src\ir\types.cpp" />
     <ClCompile Include="src\ir\z3x.cpp" />
     <ClCompile Include="src\ldr\pe.cpp" />
+    <ClCompile Include="src\llvm\clang.cpp" />
     <ClCompile Include="src\main.cpp" />
     <ClCompile Include="src\opt\ins_combine.cpp" />
     <ClCompile Include="src\opt\const_fold.cpp" />

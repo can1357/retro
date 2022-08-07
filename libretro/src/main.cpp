@@ -53,37 +53,7 @@ __attribute__((always_inline)) int short_marker(const char* msg) {
 int main() {}
 )";
 
-static std::vector<u8> compile(std::string code, const char* args) {
-	code.insert(0, code_prefix);
-
-	// Create the temporary paths.
-	//
-	auto tmp_dir = std::filesystem::temp_directory_path();
-	auto in		 = tmp_dir / "retrotmp.c";
-	auto out		 = tmp_dir / "retrotmp.exe";
-
-	std::error_code ec;
-	std::filesystem::remove(in, ec);
-	std::filesystem::remove(out, ec);
-
-	// Write the file.
-	//
-	platform::write_file(in, {(const u8*) code.data(), code.size()});
-
-	// Create and execute the command.
-	//
-	auto output = platform::exec(fmt::str("%%LLVM_PATH%%/bin/clang \"%s\" -fms-extensions -o \"%s\" %s", in.string().c_str(), out.string().c_str(), args));
-
-	// Read the file.
-	//
-	bool ok;
-	auto result = platform::read_file(out, ok);
-	if (result.empty()) {
-		fmt::abort("failed to compile the code:\n%s\n", output.c_str());
-	}
-	return result;
-}
-
+#include <retro/llvm/clang.hpp>
 #include <retro/robin_hood.hpp>
 
 
@@ -683,7 +653,11 @@ static void analysis_test_from_source(std::string src) {
 
 	// Compile the source code.
 	//
-	auto bin = compile(src, flags.data());
+	src.insert(0, code_prefix);
+	std::string err;
+	auto			bin = llvm::compile(src, flags, &err);
+	if (!err.empty())
+		fmt::abort(err.c_str());
 
 	// Load the binary.
 	//

@@ -74,7 +74,7 @@ namespace retro::platform {
 
 	// Executes a command and returns the result.
 	//
-	std::string exec(std::string cmd);
+	std::string exec(std::string cmd, bool merge_stderr = true);
 
 	// Fetches an environment variable, returns empty string on failure.
 	//

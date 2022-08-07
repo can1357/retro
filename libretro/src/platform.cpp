@@ -92,10 +92,12 @@ namespace retro::platform {
 	#define popen	_popen
 	#define pclose _pclose
 #endif
-	std::string exec(std::string cmd) {
+	std::string exec(std::string cmd, bool merge_stderr) {
+		if (merge_stderr)
+			cmd += " 2>&1";
 		std::array<char, 128> buffer;
 		std::string				 result;
-		FILE*						 f = popen(cmd.c_str(), "r");
+		FILE*						 f = popen(cmd.c_str(), "rt");
 		while (fgets(buffer.data(), (int) buffer.size(), f) != nullptr) {
 			result += buffer.data();
 		}
