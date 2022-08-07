@@ -170,14 +170,12 @@ target_compile_features(libretro PUBLIC
 
 target_include_directories(libretro PUBLIC
 	"libretro/include"
-	"z3/src/api"
-	"z3/src/api/c++"
 )
 
 target_link_libraries(libretro PUBLIC
 	Zydis
 	linux-pe
-	Z3
+	libz3
 )
 
 unset(CMKR_TARGET)
