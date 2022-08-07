@@ -215,8 +215,6 @@ namespace retro::core {
 		co_return bb_ret;
 	}
 
-		static std::mutex mtx;
-
 
 	// Lifts a new method into the image at the given RVA, if it does not already exist.
 	// - If there is an existing entry, returns it, otherwise inserts an entry and starts lifting.

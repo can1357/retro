@@ -85,6 +85,9 @@ namespace retro::neo {
 	// Defines the state of a state.
 	//
 	struct task_promise {
+		static constexpr size_t state_size_aligned = align_up(sizeof(task_state), 0x10);
+		static constexpr size_t state_size_padding = state_size_aligned - sizeof(task_state);
+
 		// Internal task list.
 		//
 		task_promise*		 prev							= nullptr;
@@ -101,9 +104,18 @@ namespace retro::neo {
 
 		// Override delete to allocate an externally managed task_state and converts this allocation to be ref-counted.
 		//
-		void*			operator new(size_t n) { return make_overalloc_rc<task_state>(n).release() + 1; }
-		void			operator delete(void* p) { rc_header::from(std::prev((task_state*) p))->dec_ref(); }
-		task_state* get_state() const { return std::prev((task_state*) coroutine_handle<task_promise>::from_promise(*(task_promise*) this).address()); }
+		void* operator new(size_t n) {
+			auto a = make_overalloc_rc<task_state>(n + state_size_padding).release();
+			return state_size_aligned + (u8*) a;
+		}
+		void operator delete(void* p) {
+			auto* ts = (task_state*) (uptr(p) - state_size_aligned);
+			rc_header::from(ts)->dec_ref();
+		}
+		task_state* get_state() const {
+			void* p = coroutine_handle<task_promise>::from_promise(*(task_promise*) this).address();
+			return (task_state*) (uptr(p) - state_size_aligned);
+		}
 
 		// Define common interface with subtasks.
 		//
@@ -111,9 +123,9 @@ namespace retro::neo {
 
 		// Set current coroutine as continuation on initialization, never start or delete automatically.
 		//
-		task_promise& get_return_object() {
+		task_promise* get_return_object() {
 			suspended_continuation = coroutine_handle<task_promise>::from_promise(*this);
-			return *this;
+			return this;
 		}
 		suspend_always initial_suspend() noexcept { return {}; }
 		suspend_always final_suspend() noexcept { return {}; }
@@ -124,10 +136,10 @@ namespace retro::neo {
 	// Define subtask promises.
 	//
 	struct symmetric_transfer_awaitable {
-		coroutine_handle<> hnd;
-		bool					 await_ready() const noexcept { return false; }
-		coroutine_handle<> await_suspend(coroutine_handle<>) const noexcept { return hnd; }
-		void					 await_resume() const noexcept {}
+		coroutine_handle<>						hnd;
+		RC_INLINE inline bool					await_ready() const noexcept { return false; }
+		RC_INLINE inline void					await_resume() const noexcept {}
+		RC_INLINE inline coroutine_handle<> await_suspend(coroutine_handle<>) const noexcept { return hnd; }
 	};
 	struct subtask_promise_base {
 		task_promise*		 owner		  = nullptr;
@@ -135,14 +147,14 @@ namespace retro::neo {
 
 		task_promise* get_task() { return owner; }
 
-		suspend_always					  initial_suspend() noexcept { return {}; }
-		symmetric_transfer_awaitable final_suspend() noexcept { return {continuation}; }
+		RC_INLINE inline suspend_always					 initial_suspend() noexcept { return {}; }
+		RC_INLINE inline symmetric_transfer_awaitable final_suspend() noexcept { return {continuation}; }
 		RC_UNHANDLED_RETHROW;
 	};
 	template<typename R>
 	struct subtask_promise : subtask_promise_base {
 		std::optional<R> result = std::nullopt;
-		subtask_promise& get_return_object() { return *this; }
+		subtask_promise* get_return_object() { return this; }
 		template<typename T>
 		void return_value(T&& value) {
 			result.emplace(std::forward<T>(value));
@@ -151,7 +163,7 @@ namespace retro::neo {
 	template<>
 	struct subtask_promise<void> : subtask_promise_base {
 		std::optional<std::monostate> result = std::nullopt;
-		subtask_promise& get_return_object() { return *this; }
+		subtask_promise* get_return_object() { return this; }
 		void				  return_void() { result.emplace(); }
 	};
 
@@ -161,20 +173,15 @@ namespace retro::neo {
 	struct subtask_awaitable {
 		subtask_promise<R>& pr;
 
-		inline bool	  await_ready() { return pr.result.has_value(); }
-		inline auto&& await_resume() const { return std::move(pr.result).value(); }
-
-		inline coroutine_handle<> suspend_handle(coroutine_handle<> hnd) {
-			RC_ASSERT(pr.continuation == nullptr);
-			pr.continuation = hnd;
-			return coroutine_handle<subtask_promise<R>>::from_promise(pr);
-		}
+		RC_INLINE inline bool	await_ready() { return pr.result.has_value(); }
+		RC_INLINE inline auto&& await_resume() const { return std::move(pr.result).value(); }
 
 		template<typename T>
-		inline coroutine_handle<> await_suspend(coroutine_handle<T> hnd) {
-			auto result = suspend_handle(coroutine_handle<>{hnd});
-			pr.owner		= hnd.promise().get_task();
-			return result;
+		RC_INLINE inline coroutine_handle<> await_suspend(coroutine_handle<T> hnd) {
+			RC_ASSERT(pr.continuation == nullptr);
+			pr.continuation = hnd;
+			pr.owner			 = hnd.promise().get_task();
+			return coroutine_handle<subtask_promise<R>>::from_promise(pr);
 		}
 	};
 
@@ -187,7 +194,7 @@ namespace retro::neo {
 		// Coroutine handle and the internal constructor.
 		//
 		unique_coroutine<promise_type> handle = nullptr;
-		subtask(promise_type& pr) : handle(pr) {}
+		subtask(promise_type* pr) : handle(*pr) {}
 
 		// Null constructor and validity check.
 		//
@@ -200,7 +207,7 @@ namespace retro::neo {
 		//
 		subtask(subtask&&) noexcept										 = default;
 		subtask&							 operator=(subtask&&) noexcept = default;
-		inline subtask_awaitable<R> operator co_await() && { return {handle.promise()}; }
+		RC_INLINE inline subtask_awaitable<R> operator co_await() && { return {handle.promise()}; }
 	};
 
 	// Task coroutine and the reference type to its state.
@@ -211,7 +218,7 @@ namespace retro::neo {
 		// Coroutine handle and the internal constructor.
 		//
 		unique_coroutine<promise_type> handle = nullptr;
-		task(promise_type& pr) : handle(pr) {}
+		task(promise_type* pr) : handle(*pr) {}
 
 		// Null constructor and validity check.
 		//
@@ -230,10 +237,10 @@ namespace retro::neo {
 	// Checkpoint for rescheduling.
 	//
 	struct checkpoint {
-		inline bool await_ready() { return false; }
+		RC_INLINE inline bool await_ready() { return false; }
 
 		template<typename T>
-		inline coroutine_handle<> await_suspend(coroutine_handle<T> hnd) {
+		RC_INLINE inline coroutine_handle<> await_suspend(coroutine_handle<T> hnd) {
 			auto*			  chain = &hnd.promise();
 			task_promise* o	  = chain->get_task();
 			if (!o)
@@ -245,7 +252,7 @@ namespace retro::neo {
 			}
 			return hnd;
 		}
-		inline void await_resume() {}
+		RC_INLINE inline void await_resume() {}
 	};
 
 	// Scheduler instance.
