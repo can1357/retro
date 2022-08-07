@@ -93,7 +93,10 @@ DECL_SEMA(MOVDQA) {
 //
 template<ir::type TyVec, ir::type TyPiece>
 static diag::lazy scalar_move(SemaContext) {
-	if (ins.op[0].type == arch::mop_type::reg && ins.op[1].type == arch::mop_type::reg) {
+	bool dst_simd = ins.op[0].type == arch::mop_type::reg && (arch::reg_kind::simd64 <= ins.op[0].r.get_kind() && ins.op[0].r.get_kind() <= arch::reg_kind::simd512);
+	bool src_simd = ins.op[1].type == arch::mop_type::reg && (arch::reg_kind::simd64 <= ins.op[1].r.get_kind() && ins.op[1].r.get_kind() <= arch::reg_kind::simd512);
+
+	if (dst_simd && src_simd) {
 		// Legacy SSE version when the source and destination operands are both XMM registers
 		// DST[31..0] <- SRC[31:0]
 		auto dst = read(sema_context(), 0, TyVec);
@@ -102,7 +105,7 @@ static diag::lazy scalar_move(SemaContext) {
 		auto val = bb->push_extract(TyPiece, std::move(src), 0);
 		dst		= bb->push_insert(std::move(dst), 0, val);
 		write(sema_context(), 0, std::move(dst));
-	} else if (ins.op[0].type == arch::mop_type::reg) {
+	} else if (dst_simd) {
 		// Legacy SSE version when the source operand is memory and the destination is an XMM register
 		//  DST[31..0] <- SRC[31:0]
 		//  DST[128..32] <- 0
