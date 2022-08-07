@@ -5,7 +5,7 @@
 #include <retro/common.hpp>
 #include <retro/ir/routine.hpp>
 #include <retro/rc.hpp>
-#include <retro/async/work.hpp>
+#include <retro/async/neo.hpp>
 #include <retro/robin_hood.hpp>
 
 namespace retro::core {
@@ -80,6 +80,10 @@ namespace retro::core {
 		//
 		std::atomic<u32> irp_mask = 0;
 
+		// Tasks corresponding to each IRP.
+		//
+		neo::task_ref irp_tasks[IRP_MAX] = {};
+
 		// Observers.
 		//
 		bool irp_present(ir_phase p) const { return (irp_mask.load(std::memory_order::relaxed) & (1u << p)) != 0; }
@@ -116,12 +120,11 @@ namespace retro::core {
 
 		// Lifts a basic block into the IRP_INIT IR from the given RVA.
 		//
-		unique_task<ir::basic_block*> build_block(u64 rva);
+		neo::subtask<ir::basic_block*> build_block(u64 rva);
 	};
 
 	// Lifts a new method into the image at the given RVA, if it does not already exist.
-	// - If there is an existing entry with arch/cc matching, returns it, otherwise clears it and lifts from scratch.
+	// - If there is an existing entry, returns it, otherwise inserts an entry and starts lifting.
 	//
-	ref<method> lift(image* img, u64 rva, arch::handle arch = {}, const arch::call_conv_desc* cc = nullptr);
-	ref<method> lift_async(image* img, u64 rva, arch::handle arch = {}, const arch::call_conv_desc* cc = nullptr);
+	ref<method> lift(image* img, u64 rva, neo::scheduler* sched = nullptr, arch::handle arch = {});
 }

@@ -3,6 +3,7 @@
 #include <retro/core/image.hpp>
 #include <retro/core/callbacks.hpp>
 #include <retro/ir/z3x.hpp>
+#include <retro/opt/interface.hpp>
 
 namespace retro::core {
 	// Helper for coercing an operand into a constant.
@@ -23,7 +24,7 @@ namespace retro::core {
 
 	// Lifts a basic block into the IRP_INIT IR from the given RVA.
 	//
-	unique_task<ir::basic_block*> method::build_block(u64 rva) {
+	neo::subtask<ir::basic_block*> method::build_block(u64 rva) {
 		ir::routine* rtn		 = routine[IRP_INIT].get();
 		u64			 img_base = img->base_address;
 		u64			 va		 = img_base + rva;
@@ -100,6 +101,10 @@ namespace retro::core {
 		// Until we run out of instructions to decode:
 		//
 		while (!data.empty()) {
+			// Yield.
+			//
+			co_await neo::checkpoint{};
+
 			// Diassemble the instruction, push trap on failure and break.
 			//
 			arch::minsn ins = {};
@@ -210,72 +215,84 @@ namespace retro::core {
 		co_return bb_ret;
 	}
 
+		static std::mutex mtx;
+
+
 	// Lifts a new method into the image at the given RVA, if it does not already exist.
-	// - If there is an existing entry with arch/cc matching, returns it, otherwise clears it and lifts from scratch.
+	// - If there is an existing entry, returns it, otherwise inserts an entry and starts lifting.
 	//
-	template<bool Async>
-	RC_INLINE static ref<method> lift_impl(image* img, u64 rva, arch::handle arch, const arch::call_conv_desc* cc) {
+	RC_INLINE static neo::task lifter_task(ref<method> m, u64 rva) {
+		auto& rtn = m->routine[IRP_INIT];
+
+		// If lifter fails, clear out the routine.
+		//
+		if (!co_await m->build_block(rva)) {
+			rtn = nullptr;
+		}
+		// Otherwise:
+		//
+		else {
+			// Apply local optimizations.
+			//
+			for (auto& bb : rtn->blocks) {
+				co_await neo::checkpoint{};
+				ir::opt::p0::reg_move_prop(bb);
+				ir::opt::const_fold(bb);
+				ir::opt::const_load(bb);
+				ir::opt::id_fold(bb);
+				ir::opt::ins_combine(bb);
+				ir::opt::const_fold(bb);
+				ir::opt::id_fold(bb);
+				// TODO: Cfg optimization
+			}
+
+			// Sort the blocks in topological order and rename all values.
+			//
+			rtn->topological_sort();
+			rtn->rename_blocks();
+			rtn->rename_insns();
+
+			// Call the hooks.
+			//
+			on_irp_complete(rtn, IRP_INIT);
+		}
+
+		// Mark IR phase as finished, return the method.
+		//
+		m->irp_mask.fetch_or(1u << IRP_INIT);
+		m->irp_mask.notify_all();
+		co_return;
+	}
+	ref<method> lift(image* img, u64 rva, neo::scheduler* sched, arch::handle arch) {
 		arch = arch ? arch : img->arch;
 		if (!arch)
 			return nullptr;
-		cc = cc ? cc : arch->get_cc_desc(img->default_cc);
-		if (!cc)
-			return nullptr;
+		sched = sched ? sched : &img->ws->auto_analysis_scheduler;
 
-		ref<method> m;
-		{
-			std::unique_lock _g{img->method_map_mtx};
-
-			// Return if there is an exact match.
-			//
-			auto& mfound = img->method_map[rva];
-			if (mfound && mfound->cc == cc && mfound->arch == arch) {
-				return mfound;
-			}
-
-			// Replace it with our new entry.
-			//
-			m		  = make_rc<method>();
-			m->rva  = rva;
-			m->arch = arch;
-			m->cc	  = cc;
-			m->img  = img;
-			mfound  = m;
+		// Return if there is an exact match.
+		//
+		std::unique_lock lock{img->method_map_mtx};
+		auto& mfound = img->method_map[rva];
+		if (mfound && mfound->arch == arch) {
+			return mfound;
 		}
+
+		// Replace it with our new entry.
+		//
+		auto m  = make_rc<method>();
+		mfound  = m;
+		m->rva  = rva;
+		m->arch = arch;
+		m->cc	  = arch->get_cc_desc(img->default_cc);
+		m->img  = img;
 
 		// Recursively lift starting from the entry point.
 		//
-		auto rtn					 = make_rc<ir::routine>();
-		m->routine[IRP_INIT] = rtn;
-		rtn->method				 = m;
-		rtn->ip					 = rva + img->base_address;
-
-		auto work = [=]() {
-			// If lifter fails, clear out the routine.
-			//
-			if (!m->build_block(rva).wait()) {
-				m->routine[IRP_INIT] = nullptr;
-			}
-			// Otherwise, call the hooks.
-			//
-			else {
-				on_irp_complete(m->routine[IRP_INIT], IRP_INIT);
-			}
-
-			// Mark IR phase as finished, return the method.
-			//
-			m->irp_mask.fetch_or(1u << IRP_INIT);
-			m->irp_mask.notify_all();
-		};
-
-		if constexpr (Async) {
-			later(std::move(work));
-		} else {
-			work();
-		}
+		auto rtn					  = make_rc<ir::routine>();
+		rtn->method				  = m;
+		rtn->ip					  = rva + img->base_address;
+		m->routine[IRP_INIT]	  = rtn;
+		m->irp_tasks[IRP_INIT] = sched->insert(lifter_task(m, rva));
 		return m;
 	}
-
-	ref<method> lift(image* img, u64 rva, arch::handle arch, const arch::call_conv_desc* cc) { return lift_impl<false>(img, rva, arch, cc); }
-	ref<method> lift_async(image* img, u64 rva, arch::handle arch, const arch::call_conv_desc* cc) { return lift_impl<true>(img, rva, arch, cc); }
 };

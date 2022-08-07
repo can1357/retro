@@ -143,12 +143,10 @@ namespace retro::fmt {
 		return std::move(str);
 	}
 
-	// Forward declaration of concat/join.
+	// Forward declaration of concat.
 	//
 	template<typename... Tx>
 	static std::string concat(const Tx&... args);
-	template<typename... Tx>
-	static std::string join(std::string_view seperator, const Tx&... args);
 
 	// Out of line formatter.
 	//
@@ -225,7 +223,7 @@ namespace retro::fmt {
 				return (decltype(to_str(*arg))) "null";
 			}
 		} else if constexpr (is_specialization_v<std::pair, Td> || is_specialization_v<std::tuple, Td>) {
-			return std::apply([]<typename... Tx>(Tx&&... args) { return fmt::join<Tx...>(", ", std::forward<Tx>(args)...); }, arg);
+			return std::apply([]<typename... Tx>(Tx&&... args) { return fmt::concat<Tx...>(std::forward<Tx>(args)...); }, arg);
 		} else if constexpr (std::is_pointer_v<T>) {
 			return str("%p", arg);
 		} else if constexpr (std::is_same_v<Td, i128>) {
@@ -240,38 +238,24 @@ namespace retro::fmt {
 	// Variable count string concat, Tx should be all convertible to string_view.
 	//
 	namespace detail {
-		template<typename T, typename... Tx>
-		static void write(char* at, const T& first, const Tx&... rest) {
-			memcpy(at, first.data(), first.size());
+		template<typename It, typename T, typename... Tx>
+		static It write(It at, const T& first, const Tx&... rest) {
+			at = std::copy(first.begin(), first.end(), at);
 			if constexpr (sizeof...(Tx) != 0) {
-				write<Tx...>(at + first.size(), rest...);
+				return write<It, Tx...>(at, rest...);
+			} else {
+				return at;
 			}
 		}
 		template<typename... Tx>
 		static std::string concat(const Tx&... args) {
 			std::string buffer((args.size() + ...), '\x0');
-			write(buffer.data(), args...);
-			return buffer;
-		}
-
-		
-		template<typename T, typename... Tx>
-		static void write_for_concat(std::string_view sep, char* at, const T& first, const Tx&... rest) {
-			memcpy(at, sep.data(), sep.size());
-			at += sep.size();
-			memcpy(at, first.data(), first.size());
-			at += first.size();
-			if constexpr (sizeof...(Tx) != 0) {
-				write_for_concat<Tx...>(sep, at + first.size(), rest...);
+			auto it = write(buffer.begin(), args...);
+			#if RC_DEBUG
+			if (it != buffer.end()) {
+				RC_DBGBREAK();
 			}
-		}
-		template<typename T, typename... Tx>
-		static std::string join(std::string_view sep, const T& first, const Tx&... rest) {
-			std::string buffer(first.size() + (rest.size() + ...) + sizeof...(Tx) * sep.size(), '\x0');
-			memcpy(buffer.data(), first.data(), first.size());
-			if constexpr (sizeof...(Tx) != 0) {
-				write_for_concat(sep, buffer.data() + first.size(), rest...);
-			}
+			#endif
 			return buffer;
 		}
 	};
@@ -281,14 +265,6 @@ namespace retro::fmt {
 			return {};
 		} else {
 			return detail::concat(to_str(args)...);
-		}
-	}
-	template<typename... Tx>
-	static std::string join(std::string_view seperator, const Tx&... args) {
-		if constexpr (sizeof...(Tx) == 0) {
-			return {};
-		} else {
-			return detail::join(seperator, to_str(args)...);
 		}
 	}
 

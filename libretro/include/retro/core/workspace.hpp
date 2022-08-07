@@ -3,6 +3,7 @@
 #include <retro/rc.hpp>
 #include <retro/umutex.hpp>
 #include <retro/diag.hpp>
+#include <retro/async/neo.hpp>
 #include <vector>
 
 namespace retro::core {
@@ -16,6 +17,11 @@ namespace retro::core {
 		//
 		mutable shared_umutex	image_list_mtx = {};
 		std::vector<ref<image>> image_list;
+
+		// Schedulers.
+		//
+		neo::scheduler auto_analysis_scheduler = {};
+		neo::scheduler user_analysis_scheduler = {};
 
 		// Creates a new workspace.
 		//
