@@ -195,11 +195,8 @@ namespace retro::neo {
 
 		// No copy, default move.
 		//
-		constexpr subtask(subtask&&) noexcept				 = default;
-		constexpr subtask(const subtask&)					 = delete;
-		constexpr subtask& operator=(subtask&&) noexcept = default;
-		constexpr subtask& operator=(const subtask&)		 = delete;
-
+		subtask(subtask&&) noexcept				= default;
+		subtask& operator=(subtask&&) noexcept = default;
 		inline subtask_awaitable<R> operator co_await() && { return {handle.promise()}; }
 	};
 
@@ -222,10 +219,8 @@ namespace retro::neo {
 
 		// No copy, default move.
 		//
-		constexpr task(task&&) noexcept				 = default;
-		constexpr task(const task&)					 = delete;
-		constexpr task& operator=(task&&) noexcept = default;
-		constexpr task& operator=(const task&)		 = delete;
+		task(task&&) noexcept				= default;
+		task& operator=(task&&) noexcept = default;
 	};
 	using task_ref = ref<task_state>;
 

@@ -233,10 +233,8 @@ namespace retro {
 
 		// No copy, default move.
 		//
-		constexpr unique_task(unique_task&&) noexcept				= default;
-		constexpr unique_task(const unique_task&)						= delete;
-		constexpr unique_task& operator=(unique_task&&) noexcept = default;
-		constexpr unique_task& operator=(const unique_task&)		= delete;
+		unique_task(unique_task&&) noexcept				  = default;
+		unique_task& operator=(unique_task&&) noexcept = default;
 
 		// State.
 		//
