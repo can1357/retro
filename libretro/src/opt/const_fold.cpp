@@ -32,6 +32,45 @@ namespace retro::ir::opt {
 						n += 1 + ins->replace_all_uses_with(res);
 					}
 				}
+			} else if (ins->op == opcode::insert) {
+				auto& vec  = ins->opr(0);
+				auto& lane = ins->opr(1);
+				auto& val  = ins->opr(2);
+				if (vec.is_const() && lane.is_const() && val.is_const()) {
+					auto& data = vec.get_const();
+
+					auto& vec_info = enum_reflect(vec.get_type());
+					RC_ASSERT(vec_info.underlying == val.get_type());
+
+					size_t data_len = vec_info.bit_size / (8 * vec_info.lane_width);
+					size_t offset	 = data_len * lane.get_const().get_u64();
+					offset %= data.size();
+					RC_ASSERT(data.size() >= (offset + data_len));
+
+					constant clone = data;
+					memcpy(((u8*) clone.address()) + offset, val.get_const().address(), data_len);
+
+					n += 1 + ins->replace_all_uses_with(clone);
+				}
+			} else if (ins->op == opcode::extract) {
+				auto& vec  = ins->opr(0);
+				auto& lane = ins->opr(1);
+				if (vec.is_const() && lane.is_const()) {
+					auto& data = vec.get_const();
+
+					auto& vec_info = enum_reflect(vec.get_type());
+					RC_ASSERT(vec_info.underlying == ins->template_types[1]);
+
+					size_t data_len = vec_info.bit_size / (8 * vec_info.lane_width);
+					size_t offset	 = data_len * lane.get_const().get_u64();
+					offset %= data.size();
+					RC_ASSERT(data.size() >= (offset + data_len));
+
+
+					constant element{ins->template_types[1], std::span{((const u8*) data.address()) + offset, data_len}};
+					RC_ASSERT(element);
+					n += 1 + ins->replace_all_uses_with(element);
+				}
 			} else if (ins->op == opcode::cast) {
 				auto	into = ins->template_types[1];
 				auto& val  = ins->opr(0);
