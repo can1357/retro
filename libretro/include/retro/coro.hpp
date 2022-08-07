@@ -7,7 +7,7 @@
 
 // Clang and MS-STL doesnt work together, so we need to define our own std types in that case.
 //
-#define RC_HAS_STD_CORO (RC_WINDOWS == RC_MSVC)
+#define RC_HAS_STD_CORO ((RC_WINDOWS == RC_MSVC) && !RC_OSX)
 #if RC_HAS_STD_CORO
 	#include <coroutine>
 #endif
