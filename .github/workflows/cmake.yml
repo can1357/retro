@@ -22,7 +22,6 @@ jobs:
           - target: windows
             os: windows-latest
             build-type: Release
-            extra-cmake-flags:
           - target: macos
             os: macOS-latest
             build-type: Release
@@ -34,7 +33,7 @@ jobs:
         submodules: 'recursive'
         
     - name: Setup python
-    - uses: actions/setup-python@v4
+      uses: actions/setup-python@v4
       with:
         python-version: '3.10'
     - run: python scripts/tablegen.py .
