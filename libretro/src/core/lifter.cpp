@@ -221,7 +221,7 @@ namespace retro::core {
 	// Lifts a new method into the image at the given RVA, if it does not already exist.
 	// - If there is an existing entry, returns it, otherwise inserts an entry and starts lifting.
 	//
-	RC_INLINE static neo::task lifter_task(ref<method> m, u64 rva) {
+	static neo::task lifter_task(ref<method> m, u64 rva) {
 		auto& rtn = m->routine[IRP_INIT];
 
 		// If lifter fails, clear out the routine.
