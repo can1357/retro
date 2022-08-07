@@ -123,6 +123,11 @@ namespace retro::arch {
 	// Lifting and disassembly.
 	//
 	bool x86arch::disasm(std::span<const u8> data, x86insn* out) {
+		// 2* add [rax], al, likely invalid.
+		if (data.size() > 4) {
+			if (!*(u32*) data.data())
+				return false;
+		}
 		return ZYAN_SUCCESS(ZydisDecoderDecodeFull(&decoder, data.data(), data.size(), &out->ins, out->ops, (u8) std::size(out->ops), ZYDIS_DFLAG_VISIBLE_OPERANDS_ONLY));
 	}
 	bool x86arch::disasm(std::span<const u8> data, minsn* out) {
