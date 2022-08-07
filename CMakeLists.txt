@@ -52,16 +52,6 @@ endif()
 add_subdirectory(linux-pe)
 set(CMAKE_FOLDER ${CMKR_CMAKE_FOLDER})
 
-# scripts
-set(CMKR_CMAKE_FOLDER ${CMAKE_FOLDER})
-if(CMAKE_FOLDER)
-	set(CMAKE_FOLDER "${CMAKE_FOLDER}/scripts")
-else()
-	set(CMAKE_FOLDER scripts)
-endif()
-add_subdirectory(scripts)
-set(CMAKE_FOLDER ${CMKR_CMAKE_FOLDER})
-
 # z3
 set(CMKR_CMAKE_FOLDER ${CMAKE_FOLDER})
 if(CMAKE_FOLDER)
