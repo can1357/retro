@@ -395,10 +395,35 @@ static void msabi_x64_stack_analysis(ir::routine* rtn) {
 		ir::opt::id_fold(bb);
 		// TODO: Cfg optimization
 	}
-	
+
 	// Convert register use to PHIs, apply local optimizations again.
 	//
 	ir::opt::p0::reg_to_phi(rtn);
+
+	//rtn->get_entry()->erase_if([&](ir::insn* i) {
+	//	if (i->op == ir::opcode::read_reg) {
+	//		auto r	 = i->opr(0).get_const().get<arch::mreg>();
+	//		auto info = mach->get_register_info(r);
+	//		if (info.full_reg != r) {
+	//			auto finfo = mach->get_register_info(info.full_reg);
+	//			auto ty0 = enum_reflect(info.full_reg.get_kind()).type;
+	//			auto ty1 = enum_reflect(r.get_kind()).type;
+	//
+	//			auto fr = i->bb->insert(i, ir::make_read_reg(ty0, info.full_reg));
+	//			if (info.bit_offset) {
+	//				// TODO: This will not work for AARCH where vector regs split into two.
+	//				//
+	//				RC_ASSERT(ty0 == ir::int_type(info.bit_width));
+	//				fr = i->bb->insert(i, ir::make_binop(ir::op::bit_shr, fr.get(), ir::constant(ty0, info.bit_offset)));
+	//			}
+	//			fr = i->bb->insert(i, ir::make_cast(ty1, fr.get()));
+	//			i->replace_all_uses_with(fr.get());
+	//			return true;
+	//		}
+	//	}
+	//	return false;
+	//});
+
 	for (auto& bb : rtn->blocks) {
 		ir::opt::p0::reg_move_prop(bb);
 		ir::opt::const_fold(bb);
@@ -444,6 +469,24 @@ static void msabi_x64_stack_analysis(ir::routine* rtn) {
 	rtn->rename_blocks();
 	rtn->rename_insns();
 
+	auto beg = range::find_if(rtn->get_entry()->insns(), [](auto i) { return i->op == ir::opcode::stack_begin; });
+	if (beg != rtn->get_entry()->end()) {
+		for (auto* use : beg->uses()) {
+			if (auto* i = use->user->get_if<ir::insn>()) {
+				if (i->op == ir::opcode::load_mem || i->op == ir::opcode::store_mem) {
+					if (i->opr(0).is_value() && i->opr(0).get_value() == beg) {
+						i64 width = align_up(enum_reflect(i->template_types[0]).bit_size, 8) / 8;
+						result.min_sp_used = std::min(result.min_sp_used, i->opr(1).get_const().get_i64() + width);
+						result.max_sp_used = std::max(result.max_sp_used, i->opr(1).get_const().get_i64());
+					}
+				}
+			}
+		}
+	}
+	fmt::printf("Max SP delta: %x\n", result.max_sp_used);
+	fmt::printf("Min SP delta: -%x\n", -result.min_sp_used);
+
+	
 	// TODO: min_access
 	// TODO: max_access
 }
@@ -818,15 +861,29 @@ static void whole_program_analysis_test(core::image* img) {
 			// va, 	 m->init_info.stats_minsn_disasm, m->init_info.stats_insn_lifted, m->init_info.stats_insn_lifted / (m->init_info.stats_minsn_disasm ? m->init_info.stats_minsn_disasm
 			//: 1));
 
+			auto pty = r->method->arch->ptr_type();
+			auto img = r->method->img.lock();
+			auto img_base = img->base_address;
+			auto img_limit	  = img_base + img->raw_data.size();
+
+			flat_uset<u64> va_set;
 			for (auto& bb : r->blocks) {
 				for (auto&& ins : bb->insns()) {
-					if (ins->op == ir::opcode::xcall) {
-						if (ins->opr(0).is_const()) {
-							analyse_rva_if_code(r->method->img.get(), ins->opr(0).get_const().get_u64() - r->get_image()->base_address);
+					if (ins->op == ir::opcode::xjmp || ins->op == ir::opcode::xjs)
+						continue;
+					for (auto& op : ins->operands()) {
+						if (op.is_const()) {
+							if (op.get_type() == ir::type::pointer || op.get_type() == pty) {
+								auto va = op.get_const().get_u64();
+								if (img_base <= va && va < img_limit)
+									va_set.emplace(va);
+							}
 						}
 					}
 				}
 			}
+			for (auto va : va_set)
+				analyse_rva_if_code(img, va - img_base);
 		}
 	});
 

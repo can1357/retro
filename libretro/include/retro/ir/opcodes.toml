@@ -485,7 +485,7 @@ constexprs =     [1]
 #void  nop
 [opcode.nop]
 template-count = 0
-types =          ["@type.none"]
+types =          ["@type.pack"]
 templates =      [0]
 names =          [""]
 

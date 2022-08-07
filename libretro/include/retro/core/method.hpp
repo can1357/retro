@@ -41,8 +41,9 @@ namespace retro::core {
 		arch::mreg frame_reg			= {};
 		i64		  frame_reg_delta = 0;
 
-		// Maximum addressed stack location.
+		// Minumum/maximum constant addressed stack location.
 		//
+		i64 min_sp_used = 0;
 		i64 max_sp_used = 0;
 
 		// Layout of registers saved on the stack frame.

@@ -30,7 +30,13 @@ EXPORT int _fn_2(int a) {
 
 OUTLINE int me_take_long(char x, ...) { asm volatile("" :: "r"(x)); return x;}
 
-EXPORT int test(int a) {
+
+EXPORT float ftest(float x) {
+	return x * 5 / 5;
+}
+
+/*
+EXPORT int test(int a, int _0, int _1, int _2, int _3, int _4, int xx) {
 	if(a == 12515) {
 		int* p = (int*)__builtin_alloca(a);
 		asm volatile("" : "+m" (*p));
@@ -48,7 +54,7 @@ EXPORT int test(int a) {
         me_take_long(4) ? 1 : 5,
         a ? 9 : me_take_long(6)
     );
-    int y = x * a;
+    int y = x * a + xx;
 
     //int x = 2*me_take_long(a,a,a,a,a,a,a,a,a,a,a,a,a,a,a,a);
     //int y = 2*me_take_long(a,a,a,a,a,a,a,a,a,a,a,a);
@@ -56,4 +62,4 @@ EXPORT int test(int a) {
    // y = 2*me_take_big(a, {}, a);
 
     return x+y;
-}
+}*/

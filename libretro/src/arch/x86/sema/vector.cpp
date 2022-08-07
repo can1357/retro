@@ -175,27 +175,16 @@ DECL_SEMA(PTEST) {
 template<ir::op Op, ir::type TyVec, ir::type TyPiece>
 static diag::lazy scalar_op(SemaContext) {
 	constexpr auto Kind = enum_reflect(Op).kind;
-
-	ir::variant src;
-	if (ins.op[1].type == arch::mop_type::reg) {
-		auto srcv = read(sema_context(), 1, TyVec);
-		src		 = bb->push_extract(TyPiece, std::move(srcv), 0);
-	} else {
-		src = read(sema_context(), 1, TyPiece);
-	}
+	ir::variant src = read(sema_context(), 1, TyPiece);
 
 	// 128-bit Legacy SSE version
 	if constexpr (ir::op_kind::unary_signed <= Kind && Kind <= ir::op_kind::unary_float) {
 		// DST[31..] <- OP SRC[31..]
-		auto dst	  = read(sema_context(), 0, TyVec);
-		write(sema_context(), 0, bb->push_insert(std::move(dst), 0, bb->push_unop(Op, std::move(src))));
+		write(sema_context(), 0, bb->push_unop(Op, std::move(src)));
 		return diag::ok;
 	} else {
 		// DST[31..] <- DST[31..] OP SRC[31..]
-		auto dst	  = read(sema_context(), 0, TyVec);
-		auto piece = bb->push_extract(TyPiece, dst, 0);
-		piece		  = bb->push_binop(Op, piece, std::move(src));
-		write(sema_context(), 0, bb->push_insert(std::move(dst), 0, piece));
+		write(sema_context(), 0, bb->push_binop(Op, read(sema_context(), 0, TyPiece), std::move(src)));
 		return diag::ok;
 	}
 }

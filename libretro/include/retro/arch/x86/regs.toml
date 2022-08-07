@@ -7,33 +7,25 @@ Forwards = [
 
 
 Script = """
+regs = data["reg"]
 
-# Convert into list.
+# Create the vector registers.
 #
-regs = list(data["reg"].items())
-
-# Duplicate XMM registers.
-#
-i = 0
-while regs[i][0] != "xmm0":
-	i+=1
-for j in range(1,16):
-	c = regs[i][1].copy()
-	c["super"] = "@reg.ymm" + str(j)
-	n = "xmm" + str(j)
-	regs.insert(i+j, (n, c))
-	
-# Duplicate YMM registers.
-#
-i += 16
-for j in range(1,16):
-	c = regs[i][1].copy()
-	n = "ymm" + str(j)
-	regs.insert(i+j, (n, c))
-
-# Convert back to dictionary.
-#
-regs = dict(regs)
+N = 16
+classes = [
+	("xmm{0}s", "@reg_kind.fp32",    "ZYDIS_REGISTER_NONE"),
+	("xmm{0}d", "@reg_kind.fp64",    "ZYDIS_REGISTER_NONE"),
+	("xmm{0}",  "@reg_kind.simd128", "ZYDIS_REGISTER_XMM{0}"),
+	("ymm{0}",  "@reg_kind.simd256", "ZYDIS_REGISTER_YMM{0}"),
+#	("zmm{0}",  "@reg_kind.simd512", "ZYDIS_REGISTER_ZMM{0}"),
+]
+for cl in classes:
+	for i in range(0, N):
+		desc = {"kind": cl[1], "VisitorArgs": [cl[2].format(i)]}
+		name = cl[0].format(i)
+		if cl[0] != classes[-1][0]:
+			desc["super"] = "@reg." + classes[-1][0].format(i)
+		regs[name] = desc
 
 # Create alias list.
 #
@@ -49,10 +41,11 @@ for k, v in regs.items():
 # Add the zydis enum in the visitor list.
 #
 for k, v in regs.items():
-	if "flag_" in k:
-		v["VisitorArgs"] = ["ZYDIS_REGISTER_NONE"]
-	else:
-		v["VisitorArgs"] = ["ZYDIS_REGISTER_" + k.upper()]
+	if not ("VisitorArgs" in v):
+		if "flag_" in k:
+			v["VisitorArgs"] = ["ZYDIS_REGISTER_NONE"]
+		else:
+			v["VisitorArgs"] = ["ZYDIS_REGISTER_" + k.upper()]
 
 # Add width if skipped based on the type.
 #
@@ -329,15 +322,6 @@ width =  16
 [reg.x87tag]
 kind  =  "@reg_kind.control"
 width =  16
-
-# floating point vector registers 128-bit
-[reg.xmm0]
-kind  =  "@reg_kind.simd128"
-super =  "@reg.ymm0"
-
-# floating point vector registers 256-bit
-[reg.ymm0]
-kind  =  "@reg_kind.simd256"
 
 # flags registers
 [reg.flags]

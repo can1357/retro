@@ -170,11 +170,35 @@ namespace retro::arch::x86 {
 			return reg::sp;
 		}
 	}
+	static constexpr int vec_id(reg r) {
+		if (reg::xmm0s <= r && r <= reg::xmm15s) {
+			return i32(r) - i32(reg::xmm0s);
+		} else if (reg::xmm0d <= r && r <= reg::xmm15d) {
+			return i32(r) - i32(reg::xmm0d);
+		} else if (reg::xmm0 <= r && r <= reg::xmm15) {
+			return i32(r) - i32(reg::xmm0);
+		} else if (reg::ymm0 <= r && r <= reg::ymm15) {
+			return i32(r) - i32(reg::ymm0);
+		}
+		RC_UNREACHABLE();
+	}
+	static constexpr reg vec_to_fp32(reg r) { return reg(vec_id(r) + i32(reg::xmm0s)); }
+	static constexpr reg vec_to_fp64(reg r) { return reg(vec_id(r) + i32(reg::xmm0d)); }
 
 	// Register read/write helper.
 	//
 	inline ir::insn* read_reg(SemaContext, mreg _r, ir::type type = ir::type::none) {
+		// Handle implicit regid change for SSE/AVX registers.
+		//
 		reg r = (reg) _r.id;
+		if (reg::xmm0 <= r && r <= reg::ymm15) {
+			if (type == ir::type::f32) {
+				r = vec_to_fp32(r);
+			} else if (type == ir::type::f64) {
+				r = vec_to_fp64(r);
+			}
+		}
+
 		RC_ASSERT(r != reg::none);
 		RC_ASSERT(r != reg::rip && r != reg::eip && r != reg::ip);
 		RC_ASSERT(r != reg::rflags && r != reg::eflags && r != reg::flags);
@@ -303,14 +327,97 @@ namespace retro::arch::x86 {
 				push(ir::make_write_reg(sub, wrt_val));
 			}
 		}
-		// If vector:
+		// If MMX:
 		//
-		else if (reg_kind::simd64 <= desc->kind && desc->kind <= reg_kind::simd512) {
+		else if (desc->kind == reg_kind::simd64 || desc->kind == reg_kind::fp80) {
+			// TODO:
+		}
+		// If first element SSE:
+		//
+		else if (desc->kind == reg_kind::fp32 || desc->kind == reg_kind::fp64) {
+			i32  idx = i32(r) - i32(desc->kind == reg_kind::fp32 ? reg::xmm0s : reg::xmm0d);
+			auto xmm = reg(idx + (i32) reg::xmm0);
+			auto ymm = reg(idx + (i32) reg::ymm0);
+			auto xty = desc->kind == reg_kind::fp32 ? ir::type::f32x4 : ir::type::f64x2;
+			auto yty = desc->kind == reg_kind::fp32 ? ir::type::f32x8 : ir::type::f64x4;
+
+			auto xv = push(ir::make_read_reg(xty, xmm));
+			auto yv = push(ir::make_read_reg(yty, ymm));
+			xv		  = push(ir::make_insert(xv, 0, value));
+			yv		  = push(ir::make_insert(yv, 0, value));
+			push(ir::make_write_reg(xmm, xv));
+			push(ir::make_write_reg(ymm, xv));
+		}
+		// If whole SSE/AVX:
+		//
+		else if (reg_kind::simd128 <= desc->kind && desc->kind <= reg_kind::simd512) {
+			auto	tyw  = value.get_type();
+			auto& tywd = enum_reflect(tyw);
+
+			auto& subreg_list	 = desc->super != reg::none ? enum_reflect(desc->super).parts : desc->parts;
+			for (reg sub : subreg_list) {
+				if (sub == r)
+					continue;
+				auto& sub_desc	  = enum_reflect(sub);
+				switch (sub_desc.kind) {
+					case reg_kind::fp32: {
+						auto fv = ir::vec_type(ir::type::f32, desc->width / 32);
+						if (tyw != fv) {
+							auto val = push(ir::make_extract(ir::type::f32, push(ir::make_bitcast(fv, value)), 0));
+							push(ir::make_write_reg(sub, val));
+						} else {
+							auto val = push(ir::make_extract(ir::type::f32, value, 0));
+							push(ir::make_write_reg(sub, val));
+						}
+						break;
+					}
+					case reg_kind::fp64: {
+						auto fv = ir::vec_type(ir::type::f64, desc->width / 64);
+						if (tyw != fv) {
+							auto val = push(ir::make_extract(ir::type::f64, push(ir::make_bitcast(fv, value)), 0));
+							push(ir::make_write_reg(sub, val));
+						} else {
+							auto val = push(ir::make_extract(ir::type::f64, value, 0));
+							push(ir::make_write_reg(sub, val));
+						}
+						break;
+					}
+					case reg_kind::simd128:
+					case reg_kind::simd256:
+					case reg_kind::simd512: {
+						auto vt = ir::vec_type(tywd.underlying, sub_desc.width);
+
+						if (sub_desc.width > desc->width) {
+							auto val = push(ir::make_read_reg(vt, sub));
+							for (int i = 0; i != tywd.lane_width; i++) {
+								auto lane = push(ir::make_extract(tywd.underlying, value, i));
+								val		 = push(ir::make_insert(val, i, lane));
+							}
+							push(ir::make_write_reg(sub, val));
+						} else {
+							push(ir::make_write_reg(sub, push(ir::make_cast(vt, value))));
+						}
+						break;
+					}
+					default:
+						RC_UNREACHABLE();
+				}
+			}
 		}
 		return write;
 	}
 	inline ir::insn* write_reg(SemaContext, mreg _r, ir::variant&& value, bool implicit_zero = true) {
-		reg	r	  = (reg) _r.id;
+		// Handle implicit regid change for SSE/AVX registers.
+		//
+		reg r = (reg) _r.id;
+		if (reg::xmm0 <= r && r <= reg::ymm15) {
+			if (value.get_type() == ir::type::f32) {
+				r = vec_to_fp32(r);
+			} else if (value.get_type() == ir::type::f64) {
+				r = vec_to_fp64(r);
+			}
+		}
+
 		auto* desc = &enum_reflect(r);
 		RC_ASSERT(r != reg::none);
 		RC_ASSERT(r != reg::rip && r != reg::eip && r != reg::ip);
