@@ -184,12 +184,14 @@
 	#pragma clang diagnostic ignored "-Wswitch"
 	#pragma clang diagnostic ignored "-Wtrigraphs"
 	#pragma clang diagnostic ignored "-Wambiguous-reversed-operator" // Z3
+	#pragma clang diagnostic ignored "-Wmultichar"							// linux-pe
 #elif RC_GNU
 	#pragma GCC diagnostic ignored "-Wunused-function"
 	#pragma GCC diagnostic ignored "-Wunused-const-variable"
 	#pragma GCC diagnostic ignored "-Winvalid-offsetof"
 	#pragma GCC diagnostic ignored "-Wswitch"
 	#pragma GCC diagnostic ignored "-Wtrigraphs"
+	#pragma GCC diagnostic ignored "-Wmultichar" // linux-pe
 #endif
 
 namespace retro {
