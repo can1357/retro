@@ -1,6 +1,6 @@
 #pragma once
 #include <retro/common.hpp>
-#include <retro/lock.hpp>
+#include <retro/umutex.hpp>
 #include <retro/rc.hpp>
 #include <retro/dyn.hpp>
 #include <string>
@@ -102,7 +102,7 @@ namespace retro::interface {
 		// Instance map.
 		//
 		inline static ref<T>				 list[max_instances] = {};	 // Padded with null to avoid branch for 0 case.
-		inline static simple_lock		 list_lock				= {};
+		inline static umutex				 list_mtx				= {};
 		inline static std::atomic<u32> list_last_handle		= 0;
 
 		// Private identification.
@@ -148,7 +148,7 @@ namespace retro::interface {
 
 			// Acquire the lock and make sure there's no other entry colliding.
 			//
-			std::unique_lock _g{list_lock};
+			std::unique_lock _g{list_mtx};
 			for (auto& e : all()) {
 				if (e->name_hash == instance->name_hash) {
 					if (e->name == instance->name)

@@ -2,7 +2,7 @@
 #include <retro/common.hpp>
 #include <retro/coro.hpp>
 #include <retro/list.hpp>
-#include <retro/lock.hpp>
+#include <retro/umutex.hpp>
 #include <retro/rc.hpp>
 #include <optional>
 #include <vector>
@@ -57,7 +57,7 @@ namespace retro {
 
 			// Runthrough the continuation list.
 			//
-			std::lock_guard _g{continuation_lock};
+			std::lock_guard _g{continuation_mtx};
 			for (work* w : continuation) {
 				w->run();
 			}
@@ -74,8 +74,8 @@ namespace retro {
 
 		// Continuation list.
 		//
-		simple_lock		  continuation_lock = {};
-		list::head<work> continuation = {};
+		umutex			  continuation_mtx = {};
+		list::head<work> continuation		 = {};
 		friend struct awaitable;
 
 	  public:
@@ -99,7 +99,7 @@ namespace retro {
 
 			inline bool await_suspend(coroutine_handle<> hnd) {
 				this->hnd = hnd;
-				std::lock_guard _g{ptr->continuation_lock};
+				std::lock_guard _g{ptr->continuation_mtx};
 				if (!ptr->pending())
 					return false;
 				list::link_before(ptr->continuation.entry(), this);
@@ -168,27 +168,6 @@ namespace retro {
 		return ref<promise<T>>(w.release());
 	}
 
-	// Helper to reschedule a routine.
-	//
-	struct yield {
-		inline bool await_ready() { return false; }
-		inline void await_suspend(coroutine_handle<> h) { later(h); }
-		inline void await_resume() {}
-	};
-
-	// Simple wrapper for a coroutine starting itself and destorying itself on finalization.
-	//
-	struct async_task {
-		struct promise_type {
-			async_task	  get_return_object() { return {}; }
-			suspend_never initial_suspend() noexcept { return {}; }
-			suspend_never final_suspend() noexcept { return {}; }
-			RC_UNHANDLED_RETHROW;
-			void return_void() {}
-		};
-		async_task() {}
-	};
-
 	// Unique task.
 	//
 	template<typename T>
@@ -242,7 +221,7 @@ namespace retro {
 
 		// Coroutine handle and the internal constructor.
 		//
-		unique_coroutine<promise_type> handle	= nullptr;
+		unique_coroutine<promise_type> handle = nullptr;
 		unique_task(promise_type& pr) : handle(pr) {}
 
 		// Null constructor and validity check.
@@ -267,7 +246,7 @@ namespace retro {
 
 		// Starts the task if not already done so, returns the previous state.
 		//
-		long signal() const {
+		u32 signal() const {
 			u32 expected = 0;
 			if (handle.promise().state.compare_exchange_strong(expected, 1)) {
 				handle.resume();
@@ -300,7 +279,7 @@ namespace retro {
 			RC_ASSERT(handle.promise().state.load(std::memory_order::relaxed) == 2);
 			return *(T*) &handle.promise().data;
 		}
-		T&& get() && { return std::move(get()); }
+		T&&		get() && { return std::move(get()); }
 		const T& get() const& { return const_cast<unique_task*>(this)->get(); }
 
 		// Cannot be destructed whilist its executing.
@@ -312,7 +291,7 @@ namespace retro {
 	};
 
 	// Make unique task co-awaitable, note that only one coroutine may wait on unique task using
-	// symmetric transfer, rest will do a blocking wait. 
+	// symmetric transfer, rest will do a blocking wait.
 	//
 	template<typename T>
 	inline auto operator co_await(unique_task<T>&& ref) {

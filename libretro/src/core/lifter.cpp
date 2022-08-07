@@ -224,7 +224,7 @@ namespace retro::core {
 
 		ref<method> m;
 		{
-			std::unique_lock _g{img->method_map_lock};
+			std::unique_lock _g{img->method_map_mtx};
 
 			// Return if there is an exact match.
 			//

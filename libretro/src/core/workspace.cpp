@@ -29,7 +29,7 @@ namespace retro::core {
 		}
 		auto result = loader->load(data);
 		if (result) {
-			std::unique_lock _g{image_list_lock};
+			std::unique_lock _g{image_list_mtx};
 			image_list.emplace_back(result.value())->ws = this;
 		}
 		return result;

@@ -5,7 +5,7 @@
 #include <retro/common.hpp>
 #include <retro/ir/routine.hpp>
 #include <retro/rc.hpp>
-#include <retro/task.hpp>
+#include <retro/async/work.hpp>
 #include <retro/robin_hood.hpp>
 
 namespace retro::core {
@@ -113,7 +113,6 @@ namespace retro::core {
 				irp_mask.wait(expected, std::memory_order::relaxed);
 			}
 		}
-
 
 		// Lifts a basic block into the IRP_INIT IR from the given RVA.
 		//

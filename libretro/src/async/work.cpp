@@ -1,7 +1,7 @@
 #include <retro/common.hpp>
-#include <retro/task.hpp>
+#include <retro/async/work.hpp>
 #include <retro/list.hpp>
-#include <retro/lock.hpp>
+#include <retro/umutex.hpp>
 #include <thread>
 #include <semaphore>
 #include <bit>
@@ -12,7 +12,7 @@ namespace retro {
 	struct work_list {
 		// Queue and the lock.
 		//
-		rec_lock						  lock  = {};
+		recursive_umutex			  mtx  = {};
 		list::head<work>			  queue = {};
 		std::counting_semaphore<> signal{0};
 
@@ -56,7 +56,7 @@ namespace retro {
 		// Queues a work.
 		//
 		void push(work* w) {
-			std::lock_guard _g{lock};
+			std::lock_guard _g{mtx};
 
 			bool empty = queue.empty();
 			list::link_before(queue.entry(), w);
@@ -69,7 +69,7 @@ namespace retro {
 		// Pops a work entry.
 		//
 		work* pop() {
-			std::lock_guard _g{lock};
+			std::lock_guard _g{mtx};
 			while (auto* w = queue.front()) {
 				list::unlink(w);
 				return w;

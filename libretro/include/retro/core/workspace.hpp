@@ -1,7 +1,7 @@
 #pragma once
 #include <retro/common.hpp>
 #include <retro/rc.hpp>
-#include <retro/lock.hpp>
+#include <retro/umutex.hpp>
 #include <retro/diag.hpp>
 #include <vector>
 
@@ -14,7 +14,7 @@ namespace retro::core {
 	struct workspace {
 		// Image list.
 		//
-		rw_lock						image_list_lock = {};
+		mutable shared_umutex	image_list_mtx = {};
 		std::vector<ref<image>> image_list;
 
 		// Creates a new workspace.

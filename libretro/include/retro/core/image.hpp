@@ -6,7 +6,7 @@
 #include <retro/ldr/interface.hpp>
 #include <retro/interface.hpp>
 #include <retro/robin_hood.hpp>
-#include <retro/lock.hpp>
+#include <retro/umutex.hpp>
 #include <string>
 #include <vector>
 #include <variant>
@@ -147,13 +147,13 @@ namespace retro::core {
 		// Method table.
 		// - RVA -> Method.
 		//
-		mutable rw_lock				 method_map_lock = {};
+		mutable shared_umutex		 method_map_mtx = {};
 		flat_umap<u64, ref<method>> method_map		  = {};
 
 		// Observers.
 		//
 		ref<method> lookup_method(u64 rva) const {
-			std::shared_lock _g{method_map_lock};
+			std::shared_lock _g{method_map_mtx};
 			if (auto it = method_map.find(rva); it != method_map.end()) {
 				return it->second;
 			}

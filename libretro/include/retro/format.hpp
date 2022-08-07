@@ -7,7 +7,7 @@
 #include <optional>
 #include <retro/common.hpp>
 #include <retro/utf.hpp>
-#include <retro/lock.hpp>
+#include <retro/umutex.hpp>
 #include <string>
 #include <string_view>
 #include <tuple>
@@ -143,10 +143,12 @@ namespace retro::fmt {
 		return std::move(str);
 	}
 
-	// Forward declaration of concat.
+	// Forward declaration of concat/join.
 	//
 	template<typename... Tx>
 	static std::string concat(const Tx&... args);
+	template<typename... Tx>
+	static std::string join(std::string_view seperator, const Tx&... args);
 
 	// Out of line formatter.
 	//
@@ -223,7 +225,7 @@ namespace retro::fmt {
 				return (decltype(to_str(*arg))) "null";
 			}
 		} else if constexpr (is_specialization_v<std::pair, Td> || is_specialization_v<std::tuple, Td>) {
-			return std::apply([]<typename... Tx>(Tx&&... args) { return fmt::concat<Tx...>(std::forward<Tx>(args)...); }, arg);
+			return std::apply([]<typename... Tx>(Tx&&... args) { return fmt::join<Tx...>(", ", std::forward<Tx>(args)...); }, arg);
 		} else if constexpr (std::is_pointer_v<T>) {
 			return str("%p", arg);
 		} else if constexpr (std::is_same_v<Td, i128>) {
@@ -251,6 +253,27 @@ namespace retro::fmt {
 			write(buffer.data(), args...);
 			return buffer;
 		}
+
+		
+		template<typename T, typename... Tx>
+		static void write_for_concat(std::string_view sep, char* at, const T& first, const Tx&... rest) {
+			memcpy(at, sep.data(), sep.size());
+			at += sep.size();
+			memcpy(at, first.data(), first.size());
+			at += first.size();
+			if constexpr (sizeof...(Tx) != 0) {
+				write_for_concat<Tx...>(sep, at + first.size(), rest...);
+			}
+		}
+		template<typename T, typename... Tx>
+		static std::string join(std::string_view sep, const T& first, const Tx&... rest) {
+			std::string buffer(first.size() + (rest.size() + ...) + sizeof...(Tx) * sep.size(), '\x0');
+			memcpy(buffer.data(), first.data(), first.size());
+			if constexpr (sizeof...(Tx) != 0) {
+				write_for_concat(sep, buffer.data() + first.size(), rest...);
+			}
+			return buffer;
+		}
 	};
 	template<typename... Tx>
 	static std::string concat(const Tx&... args) {
@@ -260,18 +283,26 @@ namespace retro::fmt {
 			return detail::concat(to_str(args)...);
 		}
 	}
+	template<typename... Tx>
+	static std::string join(std::string_view seperator, const Tx&... args) {
+		if constexpr (sizeof...(Tx) == 0) {
+			return {};
+		} else {
+			return detail::join(seperator, to_str(args)...);
+		}
+	}
 
 	// Console wrappers.
 	//
-	inline simple_lock con_lock = {};
+	inline umutex con_mtx = {};
 	template<typename T, typename... Tx>
 	static void println(const T& first, const Tx&... rest) {
-		std::lock_guard _g{con_lock};
+		std::lock_guard _g{con_mtx};
 		std::string str = concat<T, Tx...>(first, rest..., "\n" RC_RESET);
 		fwrite(str.data(), 1, str.size(), stdout);
 	}
 	static void printf(const char* fmt, ...) {
-		std::lock_guard _g{con_lock};
+		std::lock_guard _g{con_mtx};
 		va_list a;
 		va_start(a, fmt);
 		vfprintf(stdout, fmt, a);

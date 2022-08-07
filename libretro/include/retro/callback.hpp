@@ -1,7 +1,7 @@
 #pragma once
 #include <functional>
 #include <retro/list.hpp>
-#include <retro/lock.hpp>
+#include <retro/umutex.hpp>
 
 // We manage all functions that user can hook into using either callbacks or notifications.
 // - Callbacks always return an optional result that can be converted to a bool and stop propagating once a non-false expression is returned.
@@ -29,10 +29,10 @@ namespace retro {
 		};
 
 	  protected:
-		mutable rw_lock lock		  = {};
-		entry*			 list_prev = nullptr; // Can't use list::head<> as it needs to be trivially initializable.
-		entry*			 list_next = nullptr;
-		entry*			 get_entry() const { return (entry*) &list_prev; }
+		mutable shared_umutex mtx		  = {};
+		entry*					 list_prev = nullptr;  // Can't use list::head<> as it needs to be trivially initializable.
+		entry*					 list_next = nullptr;
+		entry*					 get_entry() const { return (entry*) &list_prev; }
 
 	  public:
 		// Default ctor, no copy.
@@ -47,7 +47,7 @@ namespace retro {
 			// Notification:
 			//
 			if constexpr (std::is_void_v<R>) {
-				std::shared_lock _g{lock};
+				std::shared_lock _g{mtx};
 				if (list_next) {
 					for (auto it = list_next; it != get_entry(); it = it->next) {
 						it->fn(args...);
@@ -57,7 +57,7 @@ namespace retro {
 			// Callback:
 			//
 			else {
-				std::shared_lock _g{lock};
+				std::shared_lock _g{mtx};
 				R result = {};
 				if (list_next) {
 					for (auto it = list_next; it != get_entry(); it = it->next) {
@@ -76,7 +76,7 @@ namespace retro {
 		// Inserts a new callback.
 		//
 		handle insert(function f) {
-			std::unique_lock _g{lock};
+			std::unique_lock _g{mtx};
 
 			auto v = new entry();
 			v->fn	 = std::move(f);
@@ -91,7 +91,7 @@ namespace retro {
 		// Removes a callback.
 		//
 		void remove(handle h) {
-			std::unique_lock _g{lock};
+			std::unique_lock _g{mtx};
 			if (auto* v = h.value) {
 				list::unlink(v);
 				delete v;

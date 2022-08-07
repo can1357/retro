@@ -5,12 +5,12 @@
 #include <mutex>
 #include <shared_mutex>
 
-// Defines the fast locks that behaves like a mutex only on long pauses.
+// Defines the fast and compact mutex replacements.
 //
 namespace retro {
-	// No-op lock.
+	// No-op mutex.
 	//
-	struct noop_lock {
+	struct noop_mutex {
 		RC_INLINE bool try_lock(size_t = 0) { return true; }
 		RC_INLINE bool try_lock_shared(size_t = 0) { return true; }
 		RC_INLINE void lock() {}
@@ -30,9 +30,26 @@ namespace retro {
 		}
 	};
 
-	// Simple lock.
+	// Spinlock with no fallback to slow yield system.
 	//
-	struct simple_lock {
+	struct spinlock {
+		std::atomic<u16> flag  = 0;
+
+		RC_INLINE bool locked() const { return (flag.load(std::memory_order::relaxed) & 1) != 0; }
+		RC_INLINE bool try_lock() { return flag.fetch_or(1, std::memory_order::acquire) == 0; }
+		RC_INLINE void lock() {
+			u8 yield_counter = 0;
+			while (!try_lock()) [[unlikely]] {
+				do {
+					intrin::yield();
+				} while (locked());
+			}
+		}
+		RC_INLINE void unlock() {
+			flag.store(0, std::memory_order::release);
+		}
+	};
+	struct umutex {
 		std::atomic<u16> flag  = 0;
 
 		RC_INLINE bool locked() const { return (flag.load(std::memory_order::relaxed) & 1) != 0; }
@@ -52,10 +69,7 @@ namespace retro {
 			flag.notify_all();
 		}
 	};
-
-	// Recursive lock.
-	//
-	struct rec_lock {
+	struct recursive_umutex {
 		std::atomic<size_t> owner  = 0;
 		u16                 depth  = 0;
 
@@ -90,10 +104,7 @@ namespace retro {
 			}
 		}
 	};
-
-	// R/W lock.
-	//
-	struct rw_lock {
+	struct shared_umutex {
 		std::atomic<u16> counter = 0;
 
 		RC_INLINE bool locked() const { return counter.load(std::memory_order::relaxed) != 0; }

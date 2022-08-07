@@ -255,17 +255,36 @@ namespace retro {
 	// Helper to get the current coroutine handle / promise.
 	//
 #if RC_CLANG
-	// Clang:
-	RC_INLINE static coroutine_handle<> this_coroutine(void* adr = __builtin_coro_frame()) { return coroutine_handle<>::from_address(adr); }
+	#define RC_THIS_CORO() coroutine_handle<>::from_address(__builtin_coro_frame())
 #else
-	// Not implemented.
-	RC_INLINE static coroutine_handle<> this_coroutine(void* adr = nullptr);
-#endif
+	namespace detail {
+		struct coroutine_resolver {
+			mutable coroutine_handle<> hnd;
 
-	template<typename C, typename Promise = typename coroutine_traits<C>::promise_type>
-	RC_INLINE static Promise& this_promise(coroutine_handle<> h = this_coroutine()) {
-		return get_promise<Promise>(h);
-	}
+			bool await_ready() const noexcept { return false; }
+			bool await_suspend(coroutine_handle<> h) const noexcept {
+				hnd = h;
+				return false;
+			}
+			coroutine_handle<> await_resume() const noexcept { return hnd; }
+		};
+	};
+	#define RC_THIS_CORO() co_await retro::detail::coroutine_resolver{}
+#endif
+	#define RC_THIS_PROMISE(...) retro::get_promise<__VA_ARGS__>(RC_THIS_CORO())
+
+	// Simple wrapper for a coroutine starting itself and destorying itself on finalization.
+	//
+	struct async_task {
+		struct promise_type {
+			async_task	  get_return_object() { return {}; }
+			suspend_never initial_suspend() noexcept { return {}; }
+			suspend_never final_suspend() noexcept { return {}; }
+			RC_UNHANDLED_RETHROW;
+			void return_void() {}
+		};
+		async_task() {}
+	};
 };
 
 // Clang requires coroutine_traits under std::experimental.

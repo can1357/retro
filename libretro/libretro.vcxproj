@@ -37,6 +37,8 @@
     <ClInclude Include="include\retro\arch\x86\regs.hxx" />
     <ClInclude Include="include\retro\arch\x86\sema.hpp" />
     <ClInclude Include="include\retro\arch\x86\zy2rc.hpp" />
+    <ClInclude Include="include\retro\async\neo.hpp" />
+    <ClInclude Include="include\retro\async\work.hpp" />
     <ClInclude Include="include\retro\callback.hpp" />
     <ClInclude Include="include\retro\core\callbacks.hpp" />
     <ClInclude Include="include\retro\core\image.hpp" />
@@ -68,14 +70,13 @@
     <ClInclude Include="include\retro\ldr\interface.hpp" />
     <ClInclude Include="include\retro\ldr\pe.hpp" />
     <ClInclude Include="include\retro\list.hpp" />
-    <ClInclude Include="include\retro\lock.hpp" />
+    <ClInclude Include="include\retro\umutex.hpp" />
     <ClInclude Include="include\retro\opt\interface.hpp" />
     <ClInclude Include="include\retro\opt\utility.hpp" />
     <ClInclude Include="include\retro\platform.hpp" />
     <ClInclude Include="include\retro\ranges.hpp" />
     <ClInclude Include="include\retro\rc.hpp" />
     <ClInclude Include="include\retro\robin_hood.hpp" />
-    <ClInclude Include="include\retro\task.hpp" />
     <ClInclude Include="include\retro\utf.hpp" />
   </ItemGroup>
   <ItemGroup>
@@ -102,6 +103,8 @@
     <ClCompile Include="src\arch\x86\sema\data.cpp" />
     <ClCompile Include="src\arch\x86\sema\vector.cpp" />
     <ClCompile Include="src\arch\x86\x86.cpp" />
+    <ClCompile Include="src\async\neo.cpp" />
+    <ClCompile Include="src\async\work.cpp" />
     <ClCompile Include="src\core\lifter.cpp" />
     <ClCompile Include="src\core\workspace.cpp" />
     <ClCompile Include="src\ir\basic_block.cpp" />
@@ -119,7 +122,6 @@
     <ClCompile Include="src\opt\reg_prop.cpp" />
     <ClCompile Include="src\opt\reg_to_phi.cpp" />
     <ClCompile Include="src\platform.cpp" />
-    <ClCompile Include="src\task.cpp" />
   </ItemGroup>
   <PropertyGroup Label="Globals">
     <VCProjectVersion>16.0</VCProjectVersion>

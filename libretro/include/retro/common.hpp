@@ -7,6 +7,7 @@
 #include <initializer_list>
 #include <array>
 #include <bit>
+#include <chrono>
 #include <string>
 #include <span>
 #include <string_view>
@@ -571,6 +572,14 @@ namespace retro {
 	};
 	#define RC_INITIALIZER RC_USED static retro::detail::init_hook RC_CONCAT(__initializer, __COUNTER__) = []()
 #endif
+
+	// Include chrono.
+	//
+	namespace chrono = std::chrono;
+	using namespace std::literals::chrono_literals;
+	using duration	 = typename chrono::high_resolution_clock::duration;
+	using timestamp = typename chrono::high_resolution_clock::time_point;
+	RC_INLINE inline static timestamp now() { return chrono::high_resolution_clock::now(); }
 
 	// Useful literals.
 	//
