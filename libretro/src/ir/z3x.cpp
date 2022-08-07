@@ -658,7 +658,7 @@ namespace retro::z3x {
 #define DEF_BINOP(Z3OP, RCOC, RCOP)                                                                        \
 	case Z3OP: {                                                                                            \
 		if (args.size() != 2) {                                                                              \
-			fmt::abort("expected 2 arguments to %s (%x)", decl.name().str(), decl.decl_kind());               \
+			fmt::abort("expected 2 arguments to %s (%x)", decl.name().str().c_str(), decl.decl_kind());               \
 		}                                                                                                    \
 		it = bb->insert(it, RC_CONCAT(ir::make_, RCOC)(RCOP, std::move(args[0]), std::move(args[1]))); \
 		return ret_and_cache(it++);                                                                          \
@@ -666,7 +666,7 @@ namespace retro::z3x {
 #define DEF_UNOP(Z3OP, RCOC, RCOP)                                                           \
 	case Z3OP: {                                                                              \
 		if (args.size() != 1) {                                                                \
-			fmt::abort("expected 1 arguments to %s (%x)", decl.name().str(), decl.decl_kind()); \
+			fmt::abort("expected 1 arguments to %s (%x)", decl.name().str().c_str(), decl.decl_kind()); \
 		}                                                                                      \
 		it = bb->insert(it, RC_CONCAT(ir::make_, RCOC)(RCOP, std::move(args[0])));       \
 		return ret_and_cache(it++);                                                            \
