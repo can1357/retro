@@ -17,6 +17,7 @@ include-directories = ["libretro/include", "z3/src/api", "z3/src/api/c++"]
 compile-features = ["cxx_std_20"]
 sources = [
     "libretro/src/**.cpp",
+    "libretro/include/**.cxx",
     "libretro/src/**.hpp",
     "libretro/src/**.hxx",
     "libretro/include/**.hpp",
