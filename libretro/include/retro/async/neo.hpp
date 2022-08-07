@@ -191,13 +191,13 @@ namespace retro::neo {
 		//
 		constexpr subtask() = default;
 		constexpr subtask(std::nullptr_t) : handle() {}
-		constexpr bool		 has_value() const { return handle.get() != nullptr; }
-		constexpr explicit operator bool() const { return has_value(); }
+		bool		has_value() const { return handle.get() != nullptr; }
+		explicit operator bool() const { return has_value(); }
 
 		// No copy, default move.
 		//
-		subtask(subtask&&) noexcept				= default;
-		subtask& operator=(subtask&&) noexcept = default;
+		subtask(subtask&&) noexcept										 = default;
+		subtask&							 operator=(subtask&&) noexcept = default;
 		inline subtask_awaitable<R> operator co_await() && { return {handle.promise()}; }
 	};
 
@@ -215,8 +215,8 @@ namespace retro::neo {
 		//
 		constexpr task() = default;
 		constexpr task(std::nullptr_t) : handle() {}
-		constexpr bool		 has_value() const { return handle.get() != nullptr; }
-		constexpr explicit operator bool() const { return has_value(); }
+		bool		has_value() const { return handle.get() != nullptr; }
+		explicit operator bool() const { return has_value(); }
 
 		// No copy, default move.
 		//

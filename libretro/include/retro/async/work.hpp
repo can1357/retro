@@ -228,8 +228,8 @@ namespace retro {
 		//
 		constexpr unique_task() = default;
 		constexpr unique_task(std::nullptr_t) : unique_task() {}
-		constexpr bool		 has_value() const { return handle != nullptr; }
-		constexpr explicit operator bool() const { return has_value(); }
+		bool		 has_value() const { return handle.get() != nullptr; }
+		explicit operator bool() const { return has_value(); }
 
 		// No copy, default move.
 		//
