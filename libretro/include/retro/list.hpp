@@ -125,7 +125,6 @@ namespace retro::list {
 	//
 	template<typename T>
 	struct head : pinned {
-		using iterator = iterator<T>;
 	  private:
 		T* prev = entry();
 		T* next = entry();
@@ -137,15 +136,15 @@ namespace retro::list {
 
 		// Observers.
 		//
-		iterator					begin() const { return {next}; }
-		iterator					end() const { return {entry()}; }
+		iterator<T>				begin() const { return {next}; }
+		iterator<T>				end() const { return {entry()}; }
 		auto						rbegin() const { return std::reverse_iterator(end()); }
 		auto						rend() const { return std::reverse_iterator(begin()); }
 		bool						empty() const { return next == entry(); }
 		size_t					size() const { return std::distance(begin(), end()); };
 		T*							front() const { return (!empty()) ? (next) : nullptr; }
 		T*							back() const { return (!empty()) ? (prev) : nullptr; }
-		auto						slice(iterator it) const { return range::subrange(it, end()); }
-		auto						rslice(iterator it) const { return range::subrange(std::reverse_iterator(it), rend()); }
+		auto						slice(iterator<T> it) const { return range::subrange(it, end()); }
+		auto						rslice(iterator<T> it) const { return range::subrange(std::reverse_iterator(it), rend()); }
 	};
 };

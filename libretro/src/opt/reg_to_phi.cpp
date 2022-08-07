@@ -56,7 +56,7 @@ namespace retro::ir::opt::p0 {
 			if (ins->op == opcode::write_reg && ins->opr(0).get_const().get<arch::mreg>() == r) {
 				auto& val = ins->opr(1);
 				if (val.is_value() && val.get_value()->is<ir::insn>()) {
-					return ret_w_cache((ir::insn*)val.value_ref.get());
+					return ret_w_cache((ir::insn*) val.get_value());
 				}
 				// Very dumb cast to launder the value.
 				return ret_w_cache(b->insert(ins, ir::make_bitcast(val.get_type(), val)));
@@ -99,7 +99,7 @@ namespace retro::ir::opt::p0 {
 		ref<insn> same = nullptr;
 		for (auto& opv : phi->operands()) {
 			RC_ASSERT(opv.is_value() && opv.get_value()->is<ir::insn>());
-			insn* op = (insn*) opv.value_ref.get();
+			insn* op = (insn*) opv.get_value();
 			op			= strip_launders(op);
 
 			if (compare_nolaunder(op, phi)) {

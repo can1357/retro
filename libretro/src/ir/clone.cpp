@@ -14,9 +14,9 @@ namespace retro::ir {
 	static void post_clone(ref<value>& v, u64 mark) { post_clone(v.ptr, mark); }
 	static void post_clone(operand& o, u64 mark) {
 		if (o.is_value()) {
-			value* v = o.value_ref.get();
+			value* v = o.get_value();
 			post_clone(v, mark);
-			if (v != o.value_ref) {
+			if (v != o.get_value()) {
 				o = v;
 			}
 		}

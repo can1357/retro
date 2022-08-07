@@ -18,13 +18,11 @@ namespace retro::ir {
 	// Common type for initializing operands.
 	//
 	struct operand;
-	struct variant {
+	union variant {
 		// Since value is aligned by 8, if misaligned (eg check bit 0 == 1), we can use it as a thombstone.
 		//
-		union {
-			weak<value> value_ref;
-			constant		const_val;
-		};
+		weak<value> value_ref;
+		constant		const_val;
 
 		// Default constructor creates type::none.
 		//
@@ -143,12 +141,13 @@ namespace retro::ir {
 		union {
 			variant variant_val = {};
 			struct {
-				weak<value> value_ref;
-				operand*		prev;
-				operand*		next;
+				void*		__value_ref;
+				operand* prev;
+				operand* next;
 			};
 			constant const_val;
 		};
+		static_assert(sizeof(weak<value>) == sizeof(void*), "update union.");
 
 		// Pointer to user.
 		//
@@ -165,7 +164,7 @@ namespace retro::ir {
 				const_val.reset();
 			} else {
 				list::unlink(this);
-				value_ref = nullptr;
+				variant_val.value_ref = nullptr;
 				std::construct_at(&const_val);
 			}
 		}
@@ -183,7 +182,7 @@ namespace retro::ir {
 					if (val) {
 						list::init(this);
 						list::link_before(val->use_list.entry(), this);
-						std::construct_at(&value_ref, std::forward<T>(val));
+						std::construct_at(&variant_val.value_ref, std::forward<T>(val));
 					}
 				} else {
 					std::construct_at(&const_val, std::forward<T>(val));
@@ -216,7 +215,7 @@ namespace retro::ir {
 		}
 		value* get_value() const {
 			RC_ASSERT(!is_const());
-			return value_ref.get();
+			return variant_val.value_ref.get();
 		}
 
 		// Redirect utilities to variant.

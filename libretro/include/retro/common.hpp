@@ -13,6 +13,7 @@
 #include <string_view>
 #include <numeric>
 #include <algorithm>
+#include <compare>
 #include <retro/ranges.hpp>
 
 // Compiler details.
@@ -184,13 +185,11 @@
 	#pragma clang diagnostic ignored "-Wtrigraphs"
 	#pragma clang diagnostic ignored "-Wambiguous-reversed-operator" // Z3
 #elif RC_GNU
-	#pragma GCC diagnostic ignored "-Wunneeded-internal-declaration"
 	#pragma GCC diagnostic ignored "-Wunused-function"
 	#pragma GCC diagnostic ignored "-Wunused-const-variable"
 	#pragma GCC diagnostic ignored "-Winvalid-offsetof"
 	#pragma GCC diagnostic ignored "-Wswitch"
 	#pragma GCC diagnostic ignored "-Wtrigraphs"
-	#pragma GCC diagnostic ignored "-Wambiguous-reversed-operator" // Z3
 #endif
 
 namespace retro {
