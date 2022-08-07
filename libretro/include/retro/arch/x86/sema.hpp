@@ -385,7 +385,8 @@ namespace retro::arch::x86 {
 					case reg_kind::simd128:
 					case reg_kind::simd256:
 					case reg_kind::simd512: {
-						auto vt = ir::vec_type(tywd.underlying, sub_desc.width);
+						auto vt = ir::vec_type(tywd.underlying, sub_desc.width / enum_reflect(tywd.underlying).bit_size);
+						RC_ASSERT(vt != ir::type::none);
 
 						if (sub_desc.width > desc->width) {
 							auto val = push(ir::make_read_reg(vt, sub));
