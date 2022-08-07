@@ -1,3 +1,11 @@
+#if RC_UNIX
+	#ifndef _GNU_SOURCE
+		#define _GNU_SOURCE
+	#endif
+	#include <sched.h>
+   #include <pthread.h>
+#endif
+
 #include <array>
 #include <filesystem>
 #include <fstream>
@@ -77,6 +85,9 @@ namespace retro::platform {
 		ok = true;
 		return buffer;
 	}
+
+	// Windows compatible exec implementation.
+	//
 #if RC_WINDOWS
 	#define popen	_popen
 	#define pclose _pclose
@@ -91,6 +102,29 @@ namespace retro::platform {
 		pclose(f);
 		return result;
 	}
+
+	// API linux and osx implement differently.
+	//
+#if RC_WINDOWS
+	void set_affinity(u64 mask) { SetThreadAffinityMask(HANDLE(-2), mask); }
+#elif RC_UNIX
+	void set_affinity(u64 mask) {
+		cpu_set_t set;
+		CPU_ZERO(&set);
+		for (int i = 0; i != 64; i++) {
+			if (mask & (1ull << i)) {
+				CPU_SET(i, &set);
+			}
+		}
+		sched_setaffinity(0, sizeof(cpu_set_t), &set);
+	}
+#elif RC_OSX
+	// TODO:
+	void set_affinity(u64 mask) { RC_UNUSED(mask); }
+#else
+	void set_affinity(u64 mask) { RC_UNUSED(mask); }
+#endif
+
 
 #if RC_WINDOWS
 	static constexpr ULONG protection_map[] = {PAGE_READONLY, PAGE_READWRITE, PAGE_EXECUTE_READ, PAGE_EXECUTE_READWRITE};

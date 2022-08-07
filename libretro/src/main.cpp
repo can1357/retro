@@ -987,6 +987,8 @@ static void analysis_test_from_source(std::string src) {
 #include <retro/utf.hpp>
 int main(int argv, const char** args) {
 	platform::setup_ansi_escapes();
+	// TODO: Assumes its a UI app and we want responsive UX, should be handled by a launch flag or sthg.
+	platform::g_affinity_mask = bit_mask(std::min<i32>((i32)std::thread::hardware_concurrency() / 2, 64));
 
 	// Large function test:
 	//

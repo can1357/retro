@@ -44,6 +44,14 @@ namespace retro::platform {
 #endif
 	}
 
+	// Gloabl affinity mask used by the worker threads.
+	//
+	inline u64 g_affinity_mask = 0xFFFFFFFFFFFFFFFF;
+
+	// Applies the given affinity mask to the current thread.
+	//
+	void set_affinity(u64 mask = g_affinity_mask);
+
 	// Invoked to ensure ANSI escapes work.
 	//
 	void setup_ansi_escapes();

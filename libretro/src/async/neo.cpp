@@ -1,4 +1,5 @@
 #include <retro/async/neo.hpp>
+#include <retro/platform.hpp>
 
 namespace retro::neo {
 	inline static size_t ideal_thread_count = std::thread::hardware_concurrency();
@@ -25,18 +26,36 @@ namespace retro::neo {
 	// Worker thread entry point.
 	//
 	void scheduler::thread_main(scheduler* schd) {
+		platform::set_affinity();
+
 		while (true) {
+			// Wait for a signal.
+			//
 			schd->signal.acquire();
+
+			// If termination is requested, return.
+			//
 			if (schd->termination_signal)
 				return;
+
+			// Wait until scheduler is resumed.
+			//
+			while(auto n = schd->suspended.load()) {
+				schd->suspended.wait(n);
+			}
+
+			// Pop a task and execute it.
+			//
 			if (task_promise* t = schd->pop()) {
 				auto	hnd = coroutine_handle<task_promise>::from_promise(*t);
 				auto* ts	 = t->get_state();
 
 				if (!ts->cancellation_signal) {
+					ts->running	 = true;
 					t->slice_end = now() + u32(t->prio) * time_slice_coeff;
-
 					t->suspended_continuation.resume();
+					ts->running = false;
+
 					if (!hnd.done()) {
 						schd->push(t);
 						continue;
@@ -98,6 +117,7 @@ namespace retro::neo {
 	scheduler::~scheduler() {
 		termination_signal = true;
 		signal.release(UINT32_MAX);
+		resume();
 		for (auto& t : thread_list)
 			t.join();
 		clear();

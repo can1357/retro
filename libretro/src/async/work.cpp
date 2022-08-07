@@ -2,6 +2,7 @@
 #include <retro/async/work.hpp>
 #include <retro/list.hpp>
 #include <retro/umutex.hpp>
+#include <retro/platform.hpp>
 #include <thread>
 #include <semaphore>
 #include <bit>
@@ -27,6 +28,8 @@ namespace retro {
 		// Worker function.
 		//
 		static void worker_function(work_list* self) {
+			platform::set_affinity();
+
 			while (true) {
 				// Pop a work, if non-null, execute and continue.
 				//

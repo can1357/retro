@@ -27,10 +27,11 @@
 namespace retro::neo {
 	// Priority groups.
 	//
-	enum class priority {
+	enum class priority : u16 {
 		low	 = 1,
 		normal = 4,
 		high	 = 10,
+		inf	 = 0xFFFF,
 	};
 	static constexpr auto time_slice_coeff = 50ms;
 
@@ -44,8 +45,9 @@ namespace retro::neo {
 		};
 
 		mutable std::counting_semaphore<> completion_semaphore{0};
-		volatile bool							 cancellation_signal = false;
 		volatile id								 state					= id::pending;
+		volatile bool							 cancellation_signal = false;
+		volatile bool							 running					= false;
 
 		// Task state observers.
 		//
@@ -258,6 +260,7 @@ namespace retro::neo {
 		std::vector<std::thread>  thread_list			  = {};
 		std::atomic<u64>			  remaining_task_count = 0;
 		volatile bool				  termination_signal	  = false;
+		std::atomic<u32>			  suspended				  = false;
 
 		// Pushes a task for rescheduling.
 		void			  push(task_promise* w);
@@ -286,6 +289,22 @@ namespace retro::neo {
 				remaining_task_count.wait(n);
 			}
 		}
+
+		// Suspends or resumes the scheduler.
+		//
+		void suspend() {
+			suspended.store(1, std::memory_order::relaxed);
+		}
+		void resume() {
+			if (suspended.exchange(0)) {
+				suspended.notify_all();
+			}
+		}
+
+		// Observers.
+		//
+		u64 num_remaining_tasks() const { return remaining_task_count.load(std::memory_order::relaxed); }
+		bool is_suspended() const { return suspended.load(std::memory_order::relaxed) != 0; }
 
 		// Handle cancellation of leftover tasks and thread deletion on destruction.
 		//
