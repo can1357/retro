@@ -951,8 +951,8 @@ static void analysis_test_from_source(std::string src) {
 	//
 	std::string flags = "-O1";
 	if (auto it = src.find("// clang: "); it != std::string::npos) {
-		std::string_view new_flags{src.begin() + it + sizeof("// clang: ") - 1, src.end()};
-		auto				  p = new_flags.find_first_of("\r\n");
+		auto new_flags = src.substr(it + sizeof("// clang: ") - 1);
+		auto p = new_flags.find_first_of("\r\n");
 		if (p != std::string::npos) {
 			new_flags = new_flags.substr(0, p);
 		}
