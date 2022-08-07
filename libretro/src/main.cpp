@@ -49,6 +49,9 @@ __attribute__((always_inline)) int short_marker(const char* msg) {
 	asm volatile("vmread %0, %1" : "+a"(x) : "m"(*msg));
    return (int)(long)x;
 }
+__attribute__((always_inline)) void value_marker(const char* msg, long long v) {
+	asm volatile("vmwrite %1, %0" :: "a"(v), "m"(*msg));
+}
 
 int main() {}
 )";
@@ -679,10 +682,15 @@ static void analysis_test_from_image_va(std::filesystem::path path, u64 va) {
 static void analysis_test_from_source(std::string src) {
 	core::on_minsn_lift.insert([](arch::handle arch, ir::basic_block* bb, arch::minsn& i, u64 va) {
 		if (i.mnemonic == ZYDIS_MNEMONIC_VMREAD) {
-			auto str = (const char*)bb->get_image()->slice(i.op[0].m.disp + va + i.length - bb->get_image()->base_address).data();
+			auto str		= (const char*) bb->get_image()->slice(i.op[0].m.disp + va + i.length - bb->get_image()->base_address).data();
 			auto result = bb->push_annotation(ir::int_type(i.op[1].get_width()), std::string_view{str});
 			auto write	= bb->push_write_reg(i.op[1].r, result);
 			arch->explode_write_reg(write);
+			return true;
+		} else if (i.mnemonic == ZYDIS_MNEMONIC_VMWRITE) {
+			auto str		= (const char*) bb->get_image()->slice(i.op[1].m.disp + va + i.length - bb->get_image()->base_address).data();
+			auto read	= bb->push_read_reg(ir::int_type(i.op[0].get_width()), i.op[0].r);
+			bb->push_annotation(ir::type::none, std::string_view{str}, read);
 			return true;
 		}
 		return false;

@@ -470,13 +470,13 @@ templates =      [0,            0,               0]
 names =          ["",           "ctx",           "offset"]
 constexprs =     [2]
 
-#T  annotation<T> constexpr str:Name
+#T  annotation<T> constexpr str:Name, Tx...
 [opcode.annotation]
 is-annotation =  true
 template-count = 1
-types =          ["@type.none", "@type.str"]
-templates =      [1,            0]
-names =          ["",           "Name"]
+types =          ["@type.none", "@type.str", "@type.pack"]
+templates =      [1,            0,           0]
+names =          ["",           "Name",      "args"]
 constexprs =     [1]
 
 #void  trap      constexpr str:Reason

@@ -28,7 +28,8 @@ EXPORT int _fn_2(int a) {
 
 
 
-EXPORT int cftest() {
+EXPORT int cftest(int x) {
+	value_marker("x", x);
 
 	while(1){
 		if (!short_marker("if(x)")) {
