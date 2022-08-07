@@ -126,7 +126,7 @@
     <ClCompile Include="include\retro\directives\preferred.d.cxx" />
     <ClCompile Include="src\arch\minsn.cpp" />
     <ClCompile Include="src\arch\x86\rt\ms_guards.cpp" />
-    <ClCompile Include="src\arch\x86\rt\ms_stack_analysis.cpp" />
+    <ClCompile Include="src\arch\x86\rt\ms_cc.cpp" />
     <ClCompile Include="src\arch\x86\sema\arithmetic.cpp" />
     <ClCompile Include="src\arch\x86\sema\conditional.cpp" />
     <ClCompile Include="src\arch\x86\sema\logical.cpp" />

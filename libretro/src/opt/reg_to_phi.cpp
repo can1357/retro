@@ -2,7 +2,7 @@
 #include <retro/opt/utility.hpp>
 #include <retro/robin_hood.hpp>
 
-namespace retro::ir::opt::p0 {
+namespace retro::ir::opt::init {
 	// The following algorithm is a modified version adapted from the paper:
 	// - Simple and Efficient Construction of Static Single Assignment Form (2013) Braun, M., et al.
 	//
@@ -112,9 +112,10 @@ namespace retro::ir::opt::p0 {
 				same = op;
 			}
 		}
-		// TODO:
-		// The phi is unreachable or in the start block
-		RC_ASSERT(same);
+		// The phi is unreachable or in the start block.
+		//
+		if (!same)
+			same = phi->bb->insert_after(phi->bb->end_phi(), ir::make_poison(phi->get_type(), "unreachable or entry point phi")).get();
 
 		std::vector<ref<insn>> phi_users;
 		for (auto u : phi->uses()) {
@@ -193,6 +194,20 @@ namespace retro::ir::opt::p0 {
 	//
 	size_t reg_to_phi(routine* rtn) {
 		rtn->topological_sort();
+
+		// If entry point has predecessors, we have to insert a pure entry point.
+		//
+		if (!rtn->get_entry()->predecessors.empty()) {
+			ref entry = rtn->get_entry();
+			auto* blk = rtn->blocks.emplace(rtn->blocks.begin(), make_rc<basic_block>())->get();
+			blk->rtn	 = rtn;
+			blk->name = 0;
+			for (size_t i = 1; i != rtn->blocks.size(); i++) {
+				rtn->blocks[i]->name++;
+			}
+			blk->add_jump(entry);
+			blk->push_jmp(entry.get());
+		}
 
 		// Create block caches.
 		//

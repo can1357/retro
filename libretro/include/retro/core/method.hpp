@@ -5,6 +5,7 @@
 #include <retro/common.hpp>
 #include <retro/ir/routine.hpp>
 #include <retro/rc.hpp>
+#include <retro/umutex.hpp>
 #include <retro/async/neo.hpp>
 #include <retro/robin_hood.hpp>
 
@@ -18,6 +19,10 @@ namespace retro::core {
 		//
 		IRP_INIT,
 
+		// IR with stack and calling convention analysis applied.
+		//
+		IRP_PHI,
+
 		// Pseudo indices.
 		//
 		IRP_MAX,
@@ -25,13 +30,14 @@ namespace retro::core {
 
 	// Analysis results and statistics for each IRP.
 	//
-	struct irp_init_analysis {
+	struct irp_init_info {
 		// Statistics.
 		//
 		u64 stats_minsn_disasm = 0;  // Machine instructions diassembled.
 		u64 stats_insn_lifted  = 0;  // IR instructions created to represent the disassembled instructions.
 		u64 stats_block_count  = 0;  // Blocks parsed.
-
+	};
+	struct irp_phi_info {
 		// Difference in stack pointer after a call to this function.
 		//
 		i64 stack_delta = 0;
@@ -45,6 +51,10 @@ namespace retro::core {
 		//
 		i64 min_sp_used = 0;
 		i64 max_sp_used = 0;
+
+		// Calling convention deduced.
+		//
+		const arch::call_conv_desc* cc = nullptr;
 
 		// Layout of registers saved on the stack frame.
 		//
@@ -63,14 +73,18 @@ namespace retro::core {
 		//
 		u64 rva = 0;
 
-		// Architecture and the calling convention.
+		// Architecture.
 		//
-		arch::handle					 arch = {};
-		const arch::call_conv_desc* cc	= nullptr;
+		arch::handle arch = {};
+
+		// Spinlock only used for starting a new IRP.
+		//
+		spinlock irp_write_lock = {};
 
 		// Analysis information saved by each IRP.
 		//
-		irp_init_analysis init_info = {};
+		irp_init_info init_info = {};
+		irp_phi_info  phi_info	= {};
 
 		// IR of the routine for each phase.
 		//

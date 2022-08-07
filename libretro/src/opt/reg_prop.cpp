@@ -2,7 +2,7 @@
 #include <retro/opt/utility.hpp>
 #include <retro/robin_hood.hpp>
 
-namespace retro::ir::opt::p0 {
+namespace retro::ir::opt::init {
 	// Local register move propagation.
 	//
 	size_t reg_move_prop(basic_block* bb) {

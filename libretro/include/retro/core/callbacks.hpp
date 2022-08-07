@@ -10,11 +10,15 @@ namespace retro::core {
 	//
 	inline handler_list<method*, ir::insn*> indirect_xjmp_resolver = {};
 
-	// Notifications invoked on creation of an XCALL instruction.
+	// Handlers invoked on creation of an XCALL instruction.
 	//
 	inline handler_list<ir::insn*> on_irp_init_xcall = {};
 
-	// Notified when an IRP is complete.
+	// Handlers invoked for detecting and processing the calling convention of a routine.
 	//
-	inline notification_list<ir::routine*, ir_phase> on_irp_complete = {};
+	inline handler_list<ir::routine*, irp_phi_info&> on_cc_analysis = {};
+
+	// Notified when an IRP is complete (including when it fails).
+	//
+	inline notification_list<method*, ir_phase> on_irp_complete = {};
 };

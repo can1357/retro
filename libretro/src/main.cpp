@@ -78,6 +78,8 @@ static std::vector<u8> compile(std::string code, const char* args) {
 
 #include <retro/arch/x86/regs.hxx>
 #include <retro/arch/x86/callconv.hpp>
+#include <retro/core/callbacks.hpp>
+
 
 struct save_slot_analysis {
 	arch::mreg reg					= {};
@@ -85,21 +87,17 @@ struct save_slot_analysis {
 	ir::insn*  save_point		= nullptr;
 };
 
-static void msabi_x64_stack_analysis(ir::routine* rtn) {
-
-	core::irp_init_analysis				  result			 = {};
+static neo::subtask<bool> apply_stack_analysis(ir::routine* rtn) {
+	core::irp_phi_info&					  result			 = rtn->method->phi_info;
 	flat_umap<i32, i64>					  frame_offsets = {};
 	flat_umap<i64, save_slot_analysis> save_slots	 = {};
 
 	// Get method information.
 	//
-	auto* cc	  = rtn->method->cc;
-	auto	mach = rtn->method->arch;
-	auto	spr  = mach->get_stack_register();
-	auto	pty  = ir::int_type(mach->get_pointer_width());
-
-	// Get the prologue.
-	//
+	auto	mach		= rtn->method->arch;
+	auto	spr		= mach->get_stack_register();
+	auto	pty		= ir::int_type(mach->get_pointer_width());
+	auto	def_cc	= mach->get_cc_desc(rtn->get_image()->default_cc);
 	auto* prologue = rtn->get_entry();
 	
 	// Make an expression representing the initial stack pointer.
@@ -118,6 +116,8 @@ static void msabi_x64_stack_analysis(ir::routine* rtn) {
 	// Determine the save slots and possible frame register from the prologue.
 	//
 	for (ir::insn* i : prologue->insns()) {
+		//co_await neo::checkpoint{}; // TODO: Fix
+
 		// Memory writes:
 		//
 		if (i->op == ir::opcode::store_mem) {
@@ -163,7 +163,7 @@ static void msabi_x64_stack_analysis(ir::routine* rtn) {
 			if (i->template_types[0] == pty || i->template_types[0] == ir::type::pointer) {
 				// If valid frame register:
 				//
-				if (range::contains(cc->frame_gpr, reg)) {
+				if (!def_cc || range::contains(def_cc->frame_gpr, reg)) {
 					// If saved in the frame:
 					//
 					if (range::contains_if(save_slots, [reg](auto& pair) { return pair.second.reg == reg; })) {
@@ -208,6 +208,7 @@ static void msabi_x64_stack_analysis(ir::routine* rtn) {
 
 		for (auto i : epilogue->rslice(term)) {
 			//fmt::println(i->to_string());
+			//co_await neo::checkpoint{}; // TODO: Fix
 
 			// Register writes:
 			//
@@ -244,7 +245,7 @@ static void msabi_x64_stack_analysis(ir::routine* rtn) {
 		// Skip if not appropriately validated.
 		//
 		if (data.num_validations != num_epi) {
-			fmt::printf("---> [INVALID] %s = SP[%s] (%llu/%llu validations)\n", data.reg.to_string(mach).c_str(), fmt::to_str(slot).c_str(), data.num_validations, num_epi);
+			//fmt::printf("---> [INVALID] %s = SP[%s] (%llu/%llu validations)\n", data.reg.to_string(mach).c_str(), fmt::to_str(slot).c_str(), data.num_validations, num_epi);
 
 			if (auto it = frame_offsets.find(data.reg.uid()); it != frame_offsets.end()) {
 				frame_offsets.erase(it);
@@ -258,7 +259,7 @@ static void msabi_x64_stack_analysis(ir::routine* rtn) {
 		// Save the information.
 		//
 		result.save_area_layout.emplace(slot, data.reg);
-		fmt::printf("---> %s = SP[%s] (%llu/%llu validations)\n", data.reg.to_string(mach).c_str(), fmt::to_str(slot).c_str(), data.num_validations, num_epi);
+		// fmt::printf("---> %s = SP[%s] (%llu/%llu validations)\n", data.reg.to_string(mach).c_str(), fmt::to_str(slot).c_str(), data.num_validations, num_epi);
 
 		// Nop-out the save instruction.
 		//
@@ -282,111 +283,22 @@ static void msabi_x64_stack_analysis(ir::routine* rtn) {
 	if (auto it = frame_offsets.begin(); it != frame_offsets.end()) {
 		result.frame_reg		  = bitcast<arch::mreg>(it->first);
 		result.frame_reg_delta = it->second;
-		fmt::printf("Frame register is %s, offset: %lld\n", result.frame_reg.to_string(mach).c_str(), result.frame_reg_delta);
+		//fmt::printf("Frame register is %s, offset: %lld\n", result.frame_reg.to_string(mach).c_str(), result.frame_reg_delta);
 	} else {
-		fmt::printf("Routine does not use a frame register\n");
+		//fmt::printf("Routine does not use a frame register\n");
 	}
 
-	// There's only one valid calling convention and SP is always callee adjusted, so apply it over all XCALL and XRETs.
+	// Invoke calling convention detection.
 	//
-	for (auto& bb : rtn->blocks) {
-		bb->erase_if([&](ir::insn* i) {
-			// If XCALL:
-			//
-			if (i->op == ir::opcode::xcall) {
-				// Read all registers.
-				//
-				auto args	  = bb->insert(i, ir::make_context_begin(bb->insert(i, ir::make_read_reg(ir::type::pointer, arch::x86::reg::rsp)).get()));
-				auto push_reg = [&](arch::mreg a) {
-					if (a) {
-						auto val = bb->insert(i, ir::make_read_reg(enum_reflect(a.get_kind()).type, a));
-						args		= bb->insert(i, ir::make_insert_context(args.get(), a, val.get()));
-					}
-				};
-				range::for_each(cc->argument_gpr, push_reg);
-				range::for_each(cc->argument_fp, push_reg);
-				push_reg(cc->fp_varg_counter);
-
-				// Create the call.
-				//
-				auto res		 = bb->insert(i, ir::make_call(i->opr(0), args.get()));
-				auto pop_reg = [&](arch::mreg a) {
-					if (a) {
-						auto& desc = enum_reflect(a.get_kind());
-						auto	val  = bb->insert(i, ir::make_extract_context(desc.type, res.get(), a));
-						i->arch->explode_write_reg(bb->insert(i, ir::make_write_reg(a, val.get())));
-					}
-				};
-
-				// Write back the result.
-				//
-				range::for_each(cc->retval_gpr, pop_reg);
-				range::for_each(cc->retval_fp, pop_reg);
-
-				// Trash arguments that cannot be retvals.
-				//
-				for (auto* aset : {&cc->argument_gpr, &cc->argument_fp}) {
-					auto* oset = aset == &cc->argument_gpr ? &cc->retval_gpr : &cc->retval_fp;
-					for (auto& arg : *aset) {
-						if (!range::find(*oset, arg)) {
-							auto a  = bitcast<arch::mreg>(arg);
-							auto ty = enum_reflect(a.get_kind()).type;
-							auto ud = bb->insert(i, ir::make_undef(ty));
-							i->arch->explode_write_reg(bb->insert(i, ir::make_write_reg(a, ud.get())));
-						}
-					}
-				}
-
-				// Erase the XCALL.
-				//
-				return true;
-			}
-			// If XRET:
-			//
-			else if (i->op == ir::opcode::xret) {
-
-				auto sp	 = bb->insert(i, ir::make_read_reg(ir::type::pointer, arch::x86::reg::rsp));
-				auto spex = z3x::to_expr(vs, ctx, sp);
-				auto retex = z3x::to_expr(vs, ctx, i->opr(0));
-
-				i64 delta = 8;
-				if (z3x::ok(spex) && z3x::ok(retex)) {
-					if (auto delta_expr = z3x::value_of(spex - retex, true)) {
-						delta = delta_expr.get_i64();
-					}
-				}
-
-				auto args = bb->insert(i, ir::make_context_begin(i->opr(0)));
-
-				// Read the results.
-				//
-				auto push_reg = [&](arch::mreg a) {
-					if (a) {
-						auto val = bb->insert(i, ir::make_read_reg(enum_reflect(a.get_kind()).type, a));
-						args		= bb->insert(i, ir::make_insert_context(args.get(), a, val.get()));
-					}
-				};
-				range::for_each(cc->retval_gpr, push_reg);
-				range::for_each(cc->retval_fp, push_reg);
-
-				// Create the ret.
-				//
-				bb->insert(i, ir::make_ret(args.get(), delta));
-				return true;
-			}
-			// If stack_reset:
-			//
-			else if (i->op == ir::opcode::stack_reset) {
-				return true;
-			}
-			return false;
-		});
+	if (!core::on_cc_analysis(rtn, result)) {
+		co_return false;
 	}
 
 	// Apply all local optimizations.
 	//
 	for (auto& bb : rtn->blocks) {
-		ir::opt::p0::reg_move_prop(bb);
+		co_await neo::checkpoint{};
+		ir::opt::init::reg_move_prop(bb);
 		ir::opt::const_fold(bb);
 		ir::opt::const_load(bb);
 		ir::opt::id_fold(bb);
@@ -398,8 +310,7 @@ static void msabi_x64_stack_analysis(ir::routine* rtn) {
 
 	// Convert register use to PHIs, apply local optimizations again.
 	//
-	ir::opt::p0::reg_to_phi(rtn);
-
+	ir::opt::init::reg_to_phi(rtn);
 	//rtn->get_entry()->erase_if([&](ir::insn* i) {
 	//	if (i->op == ir::opcode::read_reg) {
 	//		auto r	 = i->opr(0).get_const().get<arch::mreg>();
@@ -423,9 +334,9 @@ static void msabi_x64_stack_analysis(ir::routine* rtn) {
 	//	}
 	//	return false;
 	//});
-
 	for (auto& bb : rtn->blocks) {
-		ir::opt::p0::reg_move_prop(bb);
+		co_await neo::checkpoint{};
+		ir::opt::init::reg_move_prop(bb);
 		ir::opt::const_fold(bb);
 		ir::opt::const_load(bb);
 		ir::opt::id_fold(bb);
@@ -469,6 +380,8 @@ static void msabi_x64_stack_analysis(ir::routine* rtn) {
 	rtn->rename_blocks();
 	rtn->rename_insns();
 
+	// Determine min-max stack usage.
+	//
 	auto beg = range::find_if(rtn->get_entry()->insns(), [](auto i) { return i->op == ir::opcode::stack_begin; });
 	if (beg != rtn->get_entry()->end()) {
 		for (auto* use : beg->uses()) {
@@ -483,11 +396,62 @@ static void msabi_x64_stack_analysis(ir::routine* rtn) {
 			}
 		}
 	}
-	fmt::printf("Max SP delta: %x\n", result.max_sp_used);
-	fmt::printf("Min SP delta: -%x\n", -result.min_sp_used);
+	//fmt::printf("Max SP delta: %x\n", result.max_sp_used);
+	//fmt::printf("Min SP delta: -%x\n", -result.min_sp_used);
+
+	// Write the analysis results.
+	//
+	co_return true;
 }
 
 
+// Transition from IRP_INIT to IRP_PHI.
+//
+static neo::task irp_phi(ref<ir::routine> rtn) {
+	auto m = rtn->method.lock();
+
+	// Execute the analysis phase and notify the IRP completion.
+	//
+	if (!co_await apply_stack_analysis(rtn)) {
+		fmt::printf("IRP_PHI failed for sub_%llx.\n", rtn->ip);
+		rtn = nullptr;
+		m->routine[core::IRP_PHI].reset();
+	}
+	m->irp_mask.fetch_or(1u << core::IRP_PHI);
+	m->irp_mask.notify_all();
+	core::on_irp_complete(m, core::IRP_PHI);
+	co_return;
+}
+
+static bool irp_phi_queue(core::method* m, neo::scheduler* sched = nullptr) {
+	// Last phase failed so fail this one as well.
+	//
+	auto rtn = m->get_irp(core::IRP_INIT);
+	if (!rtn) {
+		m->irp_mask.fetch_or(1u << core::IRP_PHI);
+		m->irp_mask.notify_all();
+		return false;
+	}
+
+	// Acquire the lock, if there already is a busy task, skip.
+	//
+	std::unique_lock wl{m->irp_write_lock};
+	if (m->irp_busy(core::IRP_PHI))
+		return true;
+
+	// Clone the routine and set it.
+	//
+	auto clone						 = rtn->clone();
+	m->routine[core::IRP_PHI]	 = clone;
+
+	// Schedule the task and return the reference.
+	//
+	sched								 = sched ? sched : &m->img->ws->auto_analysis_scheduler;
+	m->irp_tasks[core::IRP_PHI] = sched->insert(irp_phi(clone));
+	return true;
+}
+
+/*
 static void phase0(ref<ir::routine> rtn) {
 	fmt::println(rtn->to_string());
 
@@ -511,12 +475,12 @@ static void phase0(ref<ir::routine> rtn) {
 
 	// Print the routine.
 	//
-	msabi_x64_stack_analysis(rtn);
+	apply_stack_analysis(rtn);
 
 	fmt::println(rtn->to_string());
-}
+}*/
 
-#include <retro/core/callbacks.hpp>
+static umutex __out_mtx;
 
 static void whole_program_analysis_test(core::image* img) {
 	fmt::println("Starting whole program analysis...\n");
@@ -529,14 +493,26 @@ static void whole_program_analysis_test(core::image* img) {
 		}
 	};
 
-	core::on_irp_complete.insert([](ir::routine* r, core::ir_phase ph) {
+	static std::atomic<size_t> num_routines = 0;
+	static std::atomic<size_t> num_insn = 0;
+	static std::atomic<size_t> num_minsn= 0;
+
+	core::on_irp_complete.insert([](core::method* m, core::ir_phase ph) {
+		auto r = m->routine[ph];
 		if (ph == core::IRP_INIT) {
-			auto m  = r->method.get();
+			if (!r)
+				return;
 			auto va = m->rva + m->img->base_address;
-			fmt::printf("sub_%llx: " RC_GRAY " # Successfully lifted " RC_VIOLET "%llu" RC_GRAY " instructions into " RC_GREEN "%llu" RC_RED " (avg: ~%llu/ins)" RC_RESET " #\n", va,
-				 m->init_info.stats_minsn_disasm, m->init_info.stats_insn_lifted,
-				 m->init_info.stats_insn_lifted / (m->init_info.stats_minsn_disasm ? m->init_info.stats_minsn_disasm : 1));
-	
+			//__out_mtx.lock();
+			//fmt::printf("sub_%llx: " RC_GRAY " # Successfully lifted " RC_VIOLET "%llu" RC_GRAY " instructions into " RC_GREEN "%llu" RC_RED " (avg: ~%llu/ins) #\n" RC_RESET, va,
+			//	 m->init_info.stats_minsn_disasm, m->init_info.stats_insn_lifted,
+			//	 m->init_info.stats_insn_lifted / (m->init_info.stats_minsn_disasm ? m->init_info.stats_minsn_disasm : 1));
+			//__out_mtx.unlock();
+
+			num_routines++;
+			num_insn += m->init_info.stats_insn_lifted;
+			num_minsn += m->init_info.stats_minsn_disasm;
+
 			auto pty = r->method->arch->ptr_type();
 			auto img = r->method->img.lock();
 			auto img_base = img->base_address;
@@ -560,9 +536,37 @@ static void whole_program_analysis_test(core::image* img) {
 			}
 			for (auto va : va_set)
 				analyse_rva_if_code(img, va - img_base);
+
+			// Queue IRP_PHI.
+			//
+			irp_phi_queue(m);
+		} else if (ph == core::IRP_PHI) {
+			auto va = m->rva + m->img->base_address;
+
+			//__out_mtx.lock();
+			//if (r) {
+			//	fmt::printf("sub_%llx: " RC_GRAY " # Basic analysis " RC_GREEN "finished" RC_GRAY " #\n" RC_RESET, va);
+			//
+			//	/*
+			//	for (auto& [offset, reg] : m->phi_info.save_area_layout) {
+			//		fmt::printf("---> %s = SP[%s]\n", reg.to_string(m->arch).c_str(), fmt::to_str(offset).c_str());
+			//	}
+			//	if (m->phi_info.frame_reg) {
+			//		fmt::printf("---> Frame register is %s, offset: %lld\n", m->phi_info.frame_reg.to_string(m->arch).c_str(), m->phi_info.frame_reg_delta);
+			//	} else {
+			//		fmt::printf("---> Procedure does not use a frame register\n");
+			//	}
+			//	fmt::printf("---> Max SP delta: %x\n", m->phi_info.max_sp_used);
+			//	fmt::printf("---> Min SP delta: -%x\n", -m->phi_info.min_sp_used);*/
+			//} else {
+			//	fmt::printf("sub_%llx: " RC_GRAY " # Basic analysis " RC_RED "failed" RC_GRAY " #\n" RC_RESET, va);
+			//}
+			//__out_mtx.unlock();
 		}
 	});
-	
+
+
+	auto t0 = now();
 	for (auto& sym : img->symbols) {
 		analyse_rva_if_code(img, sym.rva);
 	}
@@ -571,9 +575,14 @@ static void whole_program_analysis_test(core::image* img) {
 			analyse_rva_if_code(img, std::get<u64>(reloc.target));
 		}
 	}
-
 	img->ws->auto_analysis_scheduler.wait_until_empty();
-	fmt::println("Whole program analysis complete!\n");
+	auto t1 = now();
+
+	fmt::printf("Whole program analysis complete!\n");
+	fmt::printf(" - Created %llu routines\n", num_routines.load());
+	fmt::printf(" - Lifted  %llu machine instructions\n", num_minsn.load());
+	fmt::printf(" - Created %llu IR instructions\n", num_insn.load());
+	fmt::printf(" - Took %.2f seconds\n", (t1-t0)/1.0s);
 }
 
 static ref<ir::routine> analysis_test(core::image* img, const std::string& name, u64 rva) {
@@ -597,8 +606,22 @@ static ref<ir::routine> analysis_test(core::image* img, const std::string& name,
 		fmt::println("\t", bb->terminator()->to_string());
 	}
 
-	auto clone = rtn->clone();
-	phase0(clone);
+	if (auto pr = irp_phi_queue(m)) {
+		auto nrtn = m->wait_for_irp(core::IRP_PHI);
+		if (nrtn) {
+			for (auto& [offset, reg] : m->phi_info.save_area_layout) {
+				fmt::printf("---> %s = SP[%s]\n", reg.to_string(m->arch).c_str(), fmt::to_str(offset).c_str());
+			}
+			if (m->phi_info.frame_reg) {
+				fmt::printf("Frame register is %s, offset: %lld\n", m->phi_info.frame_reg.to_string(m->arch).c_str(), m->phi_info.frame_reg_delta);
+			} else {
+				fmt::printf("Procedure does not use a frame register\n");
+			}
+			fmt::printf("Max SP delta: %x\n", m->phi_info.max_sp_used);
+			fmt::printf("Min SP delta: -%x\n", -m->phi_info.min_sp_used);
+			fmt::println(nrtn->to_string());
+		}
+	}
 	return rtn;
 }
 
@@ -663,7 +686,7 @@ int main(int argv, const char** args) {
 
 	// Large function test:
 	//
-	if (false) {
+	if (true) {
 		analysis_test_from_image_va("S:\\Dumps\\ntoskrnl_2004.exe", 0x140A1AEE4);
 	}
 	// Small C file test:

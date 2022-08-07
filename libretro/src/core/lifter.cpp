@@ -234,7 +234,7 @@ namespace retro::core {
 			//
 			for (auto& bb : rtn->blocks) {
 				co_await neo::checkpoint{};
-				ir::opt::p0::reg_move_prop(bb);
+				ir::opt::init::reg_move_prop(bb);
 				ir::opt::const_fold(bb);
 				ir::opt::const_load(bb);
 				ir::opt::id_fold(bb);
@@ -249,16 +249,13 @@ namespace retro::core {
 			rtn->topological_sort();
 			rtn->rename_blocks();
 			rtn->rename_insns();
-
-			// Call the hooks.
-			//
-			on_irp_complete(rtn, IRP_INIT);
 		}
 
 		// Mark IR phase as finished, return the method.
 		//
 		m->irp_mask.fetch_or(1u << IRP_INIT);
 		m->irp_mask.notify_all();
+		on_irp_complete(m, IRP_INIT);
 		co_return;
 	}
 	ref<method> lift(image* img, u64 rva, neo::scheduler* sched, arch::handle arch) {
@@ -281,7 +278,6 @@ namespace retro::core {
 		mfound  = m;
 		m->rva  = rva;
 		m->arch = arch;
-		m->cc	  = arch->get_cc_desc(img->default_cc);
 		m->img  = img;
 
 		// Recursively lift starting from the entry point.

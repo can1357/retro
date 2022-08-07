@@ -58,8 +58,8 @@ set(libretro_SOURCES "")
 
 list(APPEND libretro_SOURCES
 	"libretro/src/arch/minsn.cpp"
+	"libretro/src/arch/x86/rt/ms_cc.cpp"
 	"libretro/src/arch/x86/rt/ms_guards.cpp"
-	"libretro/src/arch/x86/rt/ms_stack_analysis.cpp"
 	"libretro/src/arch/x86/sema/arithmetic.cpp"
 	"libretro/src/arch/x86/sema/conditional.cpp"
 	"libretro/src/arch/x86/sema/data.cpp"

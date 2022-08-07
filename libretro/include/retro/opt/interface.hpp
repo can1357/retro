@@ -4,9 +4,9 @@
 #include <retro/ir/routine.hpp>
 
 namespace retro::ir::opt {
-	// Phase 0 optimizers.
+	// IRP_INIT optimizers.
 	//
-	namespace p0 {
+	namespace init {
 		// Local register move propagation.
 		//
 		size_t reg_move_prop(basic_block* bb);
