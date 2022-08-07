@@ -8,6 +8,7 @@
 #include <semaphore>
 #include <atomic>
 #include <thread>
+#include <variant>
 
 // Neo defines a strictly structured task system. There are two kinds of coroutines:
 // 
