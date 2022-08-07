@@ -76,6 +76,10 @@ namespace retro::platform {
 	//
 	std::string exec(std::string cmd);
 
+	// Fetches an environment variable, returns empty string on failure.
+	//
+	std::string env(const char* name);
+
 	// File mapping.
 	//
 	struct file_mapping {

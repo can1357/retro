@@ -103,6 +103,24 @@ namespace retro::platform {
 		return result;
 	}
 
+	// Fetches an environment variable, returns empty string on failure.
+	//
+	std::string env(const char* name) {
+#if RC_WINDOWS
+		size_t cnt;
+		char*	 buffer = nullptr;
+		if (!_dupenv_s(&buffer, &cnt, name) && buffer) {
+			std::string res = {buffer, cnt - 1};
+			free(buffer);
+			return res;
+		}
+#else
+		if (auto* s = ::getenv(name))
+			return s;
+#endif
+		return {};
+	}
+
 	// API linux and osx implement differently.
 	//
 #if RC_WINDOWS
