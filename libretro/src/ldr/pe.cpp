@@ -11,11 +11,27 @@ namespace retro::ldr {
 	RC_DEF_ERR(oob_read_during,    "attempt to reference out of boundary data during step: %")
 	RC_DEF_ERR(mapped_too_large,   "mapped image is too large: % MB")
 
-	// Range check utility.
+	// Range check utilities.
 	//
 	template<typename T>
 	static bool ok(const T* ptr, std::span<const u8> input, size_t n = 1) {
-		return (!n || ptr) && uptr(ptr + n) <= uptr(input.data() + input.size());
+		return !n || (uptr(input.data()) <= uptr(ptr) && uptr(ptr + n) <= uptr(input.data() + input.size()));
+	}
+	template<typename C = char>
+	static std::basic_string_view<C> read_string(const C* ptr, std::span<const u8> input) {
+		if (ptr) {
+			uptr beg = uptr(input.data());
+			uptr lim = uptr(input.data() + input.size());
+			if (beg <= uptr(ptr) && uptr(ptr) <= uptr(lim)) {
+				std::basic_string_view<C> view{ptr, size_t((lim - uptr(ptr)) / sizeof(C))};
+				size_t n = view.find(C(0));
+				if (n != std::string::npos) {
+					view = view.substr(0, n);
+				}
+				return view;
+			}
+		}
+		return {};
 	}
 
 	// Templated loader handling both 32-bit and 64-bit formats.
@@ -264,7 +280,39 @@ namespace retro::ldr {
 			map_va(cfg->guard_cf_check_function_ptr, "__guard_check_icall_fptr");
 		}
 
-		// TODO: Import directory
+		// Parse import directory.
+		//
+		if (auto* dd = img->get_directory(win::directory_entry_import)) {
+			auto imp = img->template rva_to_ptr<win::import_directory_t>(dd->rva);
+			for (; ok(imp, data) && imp->characteristics; ++imp) {
+				auto*	 thunk = img->template rva_to_ptr<win::image_thunk_data_t<x64>>(imp->rva_original_first_thunk);
+				auto	 rva	 = imp->rva_first_thunk;
+				auto	 img_name = read_string(img->rva_to_ptr<char>(imp->rva_name), data);
+
+				for (; ok(thunk, data) && thunk->address; rva += sizeof(va_t), ++thunk) {
+					std::string name{img_name};
+					if (!thunk->is_ordinal) {
+						auto ni = img->template rva_to_ptr<win::image_named_import_t>((u32)thunk->address);
+						name += "!";
+						if (ok(ni, data)) {
+							name += read_string(&ni->name[0], data);
+						} else {
+							name += "?";
+						}
+					} else {
+						name += fmt::str("!Ord%llu", thunk->ordinal);
+					}
+
+					core::symbol sym = {
+						 .rva					 = rva,
+						 .name				 = std::move(name),
+						 .read_only_ignore = true,
+					};
+					insert_into_rva_set(out.symbols, std::move(sym));
+				}
+			}
+		}
+
 		// TODO: Debug directory
 		// TODO: TLS entry_points
 		return diag::ok;

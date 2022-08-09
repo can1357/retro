@@ -514,7 +514,8 @@ static void whole_program_analysis_test(core::image* img) {
 
 	auto t0 = now();
 	for (auto& sym : img->symbols) {
-		analyse_rva_if_code(img, sym.rva);
+		if (!sym.read_only_ignore)
+			analyse_rva_if_code(img, sym.rva);
 	}
 	for (auto& reloc : img->relocs) {
 		if (std::holds_alternative<u64>(reloc.target)) {
@@ -732,7 +733,7 @@ static void analysis_test_from_source(std::string src) {
 	whole_program_analysis_test(img);
 
 	for (auto& sym : img->symbols) {
-		if (sym.name.starts_with("_"))
+		if (sym.read_only_ignore || sym.name.starts_with("_"))
 			continue;
 		analysis_test(img, sym.name, sym.rva);
 	}
