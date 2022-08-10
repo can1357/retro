@@ -105,6 +105,8 @@ namespace retro::ir {
 		for (size_t n = 0; n != num_blocks; n++) {
 			auto new_blk		 = pre_clone(rtn->blocks[n], mark);
 			new_blk->rtn		 = new_rtn;
+			if (rtn->blocks[n] == rtn->entry_point)
+				new_rtn->entry_point = new_blk;
 			new_rtn->blocks[n] = std::move(new_blk);
 		}
 		return new_rtn;

@@ -22,7 +22,7 @@ RC_INSTALL_CB(on_cc_analysis, msabi_x64, ir::routine* rtn, irp_phi_info& info) {
 
 	// Write some assumptions.
 	//
-	rtn->get_entry()->insert(rtn->get_entry()->begin(), ir::make_write_reg(x86::reg::flag_df, false));
+	rtn->entry_point->insert(rtn->entry_point->begin(), ir::make_write_reg(x86::reg::flag_df, false));
 	// TODO: X87 stack == empty on i386 version.
 
 	// There's only one valid calling convention and SP is always callee adjusted, so apply it over all XCALL and XRETs.

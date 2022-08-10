@@ -8,10 +8,15 @@ namespace retro::ir {
 	//
 	basic_block* routine::add_block() {
 		dirty_cfg();
-		auto* blk = blocks.emplace_back(make_rc<basic_block>()).get();
+
+		auto blk = make_rc<basic_block>();
 		blk->rtn	 = this;
 		blk->name = next_blk_name++;
-		return blk;
+		
+		if (blocks.empty()) {
+			entry_point = blk;
+		}
+		return blocks.emplace_back(std::move(blk)).get();
 	}
 	auto routine::del_block(basic_block* b) {
 		dirty_cfg();
@@ -31,14 +36,13 @@ namespace retro::ir {
 	void routine::topological_sort() {
 		u32 tmp = narrow_cast<u32>(blocks.size());
 		for (auto& bb : blocks) {
-			if (bb->predecessors.empty() && bb.get() != get_entry()) {
+			if (bb->predecessors.empty() && bb.get() != entry_point) {
 				bb->name = --tmp;
 			}
 		}
 
-		basic_block* ep = get_entry();
-		graph::dfs(ep, [&](basic_block* b) { b->name = --tmp; });
-		RC_ASSERT(ep->name == 0);
+		graph::dfs(entry_point.get(), [&](basic_block* b) { b->name = --tmp; });
+		RC_ASSERT(entry_point->name == 0);
 		range::sort(blocks, [](auto& a, auto& b) { return a->name < b->name; });
 	}
 

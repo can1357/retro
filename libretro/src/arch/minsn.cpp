@@ -127,7 +127,10 @@ namespace retro::arch {
 
 		// +disp]
 		if (disp) {
-			result += fmt::str("+0x%llx", disp);
+			if (disp > 0)
+				result += fmt::str("+0x%llx", disp);
+			else
+				result += fmt::str("-0x%llx", -disp);
 		}
 		result += "]";
 		return result;

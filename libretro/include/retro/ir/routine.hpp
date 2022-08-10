@@ -34,9 +34,10 @@ namespace retro::ir {
 		//
 		mutable u64 last_cfg_modify_timer = 0;
 
-		// List of basic-blocks.
+		// List of basic-blocks and the entry point.
 		//
 		container blocks = {};
+		weak<basic_block> entry_point = {};
 
 		// Container observers.
 		//
@@ -46,10 +47,6 @@ namespace retro::ir {
 		const_iterator end() const { return blocks.end(); }
 		size_t			size() const { return blocks.size(); }
 		bool				empty() const { return blocks.empty(); }
-
-		// Gets the entry point.
-		//
-		basic_block* get_entry() const { return blocks.empty() ? nullptr : blocks.front().get(); }
 
 		// Creates or removes a block.
 		//

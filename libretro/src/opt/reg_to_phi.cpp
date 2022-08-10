@@ -197,8 +197,8 @@ namespace retro::ir::opt::init {
 
 		// If entry point has predecessors, we have to insert a pure entry point.
 		//
-		if (!rtn->get_entry()->predecessors.empty()) {
-			ref entry = rtn->get_entry();
+		if (!rtn->entry_point->predecessors.empty()) {
+			auto* entry = rtn->entry_point.get();
 			auto* blk = rtn->blocks.emplace(rtn->blocks.begin(), make_rc<basic_block>())->get();
 			blk->rtn	 = rtn;
 			blk->name = 0;
@@ -206,7 +206,7 @@ namespace retro::ir::opt::init {
 				rtn->blocks[i]->name++;
 			}
 			blk->add_jump(entry);
-			blk->push_jmp(entry.get());
+			blk->push_jmp(entry);
 		}
 
 		// Create block caches.

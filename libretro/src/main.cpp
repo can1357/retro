@@ -84,7 +84,7 @@ static neo::subtask<bool> apply_stack_analysis(ir::routine* rtn) {
 	auto	spr		= mach->get_stack_register();
 	auto	pty		= ir::int_type(mach->get_pointer_width());
 	auto	def_cc	= mach->get_cc_desc(rtn->get_image()->default_cc);
-	auto* prologue = rtn->get_entry();
+	auto* prologue = rtn->entry_point.get();
 	
 	// Make an expression representing the initial stack pointer.
 	//
@@ -177,7 +177,7 @@ static neo::subtask<bool> apply_stack_analysis(ir::routine* rtn) {
 	//
 	size_t num_epi = 0;
 	for (auto& epilogue : rtn->blocks) {
-		if ((epilogue != rtn->get_entry() && epilogue->predecessors.empty()) || !epilogue->successors.empty())
+		if ((epilogue != rtn->entry_point && epilogue->predecessors.empty()) || !epilogue->successors.empty())
 			continue;
 
 		// Skip if not terminated or does not end with xret.
@@ -297,7 +297,7 @@ static neo::subtask<bool> apply_stack_analysis(ir::routine* rtn) {
 	// Convert register use to PHIs, apply local optimizations again.
 	//
 	ir::opt::init::reg_to_phi(rtn);
-	//rtn->get_entry()->erase_if([&](ir::insn* i) {
+	//rtn->entry_point->erase_if([&](ir::insn* i) {
 	//	if (i->op == ir::opcode::read_reg) {
 	//		auto r	 = i->opr(0).get_const().get<arch::mreg>();
 	//		auto info = mach->get_register_info(r);
@@ -340,7 +340,7 @@ static neo::subtask<bool> apply_stack_analysis(ir::routine* rtn) {
 				auto& v = i->opr(2);
 				if (v.is_value()) {
 					if (auto* i2 = v.get_value()->get_if<ir::insn>()) {
-						if (i2->op == ir::opcode::read_reg && (i2->bb != i->bb && i2->bb == rtn->get_entry())) {
+						if (i2->op == ir::opcode::read_reg && (i2->bb != i->bb && i2->bb == rtn->entry_point)) {
 							i->replace_all_uses_with(i->opr(0));
 						}
 					}
@@ -369,8 +369,8 @@ static neo::subtask<bool> apply_stack_analysis(ir::routine* rtn) {
 
 	// Determine min-max stack usage.
 	//
-	auto beg = range::find_if(rtn->get_entry()->insns(), [](auto i) { return i->op == ir::opcode::stack_begin; });
-	if (beg != rtn->get_entry()->end()) {
+	auto beg = range::find_if(rtn->entry_point->insns(), [](auto i) { return i->op == ir::opcode::stack_begin; });
+	if (beg != rtn->entry_point->end()) {
 		for (auto* use : beg->uses()) {
 			if (auto* i = use->user->get_if<ir::insn>()) {
 				if (i->op == ir::opcode::load_mem || i->op == ir::opcode::store_mem) {
@@ -658,6 +658,9 @@ static void whole_program_analysis_test(core::image* img) {
 
 
 	auto t0 = now();
+	for (auto& rva : img->entry_points) {
+		analyse_rva_if_code(img, rva);
+	}
 	for (auto& sym : img->symbols) {
 		if (!sym.read_only_ignore)
 			analyse_rva_if_code(img, sym.rva);
@@ -762,8 +765,9 @@ static ref<ir::routine> analysis_test(core::image* img, const std::string& name,
 	// Print statistics.
 	//
 	fmt::printf(RC_WHITE " ----- Routine '%s' -------\n", name.data());
-	range::sort(rtn->blocks, [](auto& a, auto& b) { return a->ip < b->ip; });
-	for (auto& bb : rtn->blocks) {
+	auto sorted_bb = rtn->blocks;
+	range::sort(sorted_bb, [](auto& a, auto& b) { return a->ip < b->ip; });
+	for (auto& bb : sorted_bb) {
 		std::string result = fmt::str(RC_CYAN "$%x:" RC_RESET, bb->name);
 		result += fmt::str(RC_GRAY " [%llx => %llx]" RC_RESET, bb->ip, bb->end_ip);
 		fmt::println(result);
@@ -787,9 +791,7 @@ static ref<ir::routine> analysis_test(core::image* img, const std::string& name,
 			//fmt::println(write_graph(nrtn));
 			analyse_calls(nrtn);
 
-			/*
-			range::sort(rtn->blocks, [](auto& a, auto& b) { return a->ip < b->ip; });
-			for (auto& bb : rtn->blocks) {
+			for (auto& bb : sorted_bb) {
 				auto range = rtn->get_image()->slice(bb->ip - rtn->get_image()->base_address);
 				range		  = range.subspan(0, bb->end_ip - bb->ip);
 
@@ -802,7 +804,7 @@ static ref<ir::routine> analysis_test(core::image* img, const std::string& name,
 					ip += insn.length;
 					range = range.subspan(insn.length);
 				}
-			}*/
+			}
 		}
 	}
 
@@ -872,9 +874,6 @@ static void analysis_test_from_source(std::string src) {
 
 	// Add entry point symbol if none present.
 	//
-	if (img->symbols.empty()) {
-		img->symbols.push_back({img->base_address, "entry point"});
-	}
 	whole_program_analysis_test(img);
 
 	for (auto& sym : img->symbols) {
