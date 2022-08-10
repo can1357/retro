@@ -4,7 +4,7 @@ Includes = [
 Forwards = [
 	"reg_kind"
 ]
-
+JIncludes = { "../reg_kind" = ["reg_kind"] }
 
 Script = """
 regs = data["reg"]

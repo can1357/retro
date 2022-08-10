@@ -4,6 +4,7 @@ Includes = [
 Forwards = [
 	"type"
 ]
+JIncludes = { "./builtin_types" = ["type"] }
 
 op-kind = [
 	"unary-signed",

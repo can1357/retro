@@ -1,7 +1,7 @@
 #!/usr/bin/env python
 # coding: utf-8
 
-# In[2]:
+# In[72]:
 
 
 #!conda install --yes toml
@@ -14,7 +14,7 @@ import ast
 import traceback
 
 
-# In[3]:
+# In[73]:
 
 
 # Directive implementation.
@@ -231,7 +231,7 @@ def parse_expr(s):
     return e
 
 
-# In[4]:
+# In[75]:
 
 
 # Constants
@@ -251,7 +251,15 @@ CXX_NS_SUFFIX_PER_ENUM = """namespace retro {{ template<> struct descriptor<{0}:
 RC_DEFINE_STD_VISITOR_FOR({0}::{1}, {2})
 """ 
 CXX_NULL_ENUM = "none"
+JS_NULL_ENUM = "None"
 CXX_USE_BOOL = False
+JS_MAX_INT = 51
+JS_ARR_DCL_FMT =   "\n// prettier-ignore\nconst {1}_DescTable: {0}[] = [\n"
+JS_ENUM_SUFFIX = """// prettier-ignore
+export namespace {0} {{
+    export function reflect(i:{0}) : {1} {{ return {0}_DescTable[i]; }}
+    export function toString(i:{0}) : string {{ return {0}_DescTable[i].name; }}
+}}"""
 
 # Bit helpers
 #
@@ -277,6 +285,14 @@ def to_cname(name):
         return name.replace("-", "_")
     else:
         return name
+def to_jname(name, value = False):
+    if "::" in name:
+        return to_jname(name.split("::")[-1], value)
+    parts = name.replace("-", "_").split("_")
+    for i in range(0, len(parts)):
+        if (not value) or i != 0:
+            parts[i] = parts[i].capitalize()
+    return "".join(parts)
 def max_name_len(names):
     value = 0
     for k in names:
@@ -377,6 +393,12 @@ class CxxType:
         return str(value)
     def declare(self, field):
         return [to_cname(self.name), to_cname(field), " = " + self.default + ";"]
+    def jwrite(self, value):
+        if value == None:
+            return self.jdefault
+        return str(value)
+    def jdeclare(self, field):
+        return [to_jname(field, value=True)+":", self.jname, " = " + self.jdefault + ";"]
 class CxxInteger(CxxType):
     def __init__(self, bits, signed):
         self.bits =    bits
@@ -386,9 +408,13 @@ class CxxInteger(CxxType):
             assert not signed
             self.default = "false" if CXX_USE_BOOL else "0"
             self.ptype =   bool
+            self.jdefault = "false"
+            self.jname =    "boolean"
         else:
             self.default = "0"
             self.ptype =   int
+            self.jdefault = "0n" if bits > JS_MAX_INT else "0"
+            self.jname =    "bigint" if bits > JS_MAX_INT else "number"
 
         for k in CXX_STD_INTEGERS:
             if k >= bits:
@@ -415,12 +441,30 @@ class CxxInteger(CxxType):
             return hex(value)
         else:
             return str(value)
+        
+    def jdeclare(self, field):
+        field = to_jname(field, value=True)
+        return [field+":", self.jname, " = " + self.jdefault + ";"]
+    def jwrite(self, value):
+        if value == None:
+            return self.jdefault
+        if self.bits == 1:
+            return "true" if value else "false"
+        elif self.bits >= JS_MAX_INT:
+            return hex(value) + "n"
+        elif self.bits >= 32:
+            return hex(value)
+        else:
+            return str(value)
+        
 class CxxArray(CxxType):
     def __init__(self, underlying, length = None):
         self.default =    "{}"
         self.ptype =      list
         self.underlying = underlying
         self.length =     length
+        self.jname =      "{0}[]".format(underlying.jname)
+        self.jdefault =   "[]"
         if length != None:
             self.name =       "std::array<{0}, {1}>".format(to_cname(underlying.name), length)
             self.size =       underlying.size * length
@@ -437,6 +481,16 @@ class CxxArray(CxxType):
             return [to_cname(self.name), to_cname(field) + ";", ""]
         else:
             return [to_cname(self.name), to_cname(field), " = " + self.default + ";"]
+        
+    def jwrite(self, value):
+        if value and len(value) != 0:
+            return "[" + ",".join([self.underlying.jwrite(v) for v in value]) + "]"
+        else:
+            return "[]"
+    def jdeclare(self, field):
+        return [to_jname(field, value=True)+":", self.jname, " = " + self.jdefault + ";"]
+        
+        
 class CxxEnum(CxxType):
     def __init__(self, enum):
         bits = enum.get_width()
@@ -445,6 +499,9 @@ class CxxEnum(CxxType):
         self.ptype =      str
         self.name =       enum.name
         self.bits =       bits
+        
+        self.jname =      to_jname(enum.name)
+        self.jdefault =   self.jname + "." + JS_NULL_ENUM
         
         for k in CXX_STD_INTEGERS:
             if k >= bits:
@@ -467,15 +524,34 @@ class CxxEnum(CxxType):
             assert i != -1
             value = value[i+1:]
         return "{0}::{1}".format(to_cname(self.name), to_cname(value))
+        
+    def jdeclare(self, field):
+        field = to_jname(field, value=True)
+        return [field+":", self.jname, " = " + self.jdefault + ";"]
+    def jwrite(self, value):
+        if value == None or len(value) == 0:
+            value = JS_NULL_ENUM
+        assert isinstance(value, str)
+        if value[0] == "@":
+            i = value.index(".")
+            assert i != -1
+            value = value[i+1:]
+        return "{0}.{1}".format(self.jname, to_jname(value))
 class CxxString(CxxType):
     def __init__(self):
         self.default = "{}"
         self.ptype =   str
         self.name =    "std::string_view"
+        self.jname =   "string"
+        self.jdefault = '""'
         self.size =    16
     def write(self, value):
         if value == None:
             return self.default
+        return '"{0}"'.format(value)
+    def jwrite(self, value):
+        if value == None:
+            return self.jdefault
         return '"{0}"'.format(value)
         
 C_STRING = CxxString()
@@ -645,6 +721,8 @@ class Decl:
         return ""
     def post_write(self):
         return ""
+    def post_jwrite(self):
+        return ""
     def expand(self):
         pass
     
@@ -759,6 +837,29 @@ class Enum(Decl):
                     visitor_list[i][j+1] = str(args[j])
             out += " _(" + (",".join(visitor_list[i])) + ")" 
         return out
+    def jwrite(self):
+        # Create the choice list.
+        #
+        choices = [to_jname(k) for k in self.values]
+        choices.insert(0, JS_NULL_ENUM)
+
+        # Get the width and maximum name length.
+        #
+        name_width = max_name_len(choices)
+
+        # Write the enum.
+        #
+        width = self.get_width()
+        out =  "\n// prettier-ignore\nexport enum {0} {{\n".format(to_jname(self.name))
+        nextval = 0
+        for k in choices:
+            out +=     "\t{0} = {1},\n".format(k.ljust(name_width), nextval)
+            nextval += 1
+        out +=     "\t// PSEUDO\n"
+        out +=     "\t{0} = {1},\n".format("MAX".ljust(name_width), nextval-1)
+        out +=     "\t{0} = {1},\n".format("BIT_WIDTH".ljust(name_width), width)
+        out += "}"
+        return out
     
     # Post writer.
     #
@@ -779,6 +880,23 @@ class Enum(Decl):
         # Add the forwarded helpers.
         #
         out += CXX_HELP_DCL_FMT.format(to_cname(self.name))
+        return out#
+    def post_jwrite(self):
+        # Must have been expanded.
+        assert self.desc != None
+        
+        # Start the declaration.
+        #
+        out = JS_ARR_DCL_FMT.format(to_jname(self.desc.name), to_jname(self.name))
+        out += "\tnew "+to_jname(self.desc.name)+"(),\n"
+        idx = 0
+        for k in self.values:
+            out += "\t{" + ",".join([
+                to_jname(f.name, value=True)+":"+self.desc_jinit[f.name][idx] 
+                for f in self.desc.fields]) + "},\n"
+            idx = idx + 1
+        out += "]\n"
+        out += JS_ENUM_SUFFIX.format(to_jname(self.name), to_jname(self.desc.name))
         return out
     
     # Expander.
@@ -810,6 +928,7 @@ class Enum(Decl):
         #
         fields = {}
         self.desc_init = {}
+        self.desc_jinit = {}
         for name, values in init_list.items():
             ty = None
             for value in values:
@@ -818,6 +937,7 @@ class Enum(Decl):
             assert ty != None
             fields[name] =         ty
             self.desc_init[name] = [ty.write(x) for x in values]
+            self.desc_jinit[name] = [ty.jwrite(x) for x in values]
             
         # Create a new descriptor struct.
         #
@@ -897,6 +1017,22 @@ class Namespace(Decl):
             out += self.decls[k].post_write()
         return "// clang-format off\nnamespace {0} {{{1}\n}};\n{2}// clang-format on".format(self.name, shift_right(out), ext_suffix)
     
+    def jwrite(self):
+        out = ""
+        for k in self.decls:
+            if isinstance(self.decls[k], Enum):
+                print("JS-Generating {}...".format(k))
+                out += self.decls[k].jwrite()
+        out += "\n\n" + make_box("Descriptors")
+        for k in self.decls:
+            if not isinstance(self.decls[k], Enum):
+                print("JS-Generating {}...".format(k))
+                out += self.decls[k].jwrite()
+        out += "\n\n" + make_box("Tables")
+        for k in self.decls:
+            out += self.decls[k].post_jwrite()
+        return out
+    
     # Creates a new declaration.
     #
     def create(self, ty, name, data):
@@ -958,7 +1094,6 @@ class Struct(Decl):
     # Writer.
     #
     def write(self):
-        
         # Convert field-list into [type-as-str, name-as-str, default-as-str].
         #
         fields = [f.type.declare(f.name) for f in self.fields]
@@ -977,7 +1112,24 @@ class Struct(Decl):
         out += self.suffix
         out += "};"
         return out
-    
+    def jwrite(self):
+        # Convert field-list into [name-as-str, type-as-str, default-as-str].
+        #
+        fields = [f.type.jdeclare(f.name) for f in self.fields]
+        
+        # Pad field-name by max, merge into type name, recalculate pad.
+        #
+        pad = max_name_len(fields)
+        fields = [[k[0].ljust(pad) + " " + k[1], k[2]] for k in fields]
+        pad = max_name_len(fields)
+        
+        # Write the structure.
+        #
+        out =  "\n// prettier-ignore\nexport class {0} {{\n".format(to_jname(self.name))
+        for k in fields:
+            out +=     "\t{0}{1}\n".format(k[0].ljust(pad), k[1])
+        out += "}"
+        return out
     
 cache = {}
 
@@ -1073,50 +1225,58 @@ def generate_all(root):
         print("\n[{0}] {1}".format(namespace, fname))
         out = file.rsplit(".",1)[0] + (".cxx" if is_drc else ".hxx")
         with open(out, "w") as outf:
-            result = None
             if is_drc:
-                result = generate_directive_table(tomldata)
-            else:
-                ns = Namespace(None, namespace, tomldata)
-                includes = ns.properties.get("Includes", [])
-                includes.insert(0, "<retro/common.hpp>")
+                outf.write(generate_directive_table(tomldata))
+                continue
+            
+            ns = Namespace(None, namespace, tomldata)
+            includes = ns.properties.get("Includes", [])
+            includes.insert(0, "<retro/common.hpp>")
 
-                result =  "#pragma once\n"
-                for inc in includes:
-                    result += "#include " + inc + "\n"
+            result =  "#pragma once\n"
+            for inc in includes:
+                result += "#include " + inc + "\n"
 
-                result += "\n" + ns.write()
+            result += "\n" + ns.write()
             outf.write(result)
+                
+            outjs = file.rsplit(".",1)[0].replace("libretro\\include\\retro", "retrosrv\\src\\native") + ".ts"
+            os.makedirs(os.path.dirname(outjs), exist_ok=True)
+            with open(outjs, "w") as outjsf:
+                result = ""
+                for path, types in ns.properties.get("JIncludes", {}).items():
+                    result += "import {{ {0} }} from \"{1}\";\n".format(", ".join([to_jname(t) for t in types]), path)        
+                result += ns.jwrite()
+                
+                outjsf.write(result.strip('\n') + "\n")
 
-def main():
+            
+def in_notebook():
     try:
-        # Interactive shell.
         get_ipython().__class__.__name__
-        generate_all(os.path.abspath(os.path.curdir + "\\.."))
-        return
+        return True
     except NameError:
-        pass
-    path = os.path.dirname(os.path.realpath(__file__)) + "\\.."
+        return False
+    
+def main():
+    if in_notebook():
+        generate_all(os.path.abspath(os.path.curdir + "\\.."))
+    else:
+        path = os.path.dirname(os.path.realpath(__file__)) + "\\.."
 
-    if len(sys.argv) <= 1:
-        print("Watching directory {0} for changes.".format(path))
-        while True:
-            try:
-                generate_all(path)
-            except Exception:
-                print("##### Exception #####")
-                traceback.print_exc()
-                time.sleep(0.3)
-    elif len(sys.argv) >= 2:
-        path = sys.argv[1]
-    generate_all(path)
+        if len(sys.argv) <= 1:
+            print("Watching directory {0} for changes.".format(path))
+            while True:
+                try:
+                    generate_all(path)
+                except Exception:
+                    print("##### Exception #####")
+                    traceback.print_exc()
+                    time.sleep(0.3)
+        elif len(sys.argv) >= 2:
+            path = sys.argv[1]
+        generate_all(path)
 main()
-
-
-# In[ ]:
-
-
-
 
 
 # In[ ]:

@@ -1,0 +1,17 @@
+{
+	"compilerOptions": {
+		"target": "ES2022",
+		"module": "commonjs",
+		"esModuleInterop": true,
+		"forceConsistentCasingInFileNames": true,
+		"strict": true,
+		"outDir": "./out",
+		"rootDir": "./src",
+		"sourceMap": true,
+		"skipLibCheck": true
+	},
+	"exclude": ["./node_modules"],
+	"ts-node": {
+		"swc": true
+	}
+}
