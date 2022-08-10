@@ -28,6 +28,13 @@ static const char code_prefix[] =
 	 "#define EXPORT __attribute__((noinline)) __attribute__((visibility(\"default\")))\n"
 #endif
 	 R"(
+
+#define va_list          __builtin_va_list
+#define va_start(v,l)    __builtin_va_start(v,l)
+#define va_end(v)        __builtin_va_end(v)
+#define va_arg(v,l)      __builtin_va_arg(v,l)
+#define va_copy(d,s)     __builtin_va_copy(d,s)
+
 #define OUTLINE __attribute__((noinline))
 __attribute__((noinline)) static void sinkptr(void* _) { asm volatile(""); }
 __attribute__((noinline)) static void sinkull(unsigned long long _) { asm volatile(""); }
@@ -38,21 +45,24 @@ __attribute__((noinline)) static void sinkf(float _) { asm volatile(""); }
 __attribute__((noinline)) static void sinkl(double _) { asm volatile(""); }
 
 __attribute__((always_inline)) int marker(const char* msg) {
-   void* x;
+	void* x;
 	asm volatile("vmread %0, %1" : "+a"(x) : "m"(*msg));
 	asm volatile("mov %0, %0" : "+a"(x));
 	asm volatile("mov %0, %0" : "+a"(x));
-   return (int)(long)x;
+	return (int)(long)x;
 }
 __attribute__((always_inline)) int short_marker(const char* msg) {
-   void* x;
+	void* x;
 	asm volatile("vmread %0, %1" : "+a"(x) : "m"(*msg));
-   return (int)(long)x;
+	return (int)(long)x;
 }
 __attribute__((always_inline)) void value_marker(const char* msg, long long v) {
 	asm volatile("vmwrite %1, %0" :: "a"(v), "m"(*msg));
 }
-
+#define pointer_marker(msg, v)  { \
+	asm volatile("" : "+m"(*v)); \
+	asm volatile("vmwrite %1, %0" :: "a"(v), "m"(*msg)); \
+}
 int main() {}
 )";
 
@@ -228,7 +238,7 @@ static neo::subtask<bool> apply_stack_analysis(ir::routine* rtn) {
 			}
 
 			// TODO: Probably allocating space, OK to NOP?:
-			data.save_point->op = ir::opcode::nop;
+			//data.save_point->op = ir::opcode::nop;
 			continue;
 		}
 
@@ -310,6 +320,7 @@ static neo::subtask<bool> apply_stack_analysis(ir::routine* rtn) {
 	//	}
 	//	return false;
 	//});
+	
 	for (auto& bb : rtn->blocks) {
 		co_await neo::checkpoint{};
 		ir::opt::init::reg_move_prop(bb);
@@ -427,6 +438,127 @@ static bool irp_phi_queue(core::method* m, neo::scheduler* sched = nullptr) {
 	return true;
 }
 
+static void analyse_calls(ir::routine* rt) {
+	std::pair<arch::x86::reg, arch::x86::reg> ar[] = {
+		 {arch::x86::reg::rcx, arch::x86::reg::xmm0},
+		 {arch::x86::reg::rdx, arch::x86::reg::xmm1},
+		 {arch::x86::reg::r8, arch::x86::reg::xmm2},
+		 {arch::x86::reg::r9, arch::x86::reg::xmm3},
+	};
+
+	for (auto& bb : rt->blocks) {
+		for (auto i : bb->insns()) {
+			if (i->op != ir::opcode::call)
+				continue;
+
+			auto ctx		  = i->opr(1).get_value()->get_if<ir::insn>();
+			auto find_reg = [&](arch::mreg r) -> ir::operand* {
+				auto it = ctx;
+				while (it && it->op == ir::opcode::insert_context) {
+					if (it->opr(1).get_const().get<arch::mreg>() == r)
+						return &it->opr(2);
+					it = it->opr(0).get_value()->get_if<ir::insn>();
+				}
+				return nullptr;
+			};
+
+			auto&					c	= z3x::get_context();
+			z3x::variable_set vs = {};
+
+			auto find_mem = [&](i64 off) -> ir::insn* {
+				auto it = ctx;
+				while (it && it->op == ir::opcode::insert_context) {
+					it = it->opr(0).get_value()->get_if<ir::insn>();
+				}
+				if (it && it->op == ir::opcode::context_begin) {
+					auto sp = z3x::to_expr(vs, c, it->opr(0));
+					if (z3x::ok(sp)) {
+						for (auto ii : bb->rslice(i)) {
+							if (ii->op == ir::opcode::store_mem) {
+								auto sp2 = z3x::to_expr(vs, c, ii->opr(0));
+								if (z3x::ok(sp2)) {
+									if (auto v = z3x::value_of(sp2 - sp, true)) {
+										if (v.get_i64() == (off - ii->opr(1).get_const().get_i64())) {
+											return ii;
+										}
+									}
+								}
+							}
+						}
+					}
+				}
+				return nullptr;
+			};
+
+			fmt::println(i->to_string());
+
+			auto score = [&](ir::operand* o, arch::mreg r) -> int {
+				if (!o)
+					return -100;
+				if (o->is_value()) {
+					if (auto i2 = o->get_value()->get_if<ir::insn>()) {
+						if (i2->op == ir::opcode::read_reg) {
+							if (i2->opr(0).get_const().get<arch::mreg>() == r)
+								return 0;
+						}
+						if (i2->op == ir::opcode::extract_context) {
+							if (i2->opr(1).get_const().get<arch::mreg>() == r)
+								return 0;
+						}
+					}
+				}
+				return 1;
+			};
+
+			std::pair<ir::operand*, int> vr[4] = {};
+
+			std::string type_list = {};
+
+			int n = 0;
+			for (auto& [g, f] : ar) {
+				auto ng = enum_name(g);
+				auto nf = enum_name(f);
+				auto ag = find_reg(g);
+				auto af = find_reg(f);
+
+				int sg = score(ag, g);
+				int sf = score(af, f);
+				if (sg >= sf) {
+					vr[n] = {ag, sg};
+					fmt::printf("Arg #%d: %s (Score: %d)\n", n, ag ? ag->to_string().c_str() : "null", sg);
+				} else {
+					vr[n] = {af, sf};
+					fmt::printf("Arg #%d: %s (Score: %d)\n", n, af ? af->to_string().c_str() : "null", sf);
+				}
+				if (vr[n].first) {
+					type_list += enum_name(vr[n].first->get_type());
+					type_list += ",";
+				}
+				fmt::printf("Arg #%d: [%s(Score:%d) | %s(Score:%d)]\n", n, ag ? ag->to_string().c_str() : "null", sg, af ? af->to_string().c_str() : "null", sf);
+				++n;
+			}
+			while (n != 32) {
+				auto wr = find_mem(n * 8);
+				if (!wr)
+					break;
+				fmt::printf("Arg #%d: %s\n", ++n, wr->to_string().c_str());
+				type_list += enum_name(wr->template_types[0]);
+				type_list += ",";
+			}
+			type_list.pop_back();
+			fmt::println("Guessed arguments: void(", type_list, ")");
+
+			if (i->opr(0).is_const()) {
+				auto img		= i->get_image();
+				auto method = img->lookup_method(i->opr(0).get_const().get_u64() - img->base_address);
+				// fmt::printf("Max arg count: %llu\n", std::max<size_t>((method->phi_info.max_sp_used - 1) / 8, 4));
+			}
+		}
+	}
+}
+
+
+
 inline static umutex __out_mtx;
 
 static void whole_program_analysis_test(core::image* img) {
@@ -491,7 +623,20 @@ static void whole_program_analysis_test(core::image* img) {
 			//auto va = m->rva + m->img->base_address;
 			//__out_mtx.lock();
 			//if (r) {
-			//	fmt::printf("sub_%llx: " RC_GRAY " # Basic analysis " RC_GREEN "finished" RC_GRAY " #\n" RC_RESET, va);
+			//	std::optional<i64> delta = 0;
+			//	for (auto& x : r->blocks) {
+			//		if (auto t = x->terminator(); t && t->op == ir::opcode::ret) {
+			//			delta = t->opr(1).const_val.get_i64();
+			//			break;
+			//		}
+			//	}
+			//
+			//	auto t = delta ? fmt::str(RC_GREEN "(Delta: %lld)", *delta) : RC_RED "(No valid return)";
+			//	fmt::printf("sub_%llx: " RC_GRAY " # Basic analysis finished %s" RC_GRAY " #\n" RC_RESET, va, t.c_str());
+			//
+			//	if (!delta || *delta != 8) {
+			//		fmt::println(r->to_string());
+			//	}
 			//
 			//	/*
 			//	for (auto& [offset, reg] : m->phi_info.save_area_layout) {
@@ -537,7 +682,7 @@ static std::string write_graph(ref<ir::routine> rtn) {
 	mclimit	= 1.5;
 	rankdir	= TD;
 	ordering = out;
-   node[shape="box"]
+	node[shape="box"]
 
 )";
 
@@ -604,7 +749,6 @@ static std::string write_graph(ref<ir::routine> rtn) {
 }
 
 
-
 static ref<ir::routine> analysis_test(core::image* img, const std::string& name, u64 rva) {
 	// Demo.
 	//
@@ -640,7 +784,8 @@ static ref<ir::routine> analysis_test(core::image* img, const std::string& name,
 			fmt::printf("Max SP delta: %x\n", m->phi_info.max_sp_used);
 			fmt::printf("Min SP delta: -%x\n", -m->phi_info.min_sp_used);
 			fmt::println(nrtn->to_string());
-			fmt::println(write_graph(nrtn));
+			//fmt::println(write_graph(nrtn));
+			analyse_calls(nrtn);
 
 			/*
 			range::sort(rtn->blocks, [](auto& a, auto& b) { return a->ip < b->ip; });

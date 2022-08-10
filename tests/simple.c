@@ -28,6 +28,36 @@ EXPORT int _fn_2(int a) {
 
 
 
+OUTLINE int __xnoop(int x, ...) {
+	va_list v;
+	va_start(v, x);
+	asm volatile("" :: "m" (v));
+	return x;
+}
+
+EXPORT int a_i_iffi(int a, double b, double c, int d, double e, int f) {
+	marker("body");
+	value_marker("a", &a);
+	value_marker("b", &b);
+	value_marker("c", &c);
+	value_marker("d", &d);
+	pointer_marker("e", &e);
+	pointer_marker("f", &f);
+	return a;
+}
+
+EXPORT int c_i_i(int x, double y) {
+	
+	int* p = (int*)__builtin_alloca(x);
+	asm volatile("" : "+m" (*p));
+	asm volatile("" ::: "xmm7");
+
+	return x + a_i_iffi(x,0,y,x,  y,x);
+}
+
+
+
+	/*
 EXPORT int cftest(int x) {
 	value_marker("x", x);
 
@@ -49,8 +79,7 @@ EXPORT int cftest(int x) {
 	marker("long shit #2");
 	marker("long shit #3");
 	return marker("long shit #4");
-
-	/*if(!marker("if-cc")){
+if(!marker("if-cc")){
 		marker("if-body");
 	} else {
 		marker("else-body");
@@ -69,8 +98,8 @@ EXPORT int cftest(int x) {
 		marker("loop-body-end");
 	}
 
-	return marker("end");*/
-}
+	return marker("end");
+}*/
 
 /*
 OUTLINE int me_take_long(char x, ...) { asm volatile("" :: "r"(x)); return x;}
