@@ -405,8 +405,13 @@ namespace retro::bind::js {
 		inline void pack_tuple(Tup& out, napi_env env, napi_value* arr) {
 			if constexpr (N < std::tuple_size_v<Tup>) {
 				using T			  = typename std::tuple_element_t<N, Tup>;
-				std::get<N>(out) = value{env, arr[N]}.template as<T>(true);
-				return pack_tuple<N + 1, Tup>(out, env, arr);
+				if constexpr (std::is_same_v<engine, T>) {
+					std::get<N>(out) = env;
+					return pack_tuple<N + 1, Tup>(out, env, arr - 1);
+				} else {
+					std::get<N>(out) = value{env, arr[N]}.template as<T>(true);
+					return pack_tuple<N + 1, Tup>(out, env, arr);
+				}
 			}
 		}
 		template<size_t N, typename Tup>
