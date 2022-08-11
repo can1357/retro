@@ -39,6 +39,8 @@
     <ClInclude Include="include\retro\arch\x86\zy2rc.hpp" />
     <ClInclude Include="include\retro\async\neo.hpp" />
     <ClInclude Include="include\retro\async\work.hpp" />
+    <ClInclude Include="include\retro\bind\common.hpp" />
+    <ClInclude Include="include\retro\bind\js.hpp" />
     <ClInclude Include="include\retro\callback.hpp" />
     <ClInclude Include="include\retro\core\callbacks.hpp" />
     <ClInclude Include="include\retro\core\image.hpp" />
@@ -185,20 +187,20 @@
     <CharacterSet>Unicode</CharacterSet>
   </PropertyGroup>
   <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Debug|x64'" Label="Configuration">
-    <ConfigurationType>Application</ConfigurationType>
+    <ConfigurationType>DynamicLibrary</ConfigurationType>
     <UseDebugLibraries>true</UseDebugLibraries>
     <PlatformToolset>v143</PlatformToolset>
     <CharacterSet>Unicode</CharacterSet>
   </PropertyGroup>
   <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Release|x64'" Label="Configuration">
-    <ConfigurationType>Application</ConfigurationType>
+    <ConfigurationType>DynamicLibrary</ConfigurationType>
     <UseDebugLibraries>false</UseDebugLibraries>
     <PlatformToolset>v143</PlatformToolset>
     <WholeProgramOptimization>false</WholeProgramOptimization>
     <CharacterSet>Unicode</CharacterSet>
   </PropertyGroup>
   <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Release-LLVM|x64'" Label="Configuration">
-    <ConfigurationType>Application</ConfigurationType>
+    <ConfigurationType>DynamicLibrary</ConfigurationType>
     <UseDebugLibraries>false</UseDebugLibraries>
     <PlatformToolset>ClangCL</PlatformToolset>
     <WholeProgramOptimization>true</WholeProgramOptimization>
@@ -252,25 +254,31 @@
   </PropertyGroup>
   <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">
     <LinkIncremental>true</LinkIncremental>
-    <OutDir>$(SolutionDir)\build\$(ProjectName)\$(Platform)\$(Configuration)\</OutDir>
-    <IntDir>$(SolutionDir)\build\$(ProjectName)-tmp\$(Platform)\$(Configuration)\</IntDir>
-    <IncludePath>$(ProjectDir)include;$(SolutionDir)zydis\dependencies\zycore\include;$(SolutionDir)zydis\include;$(SolutionDir)z3\build\install-x64\include;$(VC_IncludePath);$(WindowsSDK_IncludePath)</IncludePath>
+    <OutDir>$(SolutionDir)build\</OutDir>
+    <IntDir>$(SolutionDir)build\$(ProjectName)-$(Platform)-$(Configuration)\</IntDir>
+    <IncludePath>$(ProjectDir)include;$(SolutionDir)node\include;$(SolutionDir)zydis\dependencies\zycore\include;$(SolutionDir)zydis\include;$(SolutionDir)z3\build\install-x64\include;$(VC_IncludePath);$(WindowsSDK_IncludePath)</IncludePath>
     <PublicIncludeDirectories>$(ProjectDir)include;</PublicIncludeDirectories>
+    <TargetExt>.node</TargetExt>
+    <TargetName>$(ProjectName)-$(Platform)-$(Configuration)</TargetName>
   </PropertyGroup>
   <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Release|x64'">
     <LinkIncremental>false</LinkIncremental>
-    <OutDir>$(SolutionDir)\build\$(ProjectName)\$(Platform)\$(Configuration)\</OutDir>
-    <IntDir>$(SolutionDir)\build\$(ProjectName)-tmp\$(Platform)\$(Configuration)\</IntDir>
-    <IncludePath>$(ProjectDir)include;$(SolutionDir)zydis\dependencies\zycore\include;$(SolutionDir)zydis\include;$(SolutionDir)z3\build\install-x64-release\include;$(VC_IncludePath);$(WindowsSDK_IncludePath)</IncludePath>
+    <OutDir>$(SolutionDir)build\</OutDir>
+    <IntDir>$(SolutionDir)build\$(ProjectName)-$(Platform)-$(Configuration)\</IntDir>
+    <IncludePath>$(ProjectDir)include;$(SolutionDir)node\include;$(SolutionDir)zydis\dependencies\zycore\include;$(SolutionDir)zydis\include;$(SolutionDir)z3\build\install-x64-release\include;$(VC_IncludePath);$(WindowsSDK_IncludePath)</IncludePath>
     <PublicIncludeDirectories>$(ProjectDir)include;</PublicIncludeDirectories>
+    <TargetExt>.node</TargetExt>
+    <TargetName>$(ProjectName)-$(Platform)-$(Configuration)</TargetName>
   </PropertyGroup>
   <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Release-LLVM|x64'">
     <LinkIncremental>false</LinkIncremental>
-    <OutDir>$(SolutionDir)\build\$(ProjectName)\$(Platform)\$(Configuration)\</OutDir>
-    <IntDir>$(SolutionDir)\build\$(ProjectName)-tmp\$(Platform)\$(Configuration)\</IntDir>
-    <IncludePath>$(ProjectDir)include;$(SolutionDir)zydis\dependencies\zycore\include;$(SolutionDir)zydis\include;$(SolutionDir)z3\build\install-x64-release\include;$(LLVMInstallDir)\lib\clang\$(LLVMToolsVersion)\include;$(VC_IncludePath);$(WindowsSDK_IncludePath)</IncludePath>
+    <OutDir>$(SolutionDir)build\</OutDir>
+    <IntDir>$(SolutionDir)build\$(ProjectName)-$(Platform)-$(Configuration)\</IntDir>
+    <IncludePath>$(ProjectDir)include;$(SolutionDir)node\include;$(SolutionDir)zydis\dependencies\zycore\include;$(SolutionDir)zydis\include;$(SolutionDir)z3\build\install-x64-release\include;$(LLVMInstallDir)\lib\clang\$(LLVMToolsVersion)\include;$(VC_IncludePath);$(WindowsSDK_IncludePath)</IncludePath>
     <PublicIncludeDirectories>$(ProjectDir)include;</PublicIncludeDirectories>
     <ExecutablePath>$(LLVMInstallDir)\bin;$(ExecutablePath)</ExecutablePath>
+    <TargetExt>.node</TargetExt>
+    <TargetName>$(ProjectName)-$(Platform)-$(Configuration)</TargetName>
   </PropertyGroup>
   <PropertyGroup Label="Vcpkg">
     <VcpkgEnabled>false</VcpkgEnabled>
@@ -343,7 +351,7 @@
     <Link>
       <SubSystem>Console</SubSystem>
       <GenerateDebugInformation>true</GenerateDebugInformation>
-      <AdditionalDependencies>$(SolutionDir)zydis\msvc\bin\DebugX64\Zycore.lib;$(SolutionDir)zydis\msvc\bin\DebugX64\Zydis.lib;$(SolutionDir)z3\build\install-x64\lib\libz3.lib;%(AdditionalDependencies)</AdditionalDependencies>
+      <AdditionalDependencies>$(SolutionDir)node\node-win-x64.lib;$(SolutionDir)zydis\msvc\bin\DebugX64\Zycore.lib;$(SolutionDir)zydis\msvc\bin\DebugX64\Zydis.lib;$(SolutionDir)z3\build\install-x64\lib\libz3.lib;%(AdditionalDependencies)</AdditionalDependencies>
       <AdditionalOptions>/STACK:34359738368 %(AdditionalOptions)</AdditionalOptions>
     </Link>
   </ItemDefinitionGroup>
@@ -365,7 +373,7 @@
       <EnableCOMDATFolding>true</EnableCOMDATFolding>
       <OptimizeReferences>true</OptimizeReferences>
       <GenerateDebugInformation>true</GenerateDebugInformation>
-      <AdditionalDependencies>$(SolutionDir)zydis\msvc\bin\ReleaseX64\Zycore.lib;$(SolutionDir)zydis\msvc\bin\ReleaseX64\Zydis.lib;$(SolutionDir)z3\build\install-x64-release\lib\libz3.lib;%(AdditionalDependencies)</AdditionalDependencies>
+      <AdditionalDependencies>$(SolutionDir)node\node-win-x64.lib;$(SolutionDir)zydis\msvc\bin\ReleaseX64\Zycore.lib;$(SolutionDir)zydis\msvc\bin\ReleaseX64\Zydis.lib;$(SolutionDir)z3\build\install-x64-release\lib\libz3.lib;%(AdditionalDependencies)</AdditionalDependencies>
       <AdditionalOptions>/STACK:34359738368 %(AdditionalOptions)</AdditionalOptions>
     </Link>
   </ItemDefinitionGroup>
@@ -388,7 +396,7 @@
       <EnableCOMDATFolding>true</EnableCOMDATFolding>
       <OptimizeReferences>true</OptimizeReferences>
       <GenerateDebugInformation>true</GenerateDebugInformation>
-      <AdditionalDependencies>$(SolutionDir)zydis\msvc\bin\ReleaseX64\Zycore.lib;$(SolutionDir)zydis\msvc\bin\ReleaseX64\Zydis.lib;$(SolutionDir)z3\build\install-x64-release\lib\libz3.lib;%(AdditionalDependencies)</AdditionalDependencies>
+      <AdditionalDependencies>$(SolutionDir)node\node-win-x64.lib;$(SolutionDir)zydis\msvc\bin\ReleaseX64\Zycore.lib;$(SolutionDir)zydis\msvc\bin\ReleaseX64\Zydis.lib;$(SolutionDir)z3\build\install-x64-release\lib\libz3.lib;%(AdditionalDependencies)</AdditionalDependencies>
       <AdditionalOptions>/STACK:34359738368 %(AdditionalOptions)</AdditionalOptions>
     </Link>
   </ItemDefinitionGroup>

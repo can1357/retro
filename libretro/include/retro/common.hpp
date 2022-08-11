@@ -310,6 +310,11 @@ namespace retro {
 	struct value_tag {
 		using type						 = decltype(V);
 		static constexpr type value = V;
+
+		template<typename... Tx>
+		constexpr decltype(auto) operator()(Tx&&... args) const {
+			return value(std::forward<Tx>(args)...);
+		}
 	};
 
 	// Compiler specifics.

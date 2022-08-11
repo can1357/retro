@@ -90,7 +90,11 @@ namespace retro {
 	struct function_traits<F> : function_traits<decltype(&F::operator())> {
 		static constexpr bool is_lambda = true;
 	};
-
+	template<auto F>
+	struct function_traits<value_tag<F>> : function_traits<decltype(F)> {};
+	template<typename Fn>
+	concept StatelessCallable = std::is_default_constructible_v<Fn> && std::is_empty_v<Fn>;
+	
 	// Declares a light-weight std::function replacement.
 	// - Note: will not copy the lambda objects, lifetime is left to the user to be managed.
 	//

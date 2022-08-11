@@ -23,6 +23,7 @@ todo.txt
 *.nam
 *.til
 *.z3-trace
+node/
 
 # Binaries
 #

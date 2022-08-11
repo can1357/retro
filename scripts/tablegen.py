@@ -231,7 +231,7 @@ def parse_expr(s):
     return e
 
 
-# In[75]:
+# In[80]:
 
 
 # Constants
@@ -1240,7 +1240,7 @@ def generate_all(root):
             result += "\n" + ns.write()
             outf.write(result)
                 
-            outjs = file.rsplit(".",1)[0].replace("libretro\\include\\retro", "retrosrv\\src\\native") + ".ts"
+            outjs = file.rsplit(".",1)[0].replace("libretro\\include\\retro", "retrosrv\\src\\lib") + ".ts"
             os.makedirs(os.path.dirname(outjs), exist_ok=True)
             with open(outjs, "w") as outjsf:
                 result = ""

@@ -2,7 +2,9 @@
 	"version": "0.2.0",
 	"configurations": [
 		{
-			"type": "node",
+			"type": "pwa-node",
+			"console": "internalConsole",
+			"outputCapture": "std",
 			"request": "launch",
 			"name": "Launch Program",
 			"runtimeArgs": ["-r", "ts-node/register"],
