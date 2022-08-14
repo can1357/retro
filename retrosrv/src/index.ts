@@ -1,46 +1,49 @@
-interface Native {
-	readonly bla: number;
-	abcd(x: number, c: (q: number) => number): number;
+/// <reference path="types/native.d.ts"/>
+import * as Retro from "../../build/libretro-x64-Debug";
 
-	blaInstance: any;
-}
+import { ImageKind } from "./lib/core/image_kind";
+import { Opcode } from "./lib/ir";
 
-/// <reference path="native.d.ts"/>
-import * as Lib from "../../build/libretro-x64-Debug";
+async function test() {
+	const ws = Retro.Workspace.create();
 
-//const native = require("../../build/libretro-x64-Debug.node");
+	const path = "S:\\Projects\\Retro\\tests\\loop.exe";
+	const img = await ws.loadImage(path);
 
-console.log(Lib.abcd(5, (x) => 1));
-console.log(Lib);
+	console.log(img.name);
 
-for (const k of Lib.blaInstance) {
-	console.log(k);
-}
-/*
-async function lolz() {
-	console.log("async stuff start");
-	const x = Lib.blaInstance.asyncStuff(5);
-	console.log("async stuff ongoing");
-	const y = await x;
-	console.log("async stuff end", y);
-}
+	const [ep] = img.entryPoints;
 
-lolz().then(() => {
-	console.log("End!");
-});*/
+	const rtn = await img.lift(ep);
 
-//import * as IR from "./lib/ir";
-
-/*class Iterable {
-	x: number;
-	y: number;
-
-	[Symbol.iterator]() {
-		return {
-			next: () => ({
-				done: this.x === this.y,
-				value: this.x++,
-			}),
-		};
+	for (const bb of rtn!) {
+		console.log("BasicBlock:", bb.name);
+		for (const i of bb) {
+			console.log(i.toString(true));
+		}
 	}
-}*/
+	//	console.log(rtn?.toString(true));
+
+	/*
+	console.log(ImageKind[img.kind]);
+	console.log(img.baseAddress.toString(16));
+	console.log(img.ldr.name);
+	console.log(img.ldr.extensions);
+	console.log("Arch:", img.arch.name);
+
+	const jmp = Buffer.from([0xe8, 0x00, 0x00, 0x00, 0x00]);
+	const i = img.arch.disasm(jmp);
+	console.log("disasm:", i.name);
+	console.log("disasm:", i.toString());
+
+	for (let n = 0; n != i?.operandCount; n++) {
+		console.log("Operand ", n, ":", i?.getOperand(n)?.toString());
+	}
+
+	console.log(img.abiName);
+	console.log(img.envName);
+	console.log(img.isEnvSupervisor);
+	console.log(img.entryPoints);*/
+}
+
+test().then(() => console.log("---------------"));

@@ -4,6 +4,7 @@
 #include <retro/func.hpp>
 #include <retro/rc.hpp>
 #include <retro/dyn.hpp>
+#include <retro/interface.hpp>
 #include <retro/bind/common.hpp>
 #include <memory>
 
@@ -42,12 +43,12 @@ namespace retro::bind::js {
 
 		// If status is not napi_ok, throws an error.
 		//
-		inline void assert(napi_status status) const {
+		inline void assert(napi_status status, size_t ln = __builtin_LINE()) const {
 			if (status == napi_ok)
 				return;
 			const napi_extended_error_info* result;
 			RC_ASSERT(napi_get_last_error_info(env, &result) == napi_ok);
-			throw std::runtime_error{fmt::str("JS Error(%d): %s", status, result->error_message)};
+			throw std::runtime_error{fmt::str("JS Error(%d@%llu): %s", status, ln, result->error_message)};
 		}
 
 		// Throws an error.
@@ -107,8 +108,8 @@ namespace retro::bind::js {
 			return converter<engine, T>{}.as(*this, coerce);
 		}
 		template<typename T>
-		static value make(napi_env env, const T& value) {
-			return converter<engine, T>{}.from(env, value);
+		static value make(napi_env env, T&& value) {
+			return converter<engine, std::decay_t<T>>{}.from(env, std::forward<T>(value));
 		}
 
 		// String conversion.
@@ -680,21 +681,47 @@ namespace retro::bind::js {
 	//
 	inline static napi_type_tag weakptr_tag	= {1, 1};
 	inline static napi_type_tag strongptr_tag = {2, 1};
+	inline static napi_type_tag iface_tag		= {3, 1};
+
+	static bool is_smartptr(const value& val) {
+		bool res = false;
+		napi_check_object_type_tag(val, val, &strongptr_tag, &res);
+		if (!res)
+			napi_check_object_type_tag(val, val, &weakptr_tag, &res);
+		return res;
+	}
+	static bool is_iface(const value& val) {
+		bool res = false;
+		napi_check_object_type_tag(val, val, &iface_tag, &res);
+		return res;
+	}
 
 	inline void ref_finalizer(napi_env, void* data, void*) { rc_header::from(data)->dec_ref(); }
 	inline void weak_finalizer(napi_env, void* data, void*) { rc_header::from(data)->dec_ref_weak(); }
+
+	template<typename T>
+	inline void unique_finalizer(napi_env, void* data, void*) { delete ((T*)data); }
+
 
 	template<typename T>
 	static value make_ptr(const engine& context, T* ptr) {
 		if (!ptr)
 			return value::make(context, std::nullopt);
 		napi_value result = nullptr;
-		if constexpr (std::is_final_v<T>)
+		if constexpr (std::is_final_v<T> || !DynUserClass<T>)
 			context.assert(napi_new_instance(context, typedecl::fetch<T>(context)->ctor.lock(), 0, nullptr, &result));
 		else
 			context.assert(napi_new_instance(context, typedecl::fetch(context, ptr->get_api_id())->ctor.lock(), 0, nullptr, &result));
 		context.assert(napi_wrap(context, result, ptr, nullptr, nullptr, nullptr));
 		return {context, result};
+	}
+	template<typename T>
+	static value make_uptr(const engine& context, std::unique_ptr<T> ptr) {
+		if (!ptr)
+			return value::make(context, std::nullopt);
+		value result = make_ptr(context, ptr.get());
+		context.assert(napi_add_finalizer(context, result, ptr.release(), unique_finalizer<T>, nullptr, nullptr));
+		return result;
 	}
 	template<typename T>
 	static value make_ref(const engine& context, const ref<T>& ptr) {
@@ -716,14 +743,6 @@ namespace retro::bind::js {
 		RC_ASSERT(napi_type_tag_object(context, result, &weakptr_tag) == napi_ok);
 		return result;
 	}
-	static bool is_smartptr(const value& val) {
-		bool res = false;
-		napi_check_object_type_tag(val, val, &strongptr_tag, &res);
-		if (!res)
-			napi_check_object_type_tag(val, val, &weakptr_tag, &res);
-		return res;
-	}
-
 	template<typename T>
 	static T* get_ptr(const value& val, bool expired_ok = false) {
 		if (val.type() != napi_object) {
@@ -745,6 +764,33 @@ namespace retro::bind::js {
 			}
 		}
 		return r;
+	}
+
+	
+	template<typename T>
+	static value make_iface(const engine& context, T* ptr) {
+		if (!ptr)
+			return value::make(context, std::nullopt);
+
+		
+		napi_value result = nullptr;
+		context.assert(napi_new_instance(context, typedecl::fetch<T>(context)->ctor.lock(), 0, nullptr, &result));
+		context.assert(napi_wrap(context, result, (void*)(uptr)(u32) ptr->get_handle(), nullptr, nullptr, nullptr));
+		RC_ASSERT(napi_type_tag_object(context, result, &iface_tag) == napi_ok);
+		return {context, result};
+	}
+	template<typename T>
+	static interface::handle_type<T> get_iface(const value& val) {
+		if (val.type() != napi_object || !is_iface(val)) {
+			return {};
+		}
+
+		uptr r = 0;
+		napi_unwrap(val, val, (void**) &r);
+		if (!r) {
+			throw std::runtime_error(fmt::concat("Invalid instantiation of ", get_type_name<T>()));
+		}
+		return interface::handle_type<T>(u32(r));
 	}
 
 	// Define the prototype type.
@@ -904,11 +950,29 @@ namespace retro::bind::js {
 					return false;
 			});
 
-			// Add Dyn utilities.
+			// Add interface details.
 			//
-			if constexpr (Dynamic<T>) {
-				add_property("dynTypeId", [](bind::js::value p) { return bind::js::get_ptr<T>(p)->identify(); });
-				add_property("dynTypeName", [](bind::js::value p) { return bind::js::get_ptr<T>(p)->type_name(); });
+			if constexpr (interface::Instance<T>) {
+				add_property("name", [](T::handle_t h) {
+					return h.get_name();
+				});
+				add_static_method("lookup", [](std::string name) {
+					return T::lookup(name);
+				});
+
+				add_method("equals", [](T::handle_t h, const js::value& other) {
+					if (other.template is<T::handle_t>()) {
+						return other.template as<T::handle_t>() == h;
+					}
+					return false;
+				});
+			} else {
+				add_method("equals", [](T* p, const js::value& other) {
+					if (other.template is<T*>()) {
+						return other.template as<T*>() == p;
+					}
+					return false;
+				});
 			}
 
 			// Define the class and write to the slot.
@@ -1052,7 +1116,7 @@ namespace retro::bind {
 			size_t length = 0;
 			napi_get_value_string_utf8(val, val, nullptr, 0, &length);
 
-			std::string out(length, 'a');
+			std::string out(length, '\x0');
 			val.env.assert(napi_get_value_string_utf8(val, val, (char*) out.data(), length + 1, &length));
 			return out;
 		}
@@ -1085,6 +1149,54 @@ namespace retro::bind {
 			return {(const u8*) data, (u8*) data + length};
 		}
 	};
+	template<>
+	struct converter<js::engine, std::vector<u8>> {
+		bool is(const js::value& val) const {
+			bool res = false;
+			if (val.val)
+				napi_is_buffer(val.env, val.val, &res);
+			return res;
+		}
+
+		js::value from(const js::engine& context, const std::vector<u8>& val) const {
+			void*		  cpy;
+			napi_value result = nullptr;
+			context.assert(napi_create_buffer_copy(context, val.size(), val.data(), &cpy, &result));
+			return {context, result};
+		}
+
+		std::vector<u8> as(const js::value& val, bool) const {
+			if (!is(val)) {
+				throw std::runtime_error("Expected Buffer");
+			}
+			void*	 data	  = nullptr;
+			size_t length = 0;
+			val.env.assert(napi_get_buffer_info(val, val, &data, &length));
+			return std::vector<u8>{(u8*) data, (u8*) data + length};
+		}
+	};
+	// range::subrange<T>
+	template<typename Iterator>
+	struct converter<js::engine, range::subrange<Iterator>> {
+		js::value from(const js::engine& context, const range::subrange<Iterator>& rng) const {
+			// Make a temporary table to re-use, create the closure with a reference to to self.
+			auto tmp = js::object::make(context, 3);
+			tmp.set("next", [tmp = js::reference{tmp}, rng = std::move(rng), it = std::optional<Iterator>{}]() mutable {
+				if (!it) {
+					it = rng.begin();
+				}
+				js::object result = tmp.lock();
+				result.set("done", it.value() == rng.end());
+				if (it.value() != rng.end()) {
+					result.set("value", *it.value()++);
+				} else {
+					result.set("value", std::nullopt);
+				}
+				return result;
+			});
+			return tmp;
+		}
+	};
 
 	// User classes.
 	//
@@ -1094,14 +1206,25 @@ namespace retro::bind {
 		js::value from(const js::engine& context, T* val) const { return js::make_ptr(context, val); }
 		T*			 as(const js::value& val, bool) const { return js::get_ptr<T>(val); }
 	};
-
+	template<UserClass T>
+	struct converter<js::engine, std::unique_ptr<T>> {
+		js::value from(const js::engine& context, std::unique_ptr<T> val) const { return js::make_uptr(context, std::move(val)); }
+	};
+	template<UserClass T>
+	struct converter<js::engine, T> {
+		bool is(const js::value& val) const { return val.type() == napi_object; }
+		template<typename Ty>
+		js::value from(const js::engine& context, Ty&& val) const {
+			return js::make_uptr<T>(context, std::make_unique<T>(std::forward<Ty>(val)));
+		}
+		T& as(const js::value& val, bool) const { return *js::get_ptr<T>(val); }
+	};
 	template<UserClass T>
 	struct converter<js::engine, ref<T>> {
 		bool		 is(const js::value& val) const { return val.type() == napi_object && js::is_smartptr(val); }
 		js::value from(const js::engine& context, const ref<T>& val) const { return js::make_ref(context, val); }
 		ref<T>	 as(const js::value& val, bool) const { return js::get_ptr<T>(val); }
 	};
-
 	template<UserClass T>
 	struct converter<js::engine, weak<T>> {
 		bool		 is(const js::value& val) const { return val.type() == napi_object && js::is_smartptr(val); }
@@ -1109,6 +1232,19 @@ namespace retro::bind {
 		weak<T>	 as(const js::value& val, bool) const { return js::get_ptr<T>(val, true); }
 	};
 
+	// Interfaces.
+	//
+	template<typename T>
+	struct converter<js::engine, interface::handle_type<T>> {
+		using handle_t = interface::handle_type<T>;
+
+		bool is(const js::value& val) const {
+			auto t = val.type();
+			return t == napi_null || (t == napi_object && js::is_iface(val));
+		}
+		js::value from(const js::engine& context, handle_t val) const { return js::make_iface(context, val.get()); }
+		handle_t	 as(const js::value& val, bool) const { return js::get_iface<T>(val); }
+	};
 
 	// Define value-type converters.
 	//

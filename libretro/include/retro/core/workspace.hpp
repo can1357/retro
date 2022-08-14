@@ -4,6 +4,7 @@
 #include <retro/umutex.hpp>
 #include <retro/diag.hpp>
 #include <retro/async/neo.hpp>
+#include <retro/ldr/interface.hpp>
 #include <vector>
 
 namespace retro::core {
@@ -12,7 +13,7 @@ namespace retro::core {
 	// Workspace holds the document state and may represent multiple images.
 	//
 	struct image;
-	struct workspace {
+	struct workspace final {
 		// Image list.
 		//
 		mutable shared_umutex	image_list_mtx = {};
@@ -29,7 +30,7 @@ namespace retro::core {
 
 		// Loads an image from filesystem/memory.
 		//
-		diag::expected<ref<image>> load_image(const std::filesystem::path& path);
-		diag::expected<ref<image>> load_image_in_memory(std::span<const u8> data);
+		diag::expected<ref<image>> load_image(const std::filesystem::path& path, ldr::handle ldr = std::nullopt);
+		diag::expected<ref<image>> load_image_in_memory(std::span<const u8> data, ldr::handle ldr = std::nullopt);
 	};
 };

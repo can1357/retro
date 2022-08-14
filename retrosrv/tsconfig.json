@@ -5,9 +5,9 @@
 		"esModuleInterop": true,
 		"forceConsistentCasingInFileNames": true,
 		"strict": true,
-		"outDir": "out",
-		"rootDir": "src",
-		"typeRoots": ["src/types", "node_modules/@types"],
+		"outDir": "./out",
+		"rootDir": "./src",
+		"typeRoots": ["./src", "node_modules/@types"],
 		"sourceMap": true,
 		"skipLibCheck": true
 	},

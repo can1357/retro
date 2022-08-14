@@ -31,6 +31,10 @@ namespace retro::bind {
 	template<typename T>
 	concept UserClass = (!std::is_base_of_v<std::nullopt_t, type_descriptor<T>>);
 
+	template<typename T>
+	concept DynUserClass = requires(const T* p) { (u32)p->get_api_id(); };
+
+
 	// Type name getter.
 	//
 	template<typename T>
@@ -182,7 +186,6 @@ namespace retro::bind {
 	// TODO: std::pair
 	// TODO: std::tuple
 	// TODO: std::variant
-	// TODO: Override std::vector<u8>
 	// - Invocables, write only.
 	template<typename Engine, typename F> requires CallableObject<F>
 	struct converter<Engine, F> {
@@ -192,18 +195,20 @@ namespace retro::bind {
 		value from(const Engine& context, const F& val) const { return function::make<false, false>(context, "", val); }
 	};
 
-
 	// Engine required conversions:
 	//  std::nullopt_t
 	//  bool
 	//  i8,i16,i32,i64,i128
 	//  u8,u16,u32,u64,u128
 	//  f32,f64,f80
+	//  TODO: Vector types
 	//  std::string_view
-	//  std::span<const u8> (By copy)
+	//  std::span<const u8> & std::vector<u8>
+	//  ref<T>, weak<T>, T*
+	//  instance::handle, instance*
+	//  range::subrange<T>
 	//
-	// TODO: Vector types
-
+	
 	// Engine type requirements:
 	//   typename value_type
 	//   typename prototype_type

@@ -11,19 +11,20 @@ namespace retro::core {
 
 	// Loads an image from filesystem/memory.
 	//
-	diag::expected<ref<image>> workspace::load_image(const std::filesystem::path& path) {
+	diag::expected<ref<image>> workspace::load_image(const std::filesystem::path& path, ldr::handle loader) {
 		auto view = platform::map_file(path);
 		if (!view) {
 			return err::file_read_err(path);
 		}
-		auto res = load_image_in_memory(view);
+		auto res = load_image_in_memory(view, loader);
 		if (res && res.value()->name.empty()) {
 			res.value()->name = path.filename().string();
 		}
 		return res;
 	}
-	diag::expected<ref<image>> workspace::load_image_in_memory( std::span<const u8> data ) {
-		auto loader = ldr::instance::find_if([&](auto& l) { return l->match(data); });
+	diag::expected<ref<image>> workspace::load_image_in_memory(std::span<const u8> data, ldr::handle loader) {
+		if (!loader)
+			loader = ldr::instance::find_if([&](auto& l) { return l->match(data); });
 		if (!loader) {
 			return err::no_matching_loader();
 		}

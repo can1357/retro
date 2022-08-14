@@ -209,6 +209,10 @@ namespace retro::interface {
 		//
 		virtual ~base() = default;
 	};
+
+	template<typename T>
+	concept Instance = std::is_base_of_v<base<T>, T>;
+
 #if RC_VA_OPT_SUPPORT(?)
 	#define RC_ADD_INTERFACE(name, type, ...) RC_INITIALIZER { type::register_as<type>(name __VA_OPT__(,) __VA_ARGS__); };
 #else

@@ -7,6 +7,7 @@
 #include <retro/common.hpp>
 #include <retro/format.hpp>
 #include <variant>
+#include <exception>
 
 // This file defines structured diagnosis formatters.
 // - Format string is a string literal that contains '%'s where a parameter is to be expected.
@@ -203,10 +204,11 @@ namespace retro::diag {
 		// Raises the error.
 		//
 		void raise() {
-			if (ptr) [[unlikely]] {
-				print();
+			if (ptr) [[unlikely]] {;
 				if (ptr->kind > warn) {
-					fmt::abort_no_msg();
+					throw std::runtime_error(to_string());
+				} else {
+					print();
 				}
 			}
 		}
@@ -324,9 +326,10 @@ namespace retro::diag {
 
 		template<typename... Tx>
 		RC_COLD static void raise(const Tx&... args) {
-			print<Tx...>(args...);
 			if constexpr (Kind > warn) {
-				fmt::abort_no_msg();
+				throw std::runtime_error(format<Tx...>(args...));
+			} else {
+				print<Tx...>(args...);
 			}
 		}
 
