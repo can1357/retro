@@ -109,13 +109,12 @@ namespace retro::llvm {
 
 		// Read the output file.
 		//
-		bool ok = false;
-		auto result = platform::read_file(out, ok);
-		if (!ok || result.empty()) {
+		auto result = platform::map_file(out);
+		if (result.empty()) {
 			if (err_out)
 				*err_out = "failed to read the resulting binary";
 		}
-		return result;
+		return std::vector<u8>{result.begin(), result.end()};
 	}
 
 	// Formats a given C++ snippet using clang-format, returns an empty string on failure and sets err_out if given.

@@ -63,7 +63,7 @@ namespace retro::bind::js {
 		// Exports the given user type to the given namespace.
 		//
 		template<typename T, typename Into>
-		inline void export_type(Into&& mod) {
+		inline void export_type(Into&& mod) const {
 			prototype proto = {*this, type_descriptor<T>::name};
 			type_descriptor<T>::write(proto);
 			mod.set(type_descriptor<T>::name, proto.write<T>()->ctor);
@@ -425,7 +425,7 @@ namespace retro::bind::js {
 
 		template<typename Fn, typename R, typename Args>
 		struct async_task final : async_work {
-			using Rs = std::conditional_t<std::is_void_v<R>, std::nullopt_t, R>;
+			using Rs = std::conditional_t<std::is_void_v<R>, std::monostate, R>;
 
 			Fn											functor;
 			Args										args;
@@ -439,7 +439,7 @@ namespace retro::bind::js {
 				try {
 					if constexpr (std::is_void_v<R>) {
 						std::apply(functor, std::move(args));
-						result.template emplace<0>(std::nullopt);
+						result.template emplace<0>(std::monostate{});
 					} else {
 						result.template emplace<0>(std::apply(functor, std::move(args)));
 					}
@@ -594,9 +594,14 @@ namespace retro::bind::js {
 
 		// Creates a function.
 		//
-		template<bool HasThis, bool Async, typename F>
+		template<bool HasThis = false, typename F>
 		static function make(const engine& env, std::string_view name, F&& fn) {
-			auto val = create_function<HasThis, Async, F>(env, name, std::forward<F>(fn));
+			auto val = create_function<HasThis, false, F>(env, name, std::forward<F>(fn));
+			return function{val, val};
+		}
+		template<bool HasThis = false, typename F>
+		static function make_async(const engine& env, std::string_view name, F&& fn) {
+			auto val = create_function<HasThis, true, F>(env, name, std::forward<F>(fn));
 			return function{val, val};
 		}
 

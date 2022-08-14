@@ -4,16 +4,11 @@
 #include <retro/ir/basic_block.hpp>
 #include <retro/ir/routine.hpp>
 #include <retro/ir/insn.hpp>
+#include <retro/llvm/clang.hpp>
 #include <retro/bind/js.hpp>
 
 #include <retro/core/callbacks.hpp>
 #include <Zydis/Zydis.h>
-
-
-using namespace retro;
-
-
-// todo loadImage with ldr specified.
 
 namespace retro::bind {
 
@@ -324,6 +319,70 @@ namespace retro::bind {
 	};
 };
 
+
+using namespace retro;
+using Engine = bind::js::engine; // template<typename Engine>
+static void export_api(const Engine& eng, const Engine::object_type& mod) {
+	using object = typename Engine::object_type;
+	using function = typename Engine::function_type;
+
+	/*
+	TODO:
+	 Try to alocate less :(
+	 Insn operands
+	 Optimizers
+	 Insn::uses, Insn::replace_all_uses
+	 Section symbol reloc
+	 Creating/Erasing instructions
+	 Callbacks, interface registration
+	 Z3x
+	 Clang
+	*/
+
+	eng.export_type<ir::insn>(mod);
+	eng.export_type<ir::basic_block>(mod);
+	eng.export_type<ir::routine>(mod);
+	eng.export_type<arch::imm>(mod);
+	eng.export_type<arch::mreg>(mod);
+	eng.export_type<arch::mem>(mod);
+	eng.export_type<arch::minsn>(mod);
+	eng.export_type<arch::instance>(mod);
+	eng.export_type<ldr::instance>(mod);
+	eng.export_type<core::image>(mod);
+	eng.export_type<core::workspace>(mod);
+
+	auto clang = object::make(eng, 3);
+	clang.set("locate", function::make(eng, "clang.locate", [](std::optional<std::string> at) {
+		std::optional<std::string_view> result;
+		if (auto res = llvm::locate_install(at.value_or(std::string{})))
+			result.emplace(*res);
+		return result;
+	}));
+	clang.set("compile", function::make_async(eng, "clang.compile", [](std::string source, std::optional<std::string> arguments) {
+		std::string err;
+		if (!arguments)
+			arguments.emplace();
+		auto res = llvm::compile(source, *arguments, &err);
+		if (!err.empty())
+			throw std::runtime_error(std::move(err));
+		return res;
+	}));
+	clang.set("format", function::make_async(eng, "clang.format", [](std::string source, std::optional<std::string> style) {
+		std::string err;
+		if (!style)
+			style.emplace();
+		auto res = llvm::format(source, *style, &err);
+		if (!err.empty())
+			throw std::runtime_error(std::move(err));
+		return res;
+	}));
+	clang.freeze();
+	mod.set("Clang", clang);
+	mod.freeze();
+}
+
+
+
 NAPI_MODULE_INIT() {
 	try {
 		core::on_minsn_lift.insert([](arch::handle arch, ir::basic_block* bb, arch::minsn& i, u64 va) {
@@ -342,38 +401,12 @@ NAPI_MODULE_INIT() {
 			return false;
 		});
 
-
-
 		bind::js::engine ctx{env};
 		bind::js::object mod{env, exports};
 		bind::js::typedecl::init(env);
 
-		/*
-		TODO:
-		 Try to alocate less :(
-		 Insn operands
-		 Optimizers
-		 Insn::uses, Insn::replace_all_uses
-		 Section symbol reloc
-		 Creating/Erasing instructions
-		 Callbacks, interface registration
-		 Z3x
-		 Clang
-		*/
+		export_api(ctx, mod);
 
-		ctx.export_type<ir::insn>(mod);
-		ctx.export_type<ir::basic_block>(mod);
-		ctx.export_type<ir::routine>(mod);
-		ctx.export_type<arch::imm>(mod);
-		ctx.export_type<arch::mreg>(mod);
-		ctx.export_type<arch::mem>(mod);
-		ctx.export_type<arch::minsn>(mod);
-		ctx.export_type<arch::instance>(mod);
-		ctx.export_type<ldr::instance>(mod);
-		ctx.export_type<core::image>(mod);
-		ctx.export_type<core::workspace>(mod);
-
-		mod.freeze();
 
 		return exports;
 	} catch (std::exception ex) {

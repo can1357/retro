@@ -58,6 +58,17 @@ namespace retro::bind {
 		value from(const Engine& context, T val) const { return value::make(context, underlying(val)); }
 		T		as(const value& val, bool coerce) const { return (T) val.template as<underlying>(coerce); }
 	};
+	// - std::monostate
+	template<typename Engine>
+	struct converter<Engine, std::monostate> {
+		using value		  = typename Engine::value_type;
+		bool				is(const value& val) const { return val.template is<std::nullopt_t>(); }
+		value				from(const Engine& context, std::monostate) const { return value::make(context, std::nullopt); }
+		std::monostate as(const value& val, bool coerce) const {
+			val.template as<std::nullopt_t>(coerce);
+			return std::monostate{};
+		}
+	};
 	// - std::optional<T>
 	template<typename Engine, typename T>
 	struct converter<Engine, std::optional<T>> {
@@ -192,7 +203,7 @@ namespace retro::bind {
 		using function =   typename Engine::function_type;
 		using value		  = typename Engine::value_type;
 
-		value from(const Engine& context, const F& val) const { return function::make<false, false>(context, "", val); }
+		value from(const Engine& context, const F& val) const { return function::make(context, "", val); }
 	};
 
 	// Engine required conversions:
@@ -280,7 +291,8 @@ namespace retro::bind {
 	//
 	// Function:Value:
 	//   typename engine_type
-	//   static function make<HasThis, Async, F>(engine, std::string_view name, F&&)
+	//   static function make<HasThis, F>(engine, std::string_view name, F&&)
+	//   static function make_async<HasThis, F>(engine, std::string_view name, F&&)
 	//             value invoke<Tx...>(Tx&&...)
 	//             value mem_invoke<This,Tx...>(This&&, Tx&&...)
 	//

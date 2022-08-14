@@ -5,12 +5,17 @@ import { ImageKind } from "./lib/core/image_kind";
 import { Opcode } from "./lib/ir";
 
 async function test() {
+	console.log(await Retro.Clang.compile("int main() { int x = 0; return 6; }"));
+	console.log(await Retro.Clang.format("int main() { int x = 0; return 6; }"));
+
+	/*
 	const ws = Retro.Workspace.create();
 
 	const path = "S:\\Projects\\Retro\\tests\\loop.exe";
 	const img = await ws.loadImage(path);
 
 	console.log(img.name);
+
 
 	const [ep] = img.entryPoints;
 
@@ -22,7 +27,7 @@ async function test() {
 			console.log(i.toString(true));
 		}
 	}
-	//	console.log(rtn?.toString(true));
+	//	console.log(rtn?.toString(true));*/
 
 	/*
 	console.log(ImageKind[img.kind]);

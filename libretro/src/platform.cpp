@@ -98,7 +98,7 @@ namespace retro::platform {
 		std::array<char, 128> buffer;
 		std::string				 result;
 		FILE*						 f = popen(cmd.c_str(), "rt");
-		while (fgets(buffer.data(), (int) buffer.size(), f) != nullptr) {
+		while (fgets(buffer.data(), (int) buffer.size() - 1, f) != nullptr) {
 			result += buffer.data();
 		}
 		pclose(f);

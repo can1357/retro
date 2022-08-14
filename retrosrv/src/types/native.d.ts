@@ -197,4 +197,12 @@ declare module "*-Debug" {
 		async loadImage(path: string, ldr: ?Loader = null): Image;
 		async loadImageInMemory(data: Buffer, ldr: ?Loader = null): Image;
 	}
+
+	// LLVM.
+	//
+	declare namespace Clang {
+		function locate(): ?string;
+		async function compile(source: string, arguments?: string = null): Buffer;
+		async function format(source: string, style: ?string = null): string;
+	}
 }
