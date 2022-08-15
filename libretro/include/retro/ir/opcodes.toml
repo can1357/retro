@@ -4,16 +4,19 @@ Includes = [
 Forwards = [
 	"type"
 ]
-JIncludes = { "./builtin_types" = ["type"] }
+JIncludes = { "../arch" = ["MReg"], "../ir" = ["Value", "Insn", "Const", "Op", "Intrinsic", "Type"] }
 
 Script = """
 # Generate the visitor for creating the constructors.
 #
+jbuilder = \"\"
 insns = data["opcode"]
 for k,v in insns.items():
-	# Set the opcode.
+	# Create the functions
 	#
 	func = CxxFunction()
+	jfunc = JFunction()
+	jfunc.return_type = "Insn"
 
 	# Start by setting the opcode.
 	#
@@ -34,16 +37,20 @@ for k,v in insns.items():
 		#
 		if arg_match == 0:
 			func.add_argument("type", "t" + str(i))
-			func.stmts.append("r->template_types[{0}] = t{0}".format(i))
+			func.stmts.append("r->template_types[{0}] = t{0}".format(i))	
+			jfunc.add_argument("Type", "t" + str(i))
+			jfunc.stmts.append("t[{0}] = t{0}".format(i))
 		# Otherwise, deduce.
 		#
 		else:
 			func.post_stmts.append("r->template_types[{0}] = r->operands()[{1}].get_type()".format(i, arg_match-1))
+			jfunc.post_stmts.append("t[{0}] = o[{1}].type".format(i, arg_match-1))
 
 	# For each argument:
 	#
 	fixed_arg_count =   0
 	var_arg_sentinels = []
+	js_arg_list = []
 	for i in range(1, len(v["types"])):
 		argname = v["names"][i].lower()
 		fixed_arg_count += 1
@@ -52,7 +59,10 @@ for k,v in insns.items():
 		#
 		if i in v.get("constexprs", []):
 			func.add_argument("type_t<type::" + v["types"][i][6:] + ">", argname)
-			func.stmts.append("r->set_operands({0}, {1})".format(i-1, argname))
+			func.stmts.append("r->set_operands({0}, {1})".format(i-1, argname))	
+			jtype = JS_TYPE_MAP[v["types"][i]]
+			jfunc.add_argument(jtype[0], argname)
+			js_arg_list.append("Const.{1}({0})".format(argname, jtype[1]))
 		# Otherwise if vararg:
 		#
 		elif v["types"][i] == "@type.pack":
@@ -60,23 +70,23 @@ for k,v in insns.items():
 			var_arg_sentinels.append("sizeof...(T{0})".format(argname))
 			tname = func.add_argument_pack(argname)
 			func.stmts.append("r->set_operands({0}, std::forward<{2}>({1})...)".format(i-1, argname, tname))
-			assert (i+1) == len(v["types"]);
+			assert (i+1) == len(v["types"]);	
+			jfunc.add_argument_pack("Variant", argname)
+			js_arg_list.append("..." + argname)
 		# Finally accept any value.
 		#
 		else:
 			tname = func.add_argument(None, argname)
-			func.stmts.append("r->set_operands({0}, std::forward<{2}>({1}))".format(i-1, argname, tname))
+			func.stmts.append("r->set_operands({0}, std::forward<{2}>({1}))".format(i-1, argname, tname))	
+			jfunc.add_argument("Variant", argname)
+			js_arg_list.append(argname)
 		
 	# Finally add the allocation with operand count and return the result.
 	#
 	var_arg_sentinels.append(str(fixed_arg_count))
 	func.stmts.insert(0, "auto r = insn::allocate({0})".format("+".join(var_arg_sentinels)))
-	
-	# Add validation.
-	#
 	func.post_stmts.append("r->validate().raise()")
-
-	
+		
 	# Copy into two and generate the code.
 	#
 	oprhan_ctor = func.clone()
@@ -89,10 +99,23 @@ for k,v in insns.items():
 	bb_ctor.post_stmts.append("return this->push_back(std::move(r))")
 	bb_ctor = bb_ctor.write("push_" + k)
 
+	# Create the JS builder.
+	#
+	jfunc.stmts.insert(0, "const o: Variant[] = [{0}]".format(", ".join(js_arg_list)))
+	jfunc.stmts.insert(0, "const t: Type[] = [Type.None, Type.None]")		
+	jfunc.qualifiers = "export function"
+	jfunc.post_stmts.append("return Insn.create(Opcode.{0}, t, o)".format(to_jname(k)))
+	jbuilder += jfunc.write(to_jname(k)) + "\\n"
+
 	#print(oprhan_ctor + "\\n" + bb_ctor)
 
 	# Set the visitor arg.
-	v["VisitorArgs"] = ["RC_IDENTITY(" + oprhan_ctor.replace("\\n", "") + ")", "RC_IDENTITY(" + bb_ctor.replace("\\n", "") + ")"]
+	v["VisitorArgs"] = ["RC_IDENTITY(" + oprhan_ctor.replace("\\n", \"\") + ")", "RC_IDENTITY(" + bb_ctor.replace("\\n", \"\") + ")"]	
+
+# Set suffix.
+jbuilder = "\\t" + jbuilder.replace("\\n", "\\n\\t")
+jbuilder = "\\n// prettier-ignore\\nexport namespace Builder {\\n\\ttype Variant = Value | Const;\\n" + jbuilder[:-1] + "}"
+invokingDecl.jsuffix += jbuilder
 """
  
 
@@ -397,7 +420,7 @@ side-effect    = false
 template-count = 0
 types =          ["@type.pack",    "@type.intrinsic", "@type.pack"]
 templates =      [0,               0,                 0]
-names =          ["",              "function",        "args"]
+names =          ["",              "func",        "args"]
 constexprs =     [1]
 #pack    sideeffect_intrinsic constexpr intrinsic:Function, Tx:Args...
 [opcode.sideeffect_intrinsic]
@@ -406,7 +429,7 @@ side-effect    = true
 template-count = 0
 types =          ["@type.pack",    "@type.intrinsic", "@type.pack"]
 templates =      [0,               0,                 0]
-names =          ["",              "function",        "args"]
+names =          ["",              "func",        "args"]
 constexprs =     [1]
 
 #void  xjmp      pointer:destination

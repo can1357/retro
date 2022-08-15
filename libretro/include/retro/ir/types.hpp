@@ -234,7 +234,9 @@ namespace retro::ir {
 		template<typename T>
 		decltype(auto) get() {
 			constexpr type Id = type_v<T>;
-			RC_ASSERT(type_id == u64(Id));
+			if (type_id != u64(Id))
+				throw std::runtime_error("type mismatch.");
+
 			if constexpr (Id == type::str) {
 				return std::string_view{(char*) address(), size()};
 			} else if (sizeof(T) > sizeof(data)) {
@@ -246,7 +248,9 @@ namespace retro::ir {
 		template<typename T>
 		decltype(auto) get() const {
 			constexpr type Id = type_v<T>;
-			RC_ASSERT(type_id == u64(Id));
+			if (type_id != u64(Id))
+				throw std::runtime_error("type mismatch.");
+
 			if constexpr (Id == type::str) {
 				return std::string_view{(char*) address(), size()};
 			} else if (sizeof(T) > sizeof(data)) {
@@ -273,7 +277,7 @@ namespace retro::ir {
 				case type::i64:
 					return get<i64>();
 				default:
-					fmt::abort("getting non-integer immediate as i64.");
+					throw std::runtime_error("getting non-integer immediate as i64.");
 			}
 		}
 		u64 get_u64() const {
@@ -291,7 +295,7 @@ namespace retro::ir {
 				case type::i64:
 					return get<u64>();
 				default:
-					fmt::abort("getting non-integer immediate as u64.");
+					throw std::runtime_error("getting non-integer immediate as u64.");
 			}
 		}
 

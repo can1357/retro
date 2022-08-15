@@ -112,6 +112,11 @@ namespace retro::bind::js {
 			return converter<engine, std::decay_t<T>>{}.from(env, std::forward<T>(value));
 		}
 
+		// Instance check.
+		//
+		template<typename T>
+		bool isinstance() const;
+
 		// String conversion.
 		//
 		std::string to_string() const {
@@ -636,24 +641,62 @@ namespace retro::bind::js {
 	struct typedecl {
 		using engine_type = engine;
 
-		reference ctor = {};
+		reference									  ctor = {};
+		std::vector<napi_property_descriptor> properties;
 
-		static typedecl* fetch(const engine& e, u32 id) {
-			typedecl* udt = nullptr;
-			napi_get_instance_data(e, (void**) &udt);
-			RC_ASSERT(udt);
-			return udt + id;
-		}
+		static typedecl* fetch(const engine& e, u32 id);
 		template<typename T>
 		static typedecl* fetch(const engine& e) {
 			return fetch(e, bind::user_class<T>::api_id);
 		}
+	};
 
+	// Define the local context type.
+	//
+	struct local_context {
+		// Cached values.
+		//
+		reference symbol_iterator;
+		reference return_self;
+
+		// Type decls.
+		//
+		typedecl types[1];
+
+		// Ctor/Dtor for handling variable size data.
+		//
+		local_context() { std::uninitialized_default_construct_n(&types[1], next_api_type_id - 1); }
+		~local_context() { std::destroy_n(&types[1], next_api_type_id - 1); }
+
+		// Initializer and getter.
+		//
+		static local_context* get(const engine& e) {
+			local_context* ctx = nullptr;
+			napi_get_instance_data(e, (void**) &ctx);
+			RC_ASSERT(ctx);
+			return ctx;
+		}
 		static void init(const engine& e) {
+			// Allocate and set the context.
+			//
+			size_t len = sizeof(local_context) + sizeof(typedecl) * (next_api_type_id - 1);
+			local_context* ctx = new (operator new(len)) local_context();
 			napi_set_instance_data(
-				 e, new typedecl[next_api_type_id](), +[](napi_env, void* data, void*) { delete[] (typedecl*) data; }, nullptr);
+				 e, ctx, +[](napi_env, void* data, void*) { delete (local_context*) data; }, nullptr);
+
+			// Fetch the cached variables.
+			//
+			ctx->symbol_iterator			  = e.globals().get("Symbol").template as<js::object>().get("iterator");
+			ctx->return_self				  = js::function::make<true>(e, "", [](js::value self) { return self; });
 		}
 	};
+	inline typedecl* typedecl::fetch(const engine& e, u32 id) { return &local_context::get(e)->types[id]; }
+	template<typename T>
+	inline bool value::isinstance() const {
+		bool res = false;
+		napi_instanceof(env, val, typedecl::fetch<T>(env)->ctor.lock(), &res);
+		return res;
+	}
 
 	// Class utilities.
 	//
@@ -854,7 +897,7 @@ namespace retro::bind::js {
 
 			auto [cb, _, __] = js::create_callback<true, false>(env, "iterator", fn);
 			auto desc		  = add_descriptor();
-			desc->name		  = env.globals().get("Symbol").template as<js::object>().get("iterator");
+			desc->name		  = local_context::get(env)->symbol_iterator.lock();
 			desc->method	  = cb;
 			desc->attributes = napi_property_attributes(napi_default_method);
 		}
@@ -980,12 +1023,33 @@ namespace retro::bind::js {
 				});
 			}
 
+			// Inherit properties of parents if relevant.
+			//
+			if (super) {
+				for (auto& prop : super->properties) {
+					auto match = range::find_if(properties, [&](napi_property_descriptor& d) {
+						if (d.utf8name) {
+							return prop.utf8name && !strcmp(d.utf8name, prop.utf8name);
+						} else if (d.name && prop.name) {
+							bool eq = false;
+							napi_strict_equals(env, prop.name, d.name, &eq);
+							return eq;
+						}
+						return false;
+					});
+					if (match == properties.end()) {
+						properties.emplace_back(prop);
+					}
+				}
+			}
+
 			// Define the class and write to the slot.
 			//
 			napi_value result;
 			env.assert(napi_define_class(env, class_name.c_str(), NAPI_AUTO_LENGTH, constructor, nullptr, properties.size(), properties.data(), &result));
 			auto* decl = typedecl::fetch<T>(env);
 			decl->ctor = value{env, result};
+			decl->properties = std::move(properties);
 
 			// Inherit from parent if there is one.
 			//
@@ -1027,7 +1091,6 @@ namespace retro::bind {
 	template<typename T>
 		requires(std::is_integral_v<T> || std::is_floating_point_v<T>)
 	struct converter<js::engine, T> {
-
 		bool is(const js::value& val) const {
 			auto t = val.type();
 			if constexpr (std::is_floating_point_v<T>)
@@ -1199,6 +1262,7 @@ namespace retro::bind {
 				}
 				return result;
 			});
+			tmp.set(js::local_context::get(context)->symbol_iterator.lock(), js::local_context::get(context)->return_self.lock());
 			return tmp;
 		}
 	};

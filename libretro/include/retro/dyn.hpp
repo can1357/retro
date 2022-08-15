@@ -33,6 +33,7 @@ namespace retro {
 			ctti::id						  highest_entry = 0;
 			u32							  size			 = 0;
 			i32							  class_index	 = -1;
+			u32							  api_id			 = 0xFFFFFFFF;
 			RC_INLINE std::span<const ctti::id> bases() const { return {(const ctti::id*) (this + 1), size_t(class_index + 1)}; }
 		};
 		template<typename Self>
@@ -68,6 +69,7 @@ namespace retro {
 			RC_INLINE constexpr ctti::id			 identify() const { return type_info().highest_entry; }
 			RC_INLINE constexpr auto&				 type_info() const { return *info; }
 			RC_INLINE constexpr u64					 size_in_memory() const { return type_info().size; }
+			RC_INLINE constexpr u32              get_api_id() const { return type_info().api_id; }
 
 			// Type check.
 			//
@@ -146,6 +148,10 @@ namespace retro {
 			constexpr dyn_tag(const dyn_tag&)					 = default;
 			constexpr dyn_tag& operator=(dyn_tag&&) noexcept = default;
 			constexpr dyn_tag& operator=(const dyn_tag&)		 = default;
+
+			// Static details.
+			//
+			RC_INLINE static constexpr u32& get_api_id_mut() { return static_instance<Info>.api_id; }
 		};
 	};
 

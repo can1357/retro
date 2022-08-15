@@ -4,6 +4,7 @@
 #include <retro/ctti.hpp>
 #include <retro/format.hpp>
 #include <retro/func.hpp>
+#include <retro/dyn.hpp>
 #include <span>
 #include <tuple>
 #include <type_traits>
@@ -26,7 +27,11 @@ namespace retro::bind {
 	struct type_descriptor : std::nullopt_t {};
 	template<typename T>
 	struct user_class {
-		inline static u32 api_id = next_api_type_id++;
+		inline static const u32 api_id = next_api_type_id++;
+	};
+	template<Dynamic T>
+	struct user_class<T> {
+		inline static const u32 api_id = (T::get_api_id_mut() = next_api_type_id++);
 	};
 	template<typename T>
 	concept UserClass = (!std::is_base_of_v<std::nullopt_t, type_descriptor<T>>);
@@ -234,7 +239,7 @@ namespace retro::bind {
 	//   typename engine_type
 	//            engine context()
 	//                 ? native()
-	//
+	//              bool isinstance<T>()
 	//
 	// explicit operator bool()
 	//       std::string to_string()

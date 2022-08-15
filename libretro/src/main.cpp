@@ -112,14 +112,106 @@ namespace retro::bind {
 
 	// IR types.
 	//
+#define _FOR_EACH_CONST_TYPE(_) \
+	_(I1, bool)	_(I8, i8) _(I16, i16) _(I32, i32) _(I64, i64) _(F32, f32) _(F64, f64) _(Str, std::string_view) _(MReg, arch::mreg) _(Op, ir::op) _(Intrinsic, ir::intrinsic) _(Ptr, ir::pointer)\
+	_(F32x16, f32x16) _(F32x2, f32x2) _(I16x32, i16x32) _(I16x4, i16x4) \
+	_(F32x4, f32x4) _(F32x8, f32x8) _(F64x2, f64x2) _(F64x4, f64x4) _(F64x8, f64x8) _(I16x16, i16x16)\
+	_(I16x8, i16x8) _(I32x16, i32x16) _(I32x2, i32x2) _(I32x4, i32x4) _(I32x8, i32x8) _(I64x2, i64x2)\
+	_(I64x4, i64x4) _(I64x8, i64x8) _(I8x16, i8x16) _(I8x32, i8x32) _(I8x64, i8x64) _(I8x8, i8x8) 
+	// TODO: iu128, f80
+
+
+
+	template<>
+	struct type_descriptor<ir::constant> : user_class<ir::constant> {
+		inline static constexpr const char* name = "Const";
+
+		template<typename Proto>
+		static void write(Proto& proto) {
+			proto.add_property("type", [](ir::constant* r) { return r->get_type(); });
+			proto.add_property("byteLength", [](ir::constant* r) { return r->size(); });
+			proto.add_property("buffer", [](ir::constant* r) { return std::span{(const u8*) r->address(), r->size()}; });
+			proto.add_method("equals", [](ir::constant* c, ir::constant* o) { return *c == *o; });
+			proto.add_method("toString", [](ir::constant* c) { return c->to_string(); });
+
+			proto.add_method("bitcast", [](ir::constant* c, ir::type t) { return c->bitcast(t); });
+			proto.add_method("castZx", [](ir::constant* c, ir::type t) { return c->cast_sx(t); });
+			proto.add_method("castSx", [](ir::constant* c, ir::type t) { return c->cast_zx(t); });
+			proto.add_method("apply", [](ir::constant* c, ir::op o, std::optional<ir::constant*> rhs) { return c->apply(o, *rhs.value_or(c)); });
+			proto.add_property("i64", [](ir::constant* r) { return r->get_i64(); });
+			proto.add_property("u64", [](ir::constant* r) { return r->get_u64(); });
+			
+			#define _MAKE_GETSET(name, Ty)                                                       \
+	proto.add_method("as" RC_STRINGIFY(name), [](ir::constant* r) { return r->get<Ty>(); }); \
+	proto.add_static_method(RC_STRINGIFY(name), [](Ty x) { return ir::constant(x); });
+			_FOR_EACH_CONST_TYPE(_MAKE_GETSET)
+#undef _MAKE_GETSET
+		}
+	};
+	template<>
+	struct type_descriptor<ir::operand> : user_class<ir::operand> {
+		inline static constexpr const char* name = "Operand";
+
+		template<typename Proto>
+		static void write(Proto& proto) {
+			using engine = typename Proto::engine_type;
+			using value	 = typename engine::value_type;
+
+			proto.add_property("type", [](ir::operand* r) { return r->get_type(); });
+			proto.add_method("toString", [](ir::operand* r, std::optional<bool> full) { return r->to_string(full.value_or(false) ? ir::fmt_style::full : ir::fmt_style::concise); });
+			proto.add_method("equals", [](ir::operand* c, ir::operand* o) { return *c == *o; });
+			proto.add_property("isConst", [](ir::operand* r) { return r->is_const(); });
+			proto.add_property("isValue", [](ir::operand* r) { return r->is_value(); });
+			proto.add_property("user", [](ir::operand* r) { return r->user; });
+			proto.add_property("value", [](ir::operand* r) { return r->get_value(); });
+			proto.add_property("constant", [](ir::operand* r) { return r->get_const(); });
+
+			proto.add_method("set", [](ir::operand* r, const value& v) {
+				if (v.template isinstance<ir::value>()) {
+					r->reset(v.template as<ir::value*>());
+				} else if (v.template isinstance<ir::constant>()) {
+					r->reset(v.template as<ir::constant>());
+				} else {
+					throw std::runtime_error("Expected value or constant.");
+				}
+			});
+		}
+	};
+	template<>
+	struct type_descriptor<ir::value> : user_class<ir::value> {
+		inline static constexpr const char* name = "Value";
+
+		template<typename Proto>
+		static void write(Proto& proto) {
+			using engine = typename Proto::engine_type;
+			using value =  typename engine::value_type;
+
+			proto.add_property("type", [](ir::value* r) { return r->get_type(); });
+			proto.add_property("uses", [](ir::value* r) { return r->uses(); });
+			proto.add_method("toString", [](ir::value* r, std::optional<bool> full) { return r->to_string(full.value_or(false) ? ir::fmt_style::full : ir::fmt_style::concise); });
+
+			proto.add_method("replaceAllUsesWith", [](ir::value* r, const value& v) {
+				if (v.template isinstance<ir::value>()) {
+					return (u32) r->replace_all_uses_with(v.template as<ir::value*>());
+				} else if (v.template isinstance<ir::constant>()) {
+					return (u32) r->replace_all_uses_with(v.template as<ir::constant>());
+				} else {
+					throw std::runtime_error("Expected value or constant.");
+				}
+			});
+		}
+	};
 	template<>
 	struct type_descriptor<ir::insn> : user_class<ir::insn> {
 		inline static constexpr const char* name = "Insn";
 
 		template<typename Proto>
 		static void write(Proto& proto) {
-			proto.add_method(
-				 "toString", [](ir::insn* r, std::optional<bool> full) { return r->to_string(full.value_or(false) ? ir::fmt_style::full : ir::fmt_style::concise); });
+			using engine = typename Proto::engine_type;
+			using value	 = typename engine::value_type;
+			using array	 = typename engine::array_type;
+
+			proto.template set_super<ir::value>();
 			proto.add_property("image", [](ir::insn* r) { return r->get_image(); });
 			proto.add_property("workspace", [](ir::insn* r) { return r->get_workspace(); });
 			proto.add_property("routine", [](ir::insn* r) { return r->get_routine(); });
@@ -131,9 +223,33 @@ namespace retro::bind {
 			proto.add_property("ip", [](ir::insn* r) { return r->ip; });
 			proto.add_property("name", [](ir::insn* r) { return r->name; });
 			proto.add_property("isOprhan", [](ir::insn* r) { return r->is_orphan(); });
+
 			proto.add_property("opcode", [](ir::insn* r) { return r->op; });
-			proto.add_property("operandCount", [](ir::insn* i) { return i->operand_count; });
 			proto.add_property("templates", [](ir::insn* i) { return i->template_types; });
+
+			proto.add_property("operandCount", [](ir::insn* i) { return i->operand_count; });
+
+			proto.add_method("operand", [](ir::insn* i, u32 id) { return id < i->operand_count ? &i->opr(id) : nullptr; });
+			proto.add_method("indexOf", [](ir::insn* i, ir::operand* op) { return (u32)i->index_of(op); });
+
+			proto.add_static_method("create", [](ir::opcode op, std::array<ir::type, 2> tmp, const array& operands) {
+				size_t op_count = operands.length();
+				auto	 ins		 = ir::insn::allocate(op, tmp, op_count);
+				for (size_t i = 0; i != op_count; i++) {
+					auto& r = ins->opr(i);
+					auto	v = operands.get(i);
+
+					if (v.template isinstance<ir::value>()) {
+						r.reset(v.template as<ir::value*>());
+					} else if (v.template isinstance<ir::constant>()) {
+						r.reset(v.template as<ir::constant>());
+					} else {
+						throw std::runtime_error("Expected value or constant.");
+					}
+				}
+				ins->validate();
+				return ins;
+			});
 		}
 	};
 	template<>
@@ -142,7 +258,8 @@ namespace retro::bind {
 
 		template<typename Proto>
 		static void write(Proto& proto) {
-			proto.add_method("toString", [](ir::basic_block* r, std::optional<bool> full) { return r->to_string(full.value_or(false) ? ir::fmt_style::full : ir::fmt_style::concise); });
+
+			proto.template set_super<ir::value>();
 			proto.add_property("image", [](ir::basic_block* r) { return r->get_image(); });
 			proto.add_property("workspace", [](ir::basic_block* r) { return r->get_workspace(); });
 			proto.add_property("routine", [](ir::basic_block* r) { return r->rtn; });
@@ -155,11 +272,8 @@ namespace retro::bind {
 			proto.add_property("ip", [](ir::basic_block* r) { return r->ip; });
 			proto.add_property("endIp", [](ir::basic_block* r) { return r->end_ip; });
 			proto.add_property("name", [](ir::basic_block* r) { return r->name; });
-
-			// TODO: Phi stuff.
 			proto.add_property("terminator", [](ir::basic_block* r) { return r->terminator(); });
 			proto.add_property("phis", [](ir::basic_block* r) { return r->phis(); });
-
 			proto.make_iterable([](ir::basic_block * r) { return r->insns(); });
 		}
 	};
@@ -328,17 +442,18 @@ static void export_api(const Engine& eng, const Engine::object_type& mod) {
 
 	/*
 	TODO:
+	 Erasing&Inserting instructions
+
 	 Try to alocate less :(
-	 Insn operands
 	 Optimizers
-	 Insn::uses, Insn::replace_all_uses
 	 Section symbol reloc
-	 Creating/Erasing instructions
 	 Callbacks, interface registration
 	 Z3x
-	 Clang
 	*/
 
+	eng.export_type<ir::value>(mod);
+	eng.export_type<ir::operand>(mod);
+	eng.export_type<ir::constant>(mod);
 	eng.export_type<ir::insn>(mod);
 	eng.export_type<ir::basic_block>(mod);
 	eng.export_type<ir::routine>(mod);
@@ -403,7 +518,7 @@ NAPI_MODULE_INIT() {
 
 		bind::js::engine ctx{env};
 		bind::js::object mod{env, exports};
-		bind::js::typedecl::init(env);
+		bind::js::local_context::init(env);
 
 		export_api(ctx, mod);
 

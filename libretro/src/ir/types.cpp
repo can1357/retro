@@ -498,8 +498,7 @@ namespace retro::ir {
 			DEF_VECTOR(i8x16,  i8)
 			DEF_VECTOR(i8x8,   i8)
 			default:
-				fmt::abort("invalid constant cast");
-				break;
+				throw std::runtime_error("invalid constant cast");
 		}
 	}
 	constant::constant(type t, f32 value) : constant() { init_const(this, t, value); }

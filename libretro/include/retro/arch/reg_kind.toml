@@ -4,7 +4,7 @@ Includes = [
 Forwards = [
 	"ir::type"
 ]
-JIncludes = { "../ir/builtin_types" = ["ir::type"] }
+JIncludes = { "../ir" = ["Type"] }
 
 # General purpose registers.
 #

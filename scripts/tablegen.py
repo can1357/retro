@@ -1,7 +1,7 @@
 #!/usr/bin/env python
 # coding: utf-8
 
-# In[72]:
+# In[83]:
 
 
 #!conda install --yes toml
@@ -231,7 +231,7 @@ def parse_expr(s):
     return e
 
 
-# In[80]:
+# In[147]:
 
 
 # Constants
@@ -260,6 +260,43 @@ export namespace {0} {{
     export function reflect(i:{0}) : {1} {{ return {0}_DescTable[i]; }}
     export function toString(i:{0}) : string {{ return {0}_DescTable[i].name; }}
 }}"""
+
+JS_TYPE_MAP = {
+    "@type.i1": ("boolean", "I1"),
+    "@type.i8": ("number", "I8"),  
+    "@type.i16": ("number", "I16"),  
+    "@type.i32": ("number", "I32"),  
+    "@type.i64": ("bigint", "I64"),  
+    "@type.f32": ("number", "F32"),  
+    "@type.f64": ("number", "F64"),  
+    "@type.str": ("string", "Str"),  
+    "@type.reg": ("MReg", "MReg"),  
+    "@type.op": ("Op", "Op"),  
+    "@type.intrinsic": ("Intrinsic", "Intrinsic"),  
+    "@type.pointer": ("bigint", "Ptr"), 
+    "@type.f32x16": ("number[]", "F32x16"),  
+    "@type.f32x2": ("number[]", "F32x2"),  
+    "@type.i16x32": ("number[]", "I16x32"),  
+    "@type.i16x4": ("number[]", "I16x4"),  
+    "@type.f32x4": ("number[]", "F32x4"),  
+    "@type.f32x8": ("number[]", "F32x8"),  
+    "@type.f64x2": ("number[]", "F64x2"),  
+    "@type.f64x4": ("number[]", "F64x4"),  
+    "@type.f64x8": ("number[]", "F64x8"),  
+    "@type.i16x16": ("number[]", "I16x16"), 
+    "@type.i16x8": ("number[]", "I16x8"),  
+    "@type.i32x16": ("number[]", "I32x16"),  
+    "@type.i32x2": ("number[]", "I32x2"),  
+    "@type.i32x4": ("number[]", "I32x4"),  
+    "@type.i32x8": ("number[]", "I32x8"),  
+    "@type.i64x2": ("bigint[]", "I64x2"), 
+    "@type.i64x4": ("bigint[]", "I64x4"),  
+    "@type.i64x8": ("bigint[]", "I64x8"),  
+    "@type.i8x16": ("number[]", "I8x16"),  
+    "@type.i8x32": ("number[]", "I8x32"),  
+    "@type.i8x64": ("number[]", "I8x64"),  
+    "@type.i8x8": ("number[]", "I8x8"),
+}
 
 # Bit helpers
 #
@@ -325,7 +362,7 @@ def multiline_eval(expr, context, local_list):
     for eval_expr in eval_exprs:
         exec(compile(ast.Expression((eval_expr)), 'file', 'eval'), context, local_list)
 
-# Helper for writing C++ functions.
+# Helper for writing C++/JS functions.
 #
 from copy import deepcopy
 class CxxFunction:
@@ -378,7 +415,44 @@ class CxxFunction:
 		result += ";\n".join(self.stmts + self.post_stmts)
 		result += ";\n}"
 		return result
-        
+class JFunction:
+	def __init__(self):
+		self.args =        []
+		self.stmts =       []
+		self.post_args =   []
+		self.post_stmts =  []
+		self.return_type = "any"
+		self.qualifiers = "function"
+
+	def add_argument(self, type, name):
+		if type == None:
+			type = "any"
+		self.args.append(name + ": " + type)
+		return type
+	def add_argument_pack(self, type, name):
+		if type == None:
+			type = "any"
+		self.post_args.append("..."+name+": "+type+"[]")
+		return name
+	def clone(self):
+		return deepcopy(self)
+	def write(self, name):
+		result = ""
+
+		# Create the decl.
+		#
+		result += self.qualifiers + " " + name + "("
+		if len(self.args) != 0 or len(self.post_args) != 0:
+			args = self.args + self.post_args
+			result += ", ".join(args)
+		result += ")"
+		if self.return_type != "any":
+			result += ": " + self.return_type
+		result += " {\n\t"
+		result += ";\n\t".join(self.stmts + self.post_stmts)
+		result += ";\n}"
+		return result
+
 # C++ Types.
 #
 class CxxType:
@@ -704,6 +778,8 @@ class Decl:
         self.properties = {}
         # Parent
         self.parent =     parent
+        # JS suffix
+        self.jsuffix =    ""
         
         if data != None:
             for k, v in data.items():
@@ -713,7 +789,7 @@ class Decl:
                     
         if "Script" in self.properties:
             script = self.properties["Script"]
-            multiline_eval(script, globals(), {"parent": parent, "name": name, "data": data})
+            multiline_eval(script, globals(), {"parent": parent, "name": name, "data": data, "invokingDecl":self})
                 
     # Writer functions.
     #
@@ -722,7 +798,7 @@ class Decl:
     def post_write(self):
         return ""
     def post_jwrite(self):
-        return ""
+        return self.jsuffix
     def expand(self):
         pass
     
@@ -887,7 +963,7 @@ class Enum(Decl):
         
         # Start the declaration.
         #
-        out = JS_ARR_DCL_FMT.format(to_jname(self.desc.name), to_jname(self.name))
+        out = self.jsuffix + JS_ARR_DCL_FMT.format(to_jname(self.desc.name), to_jname(self.name))
         out += "\tnew "+to_jname(self.desc.name)+"(),\n"
         idx = 0
         for k in self.values:
@@ -1031,6 +1107,7 @@ class Namespace(Decl):
         out += "\n\n" + make_box("Tables")
         for k in self.decls:
             out += self.decls[k].post_jwrite()
+        out += self.jsuffix
         return out
     
     # Creates a new declaration.
@@ -1245,7 +1322,7 @@ def generate_all(root):
             with open(outjs, "w") as outjsf:
                 result = ""
                 for path, types in ns.properties.get("JIncludes", {}).items():
-                    result += "import {{ {0} }} from \"{1}\";\n".format(", ".join([to_jname(t) for t in types]), path)        
+                    result += "import {{ {0} }} from \"{1}\";\n".format(", ".join(types), path)        
                 result += ns.jwrite()
                 
                 outjsf.write(result.strip('\n') + "\n")
@@ -1277,6 +1354,12 @@ def main():
             path = sys.argv[1]
         generate_all(path)
 main()
+
+
+# In[ ]:
+
+
+
 
 
 # In[ ]:

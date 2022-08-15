@@ -2,7 +2,7 @@ declare module "*-Debug" {
 	import { ImageKind } from "../lib/core/image_kind";
 	import { RegKind } from "../lib/arch/reg_kind";
 	import { Type } from "../lib/ir/builtin_types";
-	import { Opcode } from "../lib/ir";
+	import { Opcode, Intrinsic, Op } from "../lib/ir";
 
 	// Generic types used for description of native equivalents.
 	//
@@ -89,7 +89,115 @@ declare module "*-Debug" {
 
 	// IR types.
 	//
-	declare class Insn extends RefCounted {
+	declare class Const {
+		private constructor();
+
+		get type(): Type;
+		get byteLength(): bigint;
+		get buffer(): Buffer;
+
+		equals(o: Const): boolean;
+		toString(): string;
+
+		bitcast(t: Type): Const;
+		castZx(t: Type): Const;
+		castSx(t: Type): Const;
+		apply(op: Op, rhs: ?Const = null): Const;
+
+		get i64(): bigint;
+		get u64(): bigint;
+
+		asI1(): boolean;
+		static I1(value: boolean): Const;
+		asI8(): number;
+		static I8(value: number): Const;
+		asI16(): number;
+		static I16(value: number): Const;
+		asI32(): number;
+		static I32(value: number): Const;
+		asI64(): bigint;
+		static I64(value: bigint): Const;
+		asF32(): number;
+		static F32(value: number): Const;
+		asF64(): number;
+		static F64(value: number): Const;
+		asStr(): string;
+		static Str(value: string): Const;
+		asMReg(): MReg;
+		static MReg(value: MReg): Const;
+		asOp(): Op;
+		static Op(value: Op): Const;
+		asIntrinsic(): Intrinsic;
+		static Intrinsic(value: Intrinsic): Const;
+		asPtr(): bigint;
+		static Ptr(value: bigint): Const;
+		asF32x16(): number[];
+		static F32x16(value: number[]): Const;
+		asF32x2(): number[];
+		static F32x2(value: number[]): Const;
+		asI16x32(): number[];
+		static I16x32(value: number[]): Const;
+		asI16x4(): number[];
+		static I16x4(value: number[]): Const;
+		asF32x4(): number[];
+		static F32x4(value: number[]): Const;
+		asF32x8(): number[];
+		static F32x8(value: number[]): Const;
+		asF64x2(): number[];
+		static F64x2(value: number[]): Const;
+		asF64x4(): number[];
+		static F64x4(value: number[]): Const;
+		asF64x8(): number[];
+		static F64x8(value: number[]): Const;
+		asI16x16(): number[];
+		static I16x16(value: number[]): Const;
+		asI16x8(): number[];
+		static I16x8(value: number[]): Const;
+		asI32x16(): number[];
+		static I32x16(value: number[]): Const;
+		asI32x2(): number[];
+		static I32x2(value: number[]): Const;
+		asI32x4(): number[];
+		static I32x4(value: number[]): Const;
+		asI32x8(): number[];
+		static I32x8(value: number[]): Const;
+		asI64x2(): bigint[];
+		static I64x2(value: bigint[]): Const;
+		asI64x4(): bigint[];
+		static I64x4(value: bigint[]): Const;
+		asI64x8(): bigint[];
+		static I64x8(value: bigint[]): Const;
+		asI8x16(): number[];
+		static I8x16(value: number[]): Const;
+		asI8x32(): number[];
+		static I8x32(value: number[]): Const;
+		asI8x64(): number[];
+		static I8x64(value: number[]): Const;
+		asI8x8(): number[];
+		static I8x8(value: number[]): Const;
+	}
+	declare class Operand extends RefCounted {
+		get type(): Type;
+		toString(full: boolean = false);
+		equals(o: Operand): boolean;
+
+		get Const(): Const;
+		get value(): Value;
+
+		get isConst(): boolean;
+		get isValue(): boolean;
+		get user(): Value;
+
+		set(o: Const | Value);
+	}
+	declare class Value extends RefCounted {
+		get type(): Type;
+		toString(full: boolean = false);
+
+		get uses(): Iterable<Operand>;
+		replaceAllUsesWith(o: Const | Value): number;
+	}
+	declare class Insn extends Value {
 		//		get method(): ?Method;
 		get routine(): ?Routine;
 		get image(): ?Image;
@@ -101,16 +209,21 @@ declare module "*-Debug" {
 		get ip(): bigint;
 
 		get opcode(): Opcode;
+
+		operand(i: number): ?Operand;
 		get operandCount(): number;
 
 		get templates(): Type[];
 
 		get isOprhan(): boolean;
 
+		indexOf(op: Operand): number;
+
 		validate();
-		toString(full: boolean = false);
+
+		static create(o: Opcode, tmp: Type[], ...operands: any[]): Insn;
 	}
-	declare class BasicBlock extends RefCounted {
+	declare class BasicBlock extends Value {
 		//		get method(): ?Method;
 		get routine(): ?Routine;
 		get image(): ?Image;
@@ -124,10 +237,9 @@ declare module "*-Debug" {
 		get successors(): BasicBlock[];
 		get predecessors(): BasicBlock[];
 		get terminator(): ?Insn;
-		get phis(): Iterator<Insn>;
+		get phis(): Iterable<Insn>;
 
 		validate();
-		toString(full: boolean = false);
 		[Symbol.iterator](): Iterator<Insn>;
 	}
 	declare class Routine extends RefCounted {

@@ -1,4 +1,4 @@
-import { Type } from "../ir/builtin_types";
+import { Type } from "../ir";
 
 // prettier-ignore
 export enum RegKind {
