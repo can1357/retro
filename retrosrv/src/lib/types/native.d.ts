@@ -204,17 +204,15 @@ declare module "*-Debug" {
 		get workspace(): ?Workspace;
 		get block(): ?BasicBlock;
 
-		get arch(): ?Arch;
-		get name(): number;
-		get ip(): bigint;
-
-		get opcode(): Opcode;
+		arch: ?Arch;
+		name: number;
+		ip: bigint;
+		opcode: Opcode;
+		templates: Type[]; /*[2]*/
 
 		operand(i: number): ?Operand;
+
 		get operandCount(): number;
-
-		get templates(): Type[];
-
 		get isOprhan(): boolean;
 
 		indexOf(op: Operand): number;
@@ -229,10 +227,10 @@ declare module "*-Debug" {
 		get image(): ?Image;
 		get workspace(): ?Workspace;
 
-		get arch(): ?Arch;
-		get name(): number;
-		get ip(): bigint;
-		get endIp(): bigint;
+		arch: ?Arch;
+		name: number;
+		ip: bigint;
+		endIp: bigint;
 
 		get successors(): BasicBlock[];
 		get predecessors(): BasicBlock[];
@@ -247,7 +245,7 @@ declare module "*-Debug" {
 		get image(): ?Image;
 		get workspace(): ?Workspace;
 
-		get ip(): bigint;
+		ip: bigint;
 
 		validate();
 		renameBlocks();

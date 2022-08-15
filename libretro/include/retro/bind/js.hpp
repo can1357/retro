@@ -974,6 +974,14 @@ namespace retro::bind::js {
 			desc->setter	  = cbs;
 			desc->attributes = napi_property_attributes(napi_enumerable | napi_configurable | napi_writable);
 		}
+		template<auto V>
+		void add_field_ro(const char* name) {
+			return add_property(name, getter<V>);
+		}
+		template<auto V>
+		void add_field_rw(const char* name) {
+			return add_property(name, getter<V>, setter<V>);
+		}
 
 		template<typename T>
 		typedecl* write() {

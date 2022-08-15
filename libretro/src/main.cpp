@@ -219,15 +219,13 @@ namespace retro::bind {
 			proto.add_property("block", [](ir::insn* r) { return r->bb; });
 
 			proto.add_method("validate", [](ir::insn* r) { r->validate().raise(); });
-			proto.add_property("arch", [](ir::insn* r) { return r->arch; });
-			proto.add_property("ip", [](ir::insn* r) { return r->ip; });
-			proto.add_property("name", [](ir::insn* r) { return r->name; });
 			proto.add_property("isOprhan", [](ir::insn* r) { return r->is_orphan(); });
 
-			proto.add_property("opcode", [](ir::insn* r) { return r->op; });
-			proto.add_property("templates", [](ir::insn* i) { return i->template_types; });
-
-			proto.add_property("operandCount", [](ir::insn* i) { return i->operand_count; });
+			proto.template add_field_rw<&ir::insn::arch>("arch");
+			proto.template add_field_rw<&ir::insn::ip>("ip");
+			proto.template add_field_rw<&ir::insn::name>("name");
+			proto.template add_field_rw<&ir::insn::op>("opcode");
+			proto.template add_field_rw<&ir::insn::template_types>("templates");
 
 			proto.add_method("operand", [](ir::insn* i, u32 id) { return id < i->operand_count ? &i->opr(id) : nullptr; });
 			proto.add_method("indexOf", [](ir::insn* i, ir::operand* op) { return (u32)i->index_of(op); });
@@ -268,10 +266,12 @@ namespace retro::bind {
 			proto.add_method("validate", [](ir::basic_block* r) { r->validate().raise(); });
 			proto.add_property("successors", [](ir::basic_block* r) { return r->successors; });
 			proto.add_property("predecessors", [](ir::basic_block* r) { return r->predecessors; });
-			proto.add_property("arch", [](ir::basic_block* r) { return r->arch; });
-			proto.add_property("ip", [](ir::basic_block* r) { return r->ip; });
-			proto.add_property("endIp", [](ir::basic_block* r) { return r->end_ip; });
-			proto.add_property("name", [](ir::basic_block* r) { return r->name; });
+
+			proto.template add_field_rw<&ir::basic_block::arch>("arch");
+			proto.template add_field_rw<&ir::basic_block::ip>("ip");
+			proto.template add_field_rw<&ir::basic_block::end_ip>("endIp");
+			proto.template add_field_rw<&ir::basic_block::name>("name");
+
 			proto.add_property("terminator", [](ir::basic_block* r) { return r->terminator(); });
 			proto.add_property("phis", [](ir::basic_block* r) { return r->phis(); });
 			proto.make_iterable([](ir::basic_block * r) { return r->insns(); });
@@ -294,7 +294,7 @@ namespace retro::bind {
 
 			// TODO: method
 
-			proto.add_property("ip", [](ir::routine* r) { return r->ip; });
+			proto.template add_field_rw<&ir::routine::ip>("ip");
 			proto.add_property("entryPoint", [](ir::routine* r) { return r->entry_point.get(); });
 
 			proto.make_iterable([](ir::routine * r) -> auto& { return r->blocks; });

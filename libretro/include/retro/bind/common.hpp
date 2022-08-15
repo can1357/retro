@@ -211,6 +211,30 @@ namespace retro::bind {
 		value from(const Engine& context, const F& val) const { return function::make(context, "", val); }
 	};
 
+	// Getter setter helpers.
+	//
+	namespace detail {
+
+		template<typename T, auto V>
+		struct setter;
+		template<typename T, auto V>
+		struct getter;
+
+		template<typename C, typename M, auto V>
+		struct getter<M C::*, V> {
+			static constexpr auto value = [](C* cl) { return cl->*V; };
+		};
+		template<typename C, typename M, auto V>
+		struct setter<M C::*, V> {
+			static constexpr auto value = [](C* cl, M m) { cl->*V = std::move(m); };
+		};
+	};
+	template<auto V>
+	static constexpr auto getter = detail::getter<decltype(V), V>::value;
+	template<auto V>
+	static constexpr auto setter = detail::setter<decltype(V), V>::value;
+
+
 	// Engine required conversions:
 	//  std::nullopt_t
 	//  bool
@@ -270,6 +294,8 @@ namespace retro::bind {
 	//             void  add_static<T>(const char* name, T)
 	//             void  add_property<T>(const char* name, T getter)
 	//             void  add_property<Tg, Ts>(const char* name, Tg getter, Ts setter)
+	//             void  add_field_ro<V>(const char* name)
+	//             void  add_field_rw<V>(const char* name)
 	//
 	// Array:Value:
 	//   typename engine_type
