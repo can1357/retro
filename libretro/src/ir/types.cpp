@@ -176,8 +176,9 @@ namespace retro::ir {
 			switch (o) {
 				RC_VISIT_IR_OP(OPERATOR_VISITOR)
 				default:
-					assume_unreachable();
+					break;
 			}
+			throw std::runtime_error("Invalid operator.");
 		}
 	};
 
@@ -220,15 +221,17 @@ namespace retro::ir {
 			switch (o) {
 				RC_VISIT_IR_OP(VEC_OPERATOR_VISITOR)
 				default:
-					assume_unreachable();
+					break;
 			}
+			throw std::runtime_error("Invalid operator application.");
 		}
 	};
 
 	// Application of an operator over two constants, returns "none" on failure.
 	//
 	constant constant::apply(op o, const constant& rhs) const {
-		RC_ASSERT(rhs.get_type() == get_type());
+		if (rhs.get_type() != get_type())
+			throw std::runtime_error("Applying operator between different types.");
 
 		// Visit the type and apply.
 		//
@@ -237,14 +240,15 @@ namespace retro::ir {
 		if constexpr (BuiltinType<B> && type::A != type::str) {          \
 			return operator_visitor<B>::apply(o, get<B>(), rhs.get<B>()); \
 		} else {                                                         \
-			assume_unreachable();                                         \
+			break;                                         \
 		}                                                                \
 	}
 		switch (get_type()) {
 			RC_VISIT_IR_TYPE(APPLY_IF)
 			default:
-				assume_unreachable();
+				break;
 		}
+		throw std::runtime_error("Invalid operator application.");
 	}
 
 
@@ -328,19 +332,20 @@ namespace retro::ir {
 	RC_INLINE static decltype(auto) visit_valid(F&& fn, type a) {
 		// Visit the type and apply.
 		//
-#define VISIT_IF(A, B)                                                 \
-	case type::A: {                                                     \
-		if constexpr (BuiltinType<B> && type::A != type::str) {          \
-			return fn(type_tag<B>{});                                     \
-		} else {                                                         \
-			assume_unreachable();                                         \
-		}                                                                \
+#define VISIT_IF(A, B)                                        \
+	case type::A: {                                            \
+		if constexpr (BuiltinType<B> && type::A != type::str) { \
+			return fn(type_tag<B>{});                            \
+		} else {                                                \
+			break;                                               \
+		}                                                       \
 	}
 		switch (a) {
 			RC_VISIT_IR_TYPE(VISIT_IF)
 			default:
-				assume_unreachable();
+				break;
 		}
+		throw std::runtime_error("Invalid constant type.");
 	}
 
 

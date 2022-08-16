@@ -1,13 +1,33 @@
+type MapFn<T, Ty> = (v: T) => Ty;
+type PredFn<T> = (v: T) => boolean;
+type EnumFn<T> = (v: T) => void;
+declare class View<T> implements Iterable<T> {
+	[Symbol.iterator](): Iterator<T>;
+	toArray(): Array<T>;
+	toString();
+	forEach(fn: EnumFn<T>);
+	find(fn: PredFn<T>): T | null;
+	indexOf(val: T): number;
+	all(fn: PredFn<T>): boolean;
+	any(fn: PredFn<T>): boolean;
+	at(i: number): T | null;
+	filter(fn: PredFn<T>): View<T>;
+	map<Ty>(fn: MapFn<T, Ty>): View<Ty>;
+	skip(i: number): View<T>;
+	take(i: number): View<T>;
+	slice(offset: number, count: number): View<T>;
+}
+
 declare module "*-Debug" {
-	import { ImageKind } from "../lib/core/image_kind";
-	import { RegKind } from "../lib/arch/reg_kind";
-	import { Type } from "../lib/ir/builtin_types";
-	import { Opcode, Intrinsic, Op } from "../lib/ir";
+	import { ImageKind } from "../core/image_kind";
+	import { RegKind } from "../arch/reg_kind";
+	import { Type } from "../ir/builtin_types";
+	import { Opcode, Intrinsic, Op } from "../ir/opcodes";
 
 	// Generic types used for description of native equivalents.
 	//
 	declare class RefCounted {
-		private constructor();
+		protected constructor();
 
 		get refcount(): number;
 		get unique(): boolean;
@@ -15,19 +35,11 @@ declare module "*-Debug" {
 
 		equals(other: any): boolean;
 	}
-	declare class IFace<T> {
-		private constructor();
-
-		get name(): string;
-		static lookup(name: string): ?T;
-
-		equals(other: any): boolean;
-	}
 
 	// Machine operands.
 	//
 	declare class MImm {
-		private constructor();
+		protected constructor();
 
 		get width(): number;
 		get isSigned(): boolean;
@@ -41,7 +53,7 @@ declare module "*-Debug" {
 		toString(a: ?Arch = null, ip: ?bigint = null): string;
 	}
 	declare class MReg {
-		private constructor();
+		protected constructor();
 
 		get id(): number;
 		get kind(): RegKind;
@@ -52,7 +64,7 @@ declare module "*-Debug" {
 		toString(a: ?Arch = null, ip: ?bigint = null): string;
 	}
 	declare class MMem {
-		private constructor();
+		protected constructor();
 
 		get width(): number;
 		get segVal(): number;
@@ -71,7 +83,7 @@ declare module "*-Debug" {
 	// Machine instruction type.
 	//
 	declare class MInsn {
-		private constructor();
+		protected constructor();
 
 		get name(): string;
 		get arch(): ?Arch;
@@ -90,7 +102,7 @@ declare module "*-Debug" {
 	// IR types.
 	//
 	declare class Const {
-		private constructor();
+		protected constructor();
 
 		get type(): Type;
 		get byteLength(): bigint;
@@ -181,7 +193,7 @@ declare module "*-Debug" {
 		toString(full: boolean = false);
 		equals(o: Operand): boolean;
 
-		get Const(): Const;
+		get constant(): Const;
 		get value(): Value;
 
 		get isConst(): boolean;
@@ -210,10 +222,16 @@ declare module "*-Debug" {
 		opcode: Opcode;
 		templates: Type[]; /*[2]*/
 
-		operand(i: number): ?Operand;
-
+		get operands(): View<Operand>;
+		opr(i: number): Operand;
 		get operandCount(): number;
 		get isOprhan(): boolean;
+
+		erase();
+		push(at: BasicBlock): Insn;
+		pushFront(at: BasicBlock): Insn;
+		insert(at: Insn): Insn;
+		insertAfter(at: Insn): Insn;
 
 		indexOf(op: Operand): number;
 
@@ -237,6 +255,12 @@ declare module "*-Debug" {
 		get terminator(): ?Insn;
 		get phis(): Iterable<Insn>;
 
+		push(v: Insn): Insn;
+		pushFront(v: Insn): Insn;
+
+		addJump(to: BasicBlock);
+		delJump(to: BasicBlock);
+
 		validate();
 		[Symbol.iterator](): Iterator<Insn>;
 	}
@@ -253,13 +277,20 @@ declare module "*-Debug" {
 		topologicalSort();
 		toString(full: boolean = false);
 
+		addBlock(): BasicBlock;
+		delBlock(bb: BasicBlock);
+
 		get entryPoint(): ?BasicBlock;
 		[Symbol.iterator](): Iterator<BasicBlock>;
+
+		static create(): Routine;
 	}
 
 	// Arch interface.
 	//
-	declare class Arch extends IFace<Arch> {
+	declare class Arch {
+		protected constructor();
+
 		disasm(data: Buffer): ?MInsn;
 		lift(bb: BasicBlock, i: MInsn, ip: bigint);
 		nameRegister(r: MReg): string;
@@ -271,13 +302,23 @@ declare module "*-Debug" {
 		get effectivePtrWidth(): number;
 		get ptrType(): Type;
 		get stackRegister(): MReg;
+
+		get name(): string;
+		static lookup(name: string): ?Arch;
+		equals(other: any): boolean;
 	}
 
 	// Loader interface.
 	//
-	declare class Loader extends IFace<Loader> {
+	declare class Loader {
+		protected constructor();
+
 		match(img: Buffer): boolean;
 		get extensions(): string[];
+
+		get name(): string;
+		static lookup(name: string): ?Loader;
+		equals(other: any): boolean;
 	}
 
 	// Image instance.
@@ -304,15 +345,15 @@ declare module "*-Debug" {
 		static create(): Workspace;
 		get numImages(): number;
 
-		async loadImage(path: string, ldr: ?Loader = null): Image;
-		async loadImageInMemory(data: Buffer, ldr: ?Loader = null): Image;
+		async loadImage(path: string, ldr: ?Loader = null): Promise<Image>;
+		async loadImageInMemory(data: Buffer, ldr: ?Loader = null): Promise<Image>;
 	}
 
 	// LLVM.
 	//
 	declare namespace Clang {
 		function locate(): ?string;
-		async function compile(source: string, arguments?: string = null): Buffer;
-		async function format(source: string, style: ?string = null): string;
+		async function compile(source: string, arguments?: string = null): Promise<Buffer>;
+		async function format(source: string, style: ?string = null): Promise<string>;
 	}
 }

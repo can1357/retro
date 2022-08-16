@@ -270,7 +270,7 @@ namespace retro::ir {
 
 		// Ensure no references left on destruction.
 		//
-		~value() { RC_ASSERTS("Destroying value with lingering uses.", !uses()); }
+		~value();
 	};
 
 	// Forwards.

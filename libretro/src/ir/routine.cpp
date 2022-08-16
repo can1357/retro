@@ -18,14 +18,15 @@ namespace retro::ir {
 		}
 		return blocks.emplace_back(std::move(blk)).get();
 	}
-	auto routine::del_block(basic_block* b) {
+	void routine::del_block(basic_block* b) {
 		dirty_cfg();
 		RC_ASSERT(b->predecessors.empty());
 		RC_ASSERT(b->successors.empty());
 		for (auto it = blocks.begin();; ++it) {
 			RC_ASSERT(it != blocks.end());
 			if (it->get() == b) {
-				return blocks.erase(it);
+				blocks.erase(it);
+				return;
 			}
 		}
 		RC_UNREACHABLE();

@@ -772,22 +772,20 @@ namespace retro::bind::js {
 		return result;
 	}
 	template<typename T>
-	static value make_ref(const engine& context, const ref<T>& ptr) {
+	static value make_ref(const engine& context, ref<T> ptr) {
 		if (!ptr)
 			return value::make(context, std::nullopt);
 		value result = make_ptr(context, ptr.get());
-		context.assert(napi_add_finalizer(context, result, ptr.get(), ref_finalizer, nullptr, nullptr));
-		rc_header::from(ptr.get())->inc_ref_unsafe();
+		context.assert(napi_add_finalizer(context, result, ptr.release(), ref_finalizer, nullptr, nullptr));
 		RC_ASSERT(napi_type_tag_object(context, result, &strongptr_tag) == napi_ok);
 		return result;
 	}
 	template<typename T>
-	static value make_weak(const engine& context, const weak<T>& ptr) {
+	static value make_weak(const engine& context, weak<T> ptr) {
 		if (!ptr)
 			return value::make(context, std::nullopt);
 		value result = make_ptr(context, ptr.get());
-		context.assert(napi_add_finalizer(context, result, ptr.get(), weak_finalizer, nullptr, nullptr));
-		rc_header::from(ptr.get())->inc_ref_weak();
+		context.assert(napi_add_finalizer(context, result, ptr.release(), weak_finalizer, nullptr, nullptr));
 		RC_ASSERT(napi_type_tag_object(context, result, &weakptr_tag) == napi_ok);
 		return result;
 	}
@@ -1280,7 +1278,13 @@ namespace retro::bind {
 	template<UserClass T>
 	struct converter<js::engine, T*> {
 		bool		 is(const js::value& val) const { return val.type() == napi_object; }
-		js::value from(const js::engine& context, T* val) const { return js::make_ptr(context, val); }
+		js::value from(const js::engine& context, T* val) const {
+			if constexpr (std::is_base_of_v<force_rc_t, type_descriptor<T>>) {
+				return js::make_ref(context, ref<T>(val));
+			} else {
+				return js::make_ptr(context, val);
+			}
+		}
 		T*			 as(const js::value& val, bool) const { return js::get_ptr<T>(val); }
 	};
 	template<UserClass T>

@@ -33,6 +33,7 @@ namespace retro::bind {
 	struct user_class<T> {
 		inline static const u32 api_id = (T::get_api_id_mut() = next_api_type_id++);
 	};
+	struct force_rc_t {};
 	template<typename T>
 	concept UserClass = (!std::is_base_of_v<std::nullopt_t, type_descriptor<T>>);
 

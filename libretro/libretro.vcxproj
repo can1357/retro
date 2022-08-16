@@ -146,6 +146,7 @@
     <ClCompile Include="src\ir\insn.cpp" />
     <ClCompile Include="src\ir\routine.cpp" />
     <ClCompile Include="src\ir\types.cpp" />
+    <ClCompile Include="src\ir\value.cpp" />
     <ClCompile Include="src\ir\z3x.cpp" />
     <ClCompile Include="src\ldr\pe.cpp" />
     <ClCompile Include="src\llvm\clang.cpp" />

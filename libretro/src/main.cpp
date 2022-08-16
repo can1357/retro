@@ -90,7 +90,7 @@ namespace retro::bind {
 			proto.add_property("effectiveWidth", [](arch::minsn* i) { return i->effective_width; });
 			proto.add_property("length", [](arch::minsn* i) { return i->length; });
 			proto.add_property("operandCount", [](arch::minsn* i) { return i->operand_count; });
-			proto.add_property("isSupervisor", [](arch::minsn* i) { return i->is_supervisor; });
+			proto.add_property("isSupervisor", [](arch::minsn* i) { return (bool)i->is_supervisor; });
 
 			proto.add_method("getOperand", [](const engine& e, arch::minsn* ins, u32 i) {
 				using value = typename engine::value_type;
@@ -202,7 +202,7 @@ namespace retro::bind {
 		}
 	};
 	template<>
-	struct type_descriptor<ir::insn> : user_class<ir::insn> {
+	struct type_descriptor<ir::insn> : user_class<ir::insn>, force_rc_t {
 		inline static constexpr const char* name = "Insn";
 
 		template<typename Proto>
@@ -227,8 +227,48 @@ namespace retro::bind {
 			proto.template add_field_rw<&ir::insn::op>("opcode");
 			proto.template add_field_rw<&ir::insn::template_types>("templates");
 
-			proto.add_method("operand", [](ir::insn* i, u32 id) { return id < i->operand_count ? &i->opr(id) : nullptr; });
+			proto.add_property("operandCount", [](ir::insn* i) { return i->operand_count; });
+			proto.add_method("opr", [](ir::insn* i, u32 id) {
+				if (id >= i->operand_count)
+					throw std::runtime_error("Operand out of boundaries.");
+				return &i->opr(id);
+			});
 			proto.add_method("indexOf", [](ir::insn* i, ir::operand* op) { return (u32)i->index_of(op); });
+
+			proto.add_method("erase", [](ir::insn* i) {
+				if (i->is_orphan())
+					throw std::runtime_error("Removing already orphan instruction.");
+				i->erase();
+			});
+			proto.add_method("pushFront", [](ir::insn* i, ir::basic_block* at) {
+				if (!i->is_orphan())
+					throw std::runtime_error("Inserting non-orphan instruction.");
+				at->push_front(i);
+				return i;
+			});
+			proto.add_method("push", [](ir::insn* i, ir::basic_block* at) {
+				if (!i->is_orphan())
+					throw std::runtime_error("Inserting non-orphan instruction.");
+				at->push_back(i);
+				return i;
+			});
+			proto.add_method("insert", [](ir::insn* i, ir::insn* at) {
+				if (!i->is_orphan())
+					throw std::runtime_error("Inserting non-orphan instruction.");
+				if (at->is_orphan())
+					throw std::runtime_error("Inserting before orphan instruction.");
+				at->bb->insert(at, i);
+				return i;
+			});
+			proto.add_method("insertAfter", [](ir::insn* i, ir::insn* at) {
+				if (!i->is_orphan())
+					throw std::runtime_error("Inserting non-orphan instruction.");
+				if (at->is_orphan())
+					throw std::runtime_error("Inserting before orphan instruction.");
+				at->bb->insert_after(at, i);
+				return i;
+			});
+
 
 			proto.add_static_method("create", [](ir::opcode op, std::array<ir::type, 2> tmp, const array& operands) {
 				size_t op_count = operands.length();
@@ -251,8 +291,8 @@ namespace retro::bind {
 		}
 	};
 	template<>
-	struct type_descriptor<ir::basic_block> : user_class<ir::basic_block> {
-		inline static constexpr const char* name = "BasicBlock";
+	struct type_descriptor<ir::basic_block> : user_class<ir::basic_block>, force_rc_t {
+		inline static constexpr const char* name		= "BasicBlock";
 
 		template<typename Proto>
 		static void write(Proto& proto) {
@@ -272,14 +312,32 @@ namespace retro::bind {
 			proto.template add_field_rw<&ir::basic_block::end_ip>("endIp");
 			proto.template add_field_rw<&ir::basic_block::name>("name");
 
+			proto.add_method("pushFront", [](ir::basic_block* b, ir::insn* v) {
+				if (!v->is_orphan())
+					throw std::runtime_error("Inserting non-orphan instruction.");
+				b->push_front(v);
+				return v;
+			});
+			proto.add_method("push", [](ir::basic_block* b, ir::insn* v) {
+				if (!v->is_orphan())
+					throw std::runtime_error("Inserting non-orphan instruction.");
+				b->push_back(v);
+				return v;
+			});
+
+			proto.add_method("addJump", [](ir::basic_block* s, ir::basic_block* d) { s->add_jump(d); });
+			proto.add_method("delJump", [](ir::basic_block* s, ir::basic_block* d) { s->del_jump(d); });
+
+			// TODO: Split
+
 			proto.add_property("terminator", [](ir::basic_block* r) { return r->terminator(); });
 			proto.add_property("phis", [](ir::basic_block* r) { return r->phis(); });
 			proto.make_iterable([](ir::basic_block * r) { return r->insns(); });
 		}
 	};
 	template<>
-	struct type_descriptor<ir::routine> : user_class<ir::routine> {
-		inline static constexpr const char* name = "Routine";
+	struct type_descriptor<ir::routine> : user_class<ir::routine>, force_rc_t {
+		inline static constexpr const char* name		= "Routine";
 
 		template<typename Proto>
 		static void write(Proto& proto) {
@@ -298,6 +356,15 @@ namespace retro::bind {
 			proto.add_property("entryPoint", [](ir::routine* r) { return r->entry_point.get(); });
 
 			proto.make_iterable([](ir::routine * r) -> auto& { return r->blocks; });
+
+			proto.add_method("addBlock", [](ir::routine* r) { return weak<ir::basic_block>(r->add_block()); });
+			proto.add_method("delBlock", [](ir::routine* r, ir::basic_block* b) {
+				if (b->rtn != r)
+					throw std::runtime_error("Block does not belong to this routine.");
+				r->del_block(b);
+			});
+
+			proto.add_static_method("create", []() { return make_rc<ir::routine>(); });
 		}
 	};
 

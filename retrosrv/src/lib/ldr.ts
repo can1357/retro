@@ -1,2 +1,1 @@
-import { Loader } from "./native";
-export const Interface = Loader;
+export { Loader as Interface } from "./native";

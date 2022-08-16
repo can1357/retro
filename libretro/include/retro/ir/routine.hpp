@@ -51,7 +51,7 @@ namespace retro::ir {
 		// Creates or removes a block.
 		//
 		basic_block* add_block();
-		auto del_block(basic_block* b);
+		void del_block(basic_block* b);
 
 		// Topologically sorts the basic block list.
 		//
