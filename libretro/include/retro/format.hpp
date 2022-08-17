@@ -276,6 +276,7 @@ namespace retro::fmt {
 		std::lock_guard _g{con_mtx};
 		std::string str = concat<T, Tx...>(first, rest..., "\n" RC_RESET);
 		fwrite(str.data(), 1, str.size(), stdout);
+		fflush(stdout);
 	}
 	static void printf(const char* fmt, ...) {
 		std::lock_guard _g{con_mtx};
@@ -283,6 +284,7 @@ namespace retro::fmt {
 		va_start(a, fmt);
 		vfprintf(stdout, fmt, a);
 		va_end(a);
+		fflush(stdout);
 	}
 
 	// Asserts and errors.

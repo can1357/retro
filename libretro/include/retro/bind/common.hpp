@@ -200,6 +200,21 @@ namespace retro::bind {
 				return std::string{underlying{}.as(val, false)};
 		}
 	};
+	// - const char*
+	template<typename Engine>
+	struct converter<Engine, const char*> {
+		using value		  = typename Engine::value_type;
+		using underlying = converter<Engine, std::string_view>;
+
+		bool			is(const value& val) const { return underlying{}.is(val); }
+		value			from(const Engine& context, const char* val) const { return underlying{}.from(context, val); }
+		std::string as(const value& val, bool coerce) const {
+			if (coerce)
+				return val.to_string();
+			else
+				return std::string{underlying{}.as(val, false)};
+		}
+	};
 	// TODO: std::pair
 	// TODO: std::tuple
 	// TODO: std::variant
@@ -255,6 +270,7 @@ namespace retro::bind {
 	//   typename prototype_type
 	//   typename reference_type
 	//   typename typedecl_type
+	//   typename sync_token_type
 	//   typename array_type	  | Constructible from value_type
 	//   typename object_type	  |
 	//   typename function_type  |
@@ -283,6 +299,16 @@ namespace retro::bind {
 	// static  typedecl* fetch(engine, u32 id)
 	// static  typedecl* fetch<T>(engine)
 	//
+	// SyncToken:
+	//   typename engine_type
+	//            engine context()
+	//                   ctor(engine)
+	//					  Ret call(F&&)
+	//					  Ret operator()(F&&)
+	//					 void queue(F&&)
+	//              void reset()
+	//                   Move + Dtor
+	// 
 	// Prototype:
 	//   typename engine_type
 	//             void  set_super<T>()

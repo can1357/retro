@@ -2,10 +2,6 @@ type MapFn<T, Ty> = (v: T) => Ty;
 type PredFn<T> = (v: T) => boolean;
 type EnumFn<T> = (v: T) => void;
 
-function isequal(a: any, b: any) {
-	return a.equals ? a.equals(b) : a == b;
-}
-
 export default class View<T> implements Iterable<T> {
 	#base: Iterable<T>;
 
@@ -66,13 +62,25 @@ export default class View<T> implements Iterable<T> {
 		}
 		return null;
 	}
-	indexOf(val: T): number {
+	indexOf(_val: T): number {
+		const val: any = _val;
+
 		let n = 0;
-		for (const x of this) {
-			if (isequal(x, val)) {
-				return n;
-			} else {
-				++n;
+		if (val.equals) {
+			for (const x of this) {
+				if (val.equals(x)) {
+					return n;
+				} else {
+					++n;
+				}
+			}
+		} else {
+			for (const x of this) {
+				if (val == x) {
+					return n;
+				} else {
+					++n;
+				}
 			}
 		}
 		return -1;

@@ -5,7 +5,7 @@ import { Clang } from "./lib/llvm";
 import View from "./lib/view";
 import Builder = IR.Builder;
 
-(async () => {
+async function main() {
 	// Create the test block.
 	//
 	const testRoutine = IR.Routine.create();
@@ -72,5 +72,8 @@ import Builder = IR.Builder;
 		}
 		break;
 	}
-})().catch(() => console.error);
+	process.exit();
+}
+main().catch(() => console.error);
+
 //const path = "S:\\Projects\\Retro\\tests\\loop.exe";

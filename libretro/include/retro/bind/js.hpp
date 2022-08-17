@@ -4,6 +4,7 @@
 #include <retro/func.hpp>
 #include <retro/rc.hpp>
 #include <retro/dyn.hpp>
+#include <retro/platform.hpp>
 #include <retro/interface.hpp>
 #include <retro/bind/common.hpp>
 #include <memory>
@@ -20,17 +21,19 @@ namespace retro::bind::js {
 	struct object;
 	struct function;
 	struct typedecl;
+	struct sync_token;
 
 	// Define the engine type.
 	//
 	struct engine {
-		using value_type		= value;
-		using reference_type = reference;
-		using prototype_type = prototype;
-		using array_type		= array;
-		using object_type		= object;
-		using function_type	= function;
-		using typedecl_type  = typedecl;
+		using value_type		 = value;
+		using reference_type  = reference;
+		using prototype_type  = prototype;
+		using array_type		 = array;
+		using object_type		 = object;
+		using function_type	 = function;
+		using typedecl_type   = typedecl;
+		using sync_token_type = sync_token;
 
 		napi_env env;
 		constexpr engine() : env(nullptr) {}
@@ -659,6 +662,11 @@ namespace retro::bind::js {
 		reference symbol_iterator;
 		reference return_self;
 
+		// Threadsafe function details.
+		//
+		napi_threadsafe_function sync_fn;
+		size_t						 sync_thread = 0;
+
 		// Type decls.
 		//
 		typedecl types[1];
@@ -686,8 +694,27 @@ namespace retro::bind::js {
 
 			// Fetch the cached variables.
 			//
-			ctx->symbol_iterator			  = e.globals().get("Symbol").template as<js::object>().get("iterator");
-			ctx->return_self				  = js::function::make<true>(e, "", [](js::value self) { return self; });
+			ctx->symbol_iterator = e.globals().get("Symbol").template as<js::object>().get("iterator");
+			ctx->return_self		= js::function::make<true>(e, "", [](js::value self) { return self; });
+
+			// Create the threadsafe function for sync.
+			//
+			auto sync_worker = [](napi_env env, napi_value cb, void* ctx, void* data) {
+				RC_ASSERT(env == ctx);
+
+				auto p = uptr(data);
+				if (p & 1) {
+					auto* f = (std::function<void()>*) (p & ~1ull);
+					(*f)();
+					delete f;
+				} else {
+					auto* f = (function_view<void()>*) (p & ~1ull);
+					(*f)();
+				}
+			};
+			ctx->sync_thread = platform::thread_id();
+			e.assert(napi_create_threadsafe_function(e, nullptr, nullptr, value::make(e, "retro-ipi"), 0, 1, nullptr, nullptr, e.env, +sync_worker, &ctx->sync_fn));
+			//e.assert(napi_unref_threadsafe_function(e, ctx->sync_fn));
 		}
 	};
 	inline typedecl* typedecl::fetch(const engine& e, u32 id) { return &local_context::get(e)->types[id]; }
@@ -697,6 +724,88 @@ namespace retro::bind::js {
 		napi_instanceof(env, val, typedecl::fetch<T>(env)->ctor.lock(), &res);
 		return res;
 	}
+
+	// Sync token.
+	//
+	struct sync_token {
+		using engine_type = engine;
+
+		napi_env						 env = nullptr;
+		local_context*				 lctx = nullptr;
+
+		// Null and value constructors.
+		//
+		constexpr sync_token() = default;
+		sync_token(napi_env e) : env(e), lctx(local_context::get(e)) {
+			napi_acquire_threadsafe_function(lctx->sync_fn);
+		}
+
+		// Move construction and assignment.
+		//
+		constexpr sync_token(sync_token&& o) noexcept { swap(o); }
+		constexpr sync_token& operator=(sync_token&& o) noexcept {
+			swap(o);
+			return *this;
+		}
+		constexpr void swap(sync_token& o) {
+			std::swap(o.env, env);
+			std::swap(o.lctx, lctx);
+		}
+
+		// Implement the interface.
+		//
+		engine context() const { return env; }
+		template<typename F>
+		decltype(auto) call(F&& fn) const {
+			using R = decltype(fn());
+
+			if constexpr (std::is_void_v<R>) {
+				RC_ASSERT(lctx);
+				if (lctx->sync_thread == platform::thread_id()) [[unlikely]] {
+					fn();
+					return;
+				}
+
+				std::atomic<bool> done = false;
+
+				function_view<void()> fv = [&]() {
+					fn();
+					done.store(1);
+					done.notify_one();
+				};
+				RC_ASSERT(napi_call_threadsafe_function(lctx->sync_fn, &fv, napi_tsfn_blocking) == napi_ok);
+				while (!done.load(std::memory_order::relaxed)) {
+					done.wait(false);
+				}
+			}
+			else {
+				std::optional<R> result;
+				call([&]() { result.emplace(fn()); });
+				return std::move(result).value();
+			}
+		}
+		template<typename F>
+		void queue(F&& fn) const {
+			RC_ASSERT(lctx);
+			auto fp = new std::function<void()>(std::forward<F>(fn));
+			RC_ASSERT(napi_call_threadsafe_function(lctx->sync_fn, (void*) (uptr(fp) | 1), napi_tsfn_blocking) == napi_ok);
+		}
+		template<typename F>
+		decltype(auto) operator()(F&& fn) const {
+			return call(std::forward<F>(fn));
+		}
+
+		// Deref on destruction.
+		//
+		void reset() {
+			if (lctx) {
+				napi_release_threadsafe_function(lctx->sync_fn, napi_tsfn_release);
+			}
+			lctx = nullptr;
+			env  = nullptr;
+		}
+		~sync_token() { reset(); }
+	};
 
 	// Class utilities.
 	//
