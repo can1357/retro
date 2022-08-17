@@ -1,14 +1,6 @@
 #include <retro/ir/value.hpp>
 #include <retro/ir/insn.hpp>
 
-#pragma once
-#include <retro/common.hpp>
-#include <retro/dyn.hpp>
-#include <retro/format.hpp>
-#include <retro/ir/types.hpp>
-#include <retro/list.hpp>
-#include <retro/rc.hpp>
-
 // Automatic cross-reference tracking system, similar to LLVM's.
 //
 namespace retro::ir {

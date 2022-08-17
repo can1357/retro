@@ -505,7 +505,7 @@ namespace retro::bind::js {
 		using Tuple	 = typename detail::tuple_decay<typename traits::arguments>::type;
 		using R		 = typename traits::return_type;
 
-		constexpr size_t ArgCount = std::tuple_size_v<Tuple>;
+		static constexpr size_t ArgCount = std::tuple_size_v<Tuple>;
 
 		// Create the callback.
 		//
@@ -1124,8 +1124,8 @@ namespace retro::bind::js {
 				});
 
 				add_method("equals", [](T::handle_t h, const js::value& other) {
-					if (other.template is<T::handle_t>()) {
-						return other.template as<T::handle_t>() == h;
+					if (other.template is<typename T::handle_t>()) {
+						return other.template as<typename T::handle_t>() == h;
 					}
 					return false;
 				});

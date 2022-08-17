@@ -287,7 +287,7 @@ namespace retro::ldr {
 			for (; ok(imp, data) && imp->characteristics; ++imp) {
 				auto*	 thunk = img->template rva_to_ptr<win::image_thunk_data_t<x64>>(imp->rva_original_first_thunk);
 				auto	 rva	 = imp->rva_first_thunk;
-				auto	 img_name = read_string(img->rva_to_ptr<char>(imp->rva_name), data);
+				auto	 img_name = read_string(img->template rva_to_ptr<char>(imp->rva_name), data);
 
 				for (; ok(thunk, data) && thunk->address; rva += sizeof(va_t), ++thunk) {
 					std::string name{img_name};
