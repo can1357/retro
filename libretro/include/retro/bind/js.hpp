@@ -217,8 +217,12 @@ namespace retro::bind::js {
 		//
 		void reset() {
 			u32 r = 0;
-			if (auto prev = std::exchange(ref, nullptr))
+			if (auto prev = std::exchange(ref, nullptr)) {
 				env.assert(napi_reference_unref(env, prev, &r));
+				if (!r) {
+					env.assert(napi_delete_reference(env, prev));
+				}
+			}
 		}
 		~reference() { reset(); }
 	};
