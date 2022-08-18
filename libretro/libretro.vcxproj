@@ -37,8 +37,6 @@
     <ClInclude Include="include\retro\arch\x86\regs.hxx" />
     <ClInclude Include="include\retro\arch\x86\sema.hpp" />
     <ClInclude Include="include\retro\arch\x86\zy2rc.hpp" />
-    <ClInclude Include="include\retro\async\neo.hpp" />
-    <ClInclude Include="include\retro\async\work.hpp" />
     <ClInclude Include="include\retro\bind\common.hpp" />
     <ClInclude Include="include\retro\bind\js.hpp" />
     <ClInclude Include="include\retro\callback.hpp" />
@@ -50,6 +48,7 @@
     <ClInclude Include="include\retro\directives\pattern.hpp" />
     <ClInclude Include="include\retro\graph\naive.hpp" />
     <ClInclude Include="include\retro\graph\search.hpp" />
+    <ClInclude Include="include\retro\heap.hpp" />
     <ClInclude Include="include\retro\interface.hpp" />
     <ClInclude Include="include\retro\intrin.hpp" />
     <ClInclude Include="include\retro\bitset.hpp" />
@@ -104,6 +103,7 @@
     <ClInclude Include="include\retro\ldr\pe\nt\optional_header.hpp" />
     <ClInclude Include="include\retro\list.hpp" />
     <ClInclude Include="include\retro\llvm\clang.hpp" />
+    <ClInclude Include="include\retro\neo.hpp" />
     <ClInclude Include="include\retro\umutex.hpp" />
     <ClInclude Include="include\retro\opt\interface.hpp" />
     <ClInclude Include="include\retro\opt\utility.hpp" />
@@ -137,10 +137,9 @@
     <ClCompile Include="src\arch\x86\sema\data.cpp" />
     <ClCompile Include="src\arch\x86\sema\vector.cpp" />
     <ClCompile Include="src\arch\x86\x86.cpp" />
-    <ClCompile Include="src\async\neo.cpp" />
-    <ClCompile Include="src\async\work.cpp" />
     <ClCompile Include="src\core\lifter.cpp" />
     <ClCompile Include="src\core\workspace.cpp" />
+    <ClCompile Include="src\heap.cpp" />
     <ClCompile Include="src\ir\basic_block.cpp" />
     <ClCompile Include="src\ir\clone.cpp" />
     <ClCompile Include="src\ir\insn.cpp" />
@@ -151,6 +150,7 @@
     <ClCompile Include="src\ldr\pe.cpp" />
     <ClCompile Include="src\llvm\clang.cpp" />
     <ClCompile Include="src\main.cpp" />
+    <ClCompile Include="src\neo.cpp" />
     <ClCompile Include="src\opt\ins_combine.cpp" />
     <ClCompile Include="src\opt\const_fold.cpp" />
     <ClCompile Include="src\opt\id_fold.cpp" />
@@ -343,7 +343,7 @@
     <ClCompile>
       <WarningLevel>Level3</WarningLevel>
       <SDLCheck>true</SDLCheck>
-      <PreprocessorDefinitions>ZYDIS_STATIC_BUILD;_DEBUG;_CONSOLE;%(PreprocessorDefinitions)</PreprocessorDefinitions>
+      <PreprocessorDefinitions>_HAS_CXX23=1;_HAS_CXX20=1;ZYDIS_STATIC_BUILD;_DEBUG;_CONSOLE;%(PreprocessorDefinitions)</PreprocessorDefinitions>
       <ConformanceMode>true</ConformanceMode>
       <LanguageStandard>stdcpplatest</LanguageStandard>
       <EnableEnhancedInstructionSet>AdvancedVectorExtensions2</EnableEnhancedInstructionSet>
@@ -362,7 +362,7 @@
       <FunctionLevelLinking>true</FunctionLevelLinking>
       <IntrinsicFunctions>true</IntrinsicFunctions>
       <SDLCheck>true</SDLCheck>
-      <PreprocessorDefinitions>ZYDIS_STATIC_BUILD;NDEBUG;_CONSOLE;%(PreprocessorDefinitions)</PreprocessorDefinitions>
+      <PreprocessorDefinitions>_HAS_CXX23=1;_HAS_CXX20=1;ZYDIS_STATIC_BUILD;NDEBUG;_CONSOLE;%(PreprocessorDefinitions)</PreprocessorDefinitions>
       <ConformanceMode>true</ConformanceMode>
       <LanguageStandard>stdcpplatest</LanguageStandard>
       <EnableEnhancedInstructionSet>AdvancedVectorExtensions2</EnableEnhancedInstructionSet>
@@ -384,7 +384,7 @@
       <FunctionLevelLinking>true</FunctionLevelLinking>
       <IntrinsicFunctions>true</IntrinsicFunctions>
       <SDLCheck>true</SDLCheck>
-      <PreprocessorDefinitions>_HAS_CXX23=1;ZYDIS_STATIC_BUILD;NDEBUG;_CONSOLE;%(PreprocessorDefinitions)</PreprocessorDefinitions>
+      <PreprocessorDefinitions>_HAS_CXX23=1;_HAS_CXX20=1;ZYDIS_STATIC_BUILD;NDEBUG;_CONSOLE;%(PreprocessorDefinitions)</PreprocessorDefinitions>
       <ConformanceMode>true</ConformanceMode>
       <LanguageStandard>stdcpplatest</LanguageStandard>
       <EnableEnhancedInstructionSet>AdvancedVectorExtensions2</EnableEnhancedInstructionSet>

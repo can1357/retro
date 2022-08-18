@@ -29,9 +29,9 @@ namespace retro {
 		};
 
 	  protected:
-		mutable shared_umutex mtx		  = {};
 		entry*					 list_prev = nullptr;  // Can't use list::head<> as it needs to be trivially initializable.
 		entry*					 list_next = nullptr;
+		mutable shared_umutex mtx		  = {};
 		entry*					 get_entry() const { return (entry*) &list_prev; }
 
 	  public:
@@ -81,7 +81,7 @@ namespace retro {
 			auto v = new entry();
 			v->fn	 = std::move(f);
 
-			if (!list_prev) {
+			if (!list_next) {
 				list::init(get_entry());
 			}
 			list::link_after(get_entry(), v);
@@ -98,15 +98,17 @@ namespace retro {
 			}
 		}
 
-		// Destructor deletes all entries.
+		// Clears the list.
 		//
-		~callback_list() {
-			if (auto it = list_next) {
+		void clear() {
+			std::unique_lock _g{mtx};
+			if (auto it = std::exchange(list_next, nullptr)) {
 				while (it != get_entry()) {
 					delete std::exchange(it, it->next);
 				}
 			}
 		}
+		~callback_list() { clear(); }
 	};
 	template<typename... A>
 	using notification_list = callback_list<void(A...)>;

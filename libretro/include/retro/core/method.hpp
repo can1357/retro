@@ -6,7 +6,7 @@
 #include <retro/ir/routine.hpp>
 #include <retro/rc.hpp>
 #include <retro/umutex.hpp>
-#include <retro/async/neo.hpp>
+#include <retro/neo.hpp>
 #include <retro/robin_hood.hpp>
 
 namespace retro::core {
@@ -96,7 +96,7 @@ namespace retro::core {
 
 		// Tasks corresponding to each IRP.
 		//
-		neo::task_ref irp_tasks[IRP_MAX] = {};
+		neo::promise<> irp_tasks[IRP_MAX] = {};
 
 		// Observers.
 		//
@@ -138,7 +138,6 @@ namespace retro::core {
 	};
 
 	// Lifts a new method into the image at the given RVA, if it does not already exist.
-	// - If there is an existing entry, returns it, otherwise inserts an entry and starts lifting.
 	//
-	ref<method> lift(image* img, u64 rva, neo::scheduler* sched = nullptr, arch::handle arch = {});
+	neo::task<ref<ir::routine>> lift(image* img, u64 rva, arch::handle arch = {});
 }

@@ -10,9 +10,9 @@ const TEXT_MIN = 0x00000000200000n;
 const TEXT_MAX = 0x00000000c00000n;
 const IMG_BASE = 0x140000000n;
 
-const routineMap = new Map<bigint, Promise<IR.Routine | null>>();
+const routineMap = new Map<number, Promise<IR.Routine | null>>();
 
-async function liftRecursive(img: Core.Image, rva: bigint) {
+async function liftRecursive(img: Core.Image, rva: number) {
 	//console.log("Lifting sub_%s", (IMG_BASE + rva).toString(16));
 	// Lift the routine.
 	//
@@ -22,7 +22,7 @@ async function liftRecursive(img: Core.Image, rva: bigint) {
 	// Recurse.
 	//
 	for (const va of rtn.getXrefs(img)) {
-		const rva2 = va - IMG_BASE;
+		const rva2 = Number(va - IMG_BASE);
 		if (TEXT_MIN <= rva2 && rva2 <= TEXT_MAX) {
 			if (!routineMap.has(rva2)) {
 				routineMap.set(rva2, liftRecursive(img, rva2));
@@ -47,7 +47,7 @@ async function main() {
 	const t0 = process.uptime();
 
 	for (const ep of img.entryPoints) {
-		routineMap.set(ep, liftRecursive(img, ep));
+		routineMap.set(Number(ep), liftRecursive(img, Number(ep)));
 	}
 
 	let n = 0;
@@ -65,8 +65,6 @@ async function main() {
 
 	console.log("Finished in %fs.", t1 - t0);
 }
-main()
-	.catch(() => console.error)
-	.finally(process.exit);
+main().catch(console.error).finally(process.exit);
 
 //const path = "S:\\Projects\\Retro\\tests\\loop.exe";

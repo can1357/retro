@@ -263,6 +263,7 @@ namespace retro::bind {
 	//  ref<T>, weak<T>, T*
 	//  instance::handle, instance*
 	//  range::subrange<T>
+	//  neo::promise<T>
 	//
 	
 	// Engine type requirements:

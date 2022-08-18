@@ -50,7 +50,7 @@ namespace retro::platform {
 
 	// Applies the given affinity mask to the current thread.
 	//
-	void set_affinity(u64 mask = g_affinity_mask);
+	void set_affinity(u64 mask);
 
 	// Invoked to ensure ANSI escapes work.
 	//

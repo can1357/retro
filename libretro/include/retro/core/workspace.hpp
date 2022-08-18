@@ -3,7 +3,7 @@
 #include <retro/rc.hpp>
 #include <retro/umutex.hpp>
 #include <retro/diag.hpp>
-#include <retro/async/neo.hpp>
+#include <retro/neo.hpp>
 #include <retro/ldr/interface.hpp>
 #include <vector>
 

@@ -21,11 +21,6 @@ namespace std {
 };
 #endif
 
-#define RC_UNHANDLED_RETHROW \
-	void unhandled_exception() {}
-//#define RC_UNHANDLED_RETHROW \
-//	void unhandled_exception() { std::rethrow_exception(std::current_exception()); }
-
 namespace retro {
 #if !RC_HAS_STD_CORO
 	namespace builtin {
@@ -39,7 +34,7 @@ namespace retro {
 		RC_INLINE inline void destroy(void* address) { __builtin_coro_destroy(address); }
 		template<typename P>
 		RC_INLINE inline void* to_handle(P& ref) {
-			return __builtin_coro_promise(&ref, alignof(P), true);
+			return __builtin_coro_promise((void*) &ref, alignof(P), true);
 		}
 		template<typename P>
 		RC_INLINE inline P& to_promise(void* hnd) {
@@ -280,8 +275,8 @@ namespace retro {
 			async_task	  get_return_object() { return {}; }
 			suspend_never initial_suspend() noexcept { return {}; }
 			suspend_never final_suspend() noexcept { return {}; }
-			RC_UNHANDLED_RETHROW;
-			void return_void() {}
+			void			  unhandled_exception() { std::rethrow_exception(std::current_exception()); }
+			void			  return_void() {}
 		};
 		async_task() {}
 	};

@@ -376,6 +376,30 @@ namespace retro::bind {
 				r->del_block(b);
 			});
 
+			// TODO: For demo.
+			proto.add_method("getXrefs", [](ir::routine* r, core::image* img) {
+				auto img_base	= img->base_address;
+				auto img_limit = img_base + img->raw_data.size();
+
+				flat_uset<u64> va_set;
+				for (auto& bb : r->blocks) {
+					for (auto&& ins : bb->insns()) {
+						if (ins->op == ir::opcode::xjmp || ins->op == ir::opcode::xjs)
+							continue;
+						for (auto& op : ins->operands()) {
+							if (op.is_const()) {
+								if (op.get_type() == ir::type::pointer || op.get_type() == ir::type::i32 || op.get_type() == ir::type::i64) {
+									auto va = op.get_const().get_u64();
+									if (img_base <= va && va < img_limit)
+										va_set.emplace(va);
+								}
+							}
+						}
+					}
+				}
+				return std::vector<u64>{va_set.begin(), va_set.end()};
+			});
+
 			proto.add_static_method("create", []() { return make_rc<ir::routine>(); });
 		}
 	};
@@ -459,10 +483,8 @@ namespace retro::bind {
 					result = result.subspan(0, len);
 				return result;
 			});
-
-			proto.add_async_method("lift", [](core::image* img, u64 rva) {
-				auto m	= core::lift(img, rva, &img->ws->user_analysis_scheduler);
-				return weak<ir::routine>{m->wait_for_irp(core::IRP_INIT)};
+			proto.add_method("lift", [] (const js::engine& eng, core::image* img, u64 rva) {
+				return core::lift(img, rva).queue(img->ws->auto_analysis_scheduler);
 			});
 
 
@@ -578,9 +600,11 @@ static void export_api(const Engine& eng, const Engine::object_type& mod) {
 	mod.freeze();
 }
 
-
-
 NAPI_MODULE_INIT() {
+	platform::setup_ansi_escapes();
+	platform::g_affinity_mask = bit_mask(std::min<i32>(i32(std::thread::hardware_concurrency() * 0.75f), 64));
+	neo::scheduler::default_instance.update_affinity();
+
 	try {
 		core::on_minsn_lift.insert([](arch::handle arch, ir::basic_block* bb, arch::minsn& i, u64 va) {
 			if (i.mnemonic == ZYDIS_MNEMONIC_VMREAD) {
@@ -603,7 +627,6 @@ NAPI_MODULE_INIT() {
 		bind::js::local_context::init(env);
 
 		export_api(ctx, mod);
-
 
 		return exports;
 	} catch (std::exception ex) {
@@ -630,7 +653,7 @@ BOOL WINAPI DllMain(HINSTANCE hinstDLL, DWORD fdwReason, LPVOID lpReserved) {
 		BOOL state =
 			 MiniDumpWriteDump((HANDLE) -1, GetCurrentProcessId(), file, MINIDUMP_TYPE(MiniDumpWithIndirectlyReferencedMemory | MiniDumpScanMemory), &ex_info, nullptr, nullptr);
 		if (state) {
-			printf("Exception 0x%08x @ %p, %s", (u32)ep->ExceptionRecord->ExceptionCode, ep->ExceptionRecord->ExceptionAddress, state ? "Written minidump." : "Failed to write minidump.");
+			fmt::printf("Exception 0x%08x @ %p, %s", (u32)ep->ExceptionRecord->ExceptionCode, ep->ExceptionRecord->ExceptionAddress, state ? "Written minidump." : "Failed to write minidump.");
 		}
 		return EXCEPTION_EXECUTE_HANDLER;
 	});

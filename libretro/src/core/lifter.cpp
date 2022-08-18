@@ -221,7 +221,7 @@ namespace retro::core {
 	// Lifts a new method into the image at the given RVA, if it does not already exist.
 	// - If there is an existing entry, returns it, otherwise inserts an entry and starts lifting.
 	//
-	static neo::task lifter_task(ref<method> m, u64 rva) {
+	static neo::subtask<void> lifter_task(ref<method> m, u64 rva) {
 		auto& rtn = m->routine[IRP_INIT];
 
 		// If lifter fails, clear out the routine.
@@ -255,23 +255,23 @@ namespace retro::core {
 
 		// Mark IR phase as finished, return the method.
 		//
-		m->irp_mask.fetch_or(1u << IRP_INIT);
-		m->irp_mask.notify_all();
-		on_irp_complete(m, IRP_INIT);
+		// // TODO: For demo.
+//		m->irp_mask.fetch_or(1u << IRP_INIT);
+//		m->irp_mask.notify_all();
+//		on_irp_complete(m, IRP_INIT);
 		co_return;
 	}
-	ref<method> lift(image* img, u64 rva, neo::scheduler* sched, arch::handle arch) {
+	neo::task<ref<ir::routine>> lift(image* img, u64 rva, arch::handle arch) {
 		arch = arch ? arch : img->arch;
 		if (!arch)
-			return nullptr;
-		sched = sched ? sched : &img->ws->auto_analysis_scheduler;
+			co_return nullptr;
 
 		// Return if there is an exact match.
 		//
 		std::unique_lock lock{img->method_map_mtx};
 		auto& mfound = img->method_map[rva];
 		if (mfound && mfound->arch == arch) {
-			return mfound;
+			co_return mfound->routine[IRP_INIT];
 		}
 
 		// Replace it with our new entry.
@@ -288,7 +288,8 @@ namespace retro::core {
 		rtn->method				  = m;
 		rtn->ip					  = rva + img->base_address;
 		m->routine[IRP_INIT]	  = rtn;
-		m->irp_tasks[IRP_INIT] = sched->insert(lifter_task(m, rva));
-		return m;
+		lock.unlock();
+		co_await lifter_task(m, rva);
+		co_return rtn;
 	}
 };

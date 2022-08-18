@@ -18,7 +18,7 @@ declare class View<T> implements Iterable<T> {
 	slice(offset: number, count: number): View<T>;
 }
 
-declare module "*-Debug" {
+declare module "../../../build/libretro*" {
 	import { ImageKind } from "../core/image_kind";
 	import { RegKind } from "../arch/reg_kind";
 	import { Type } from "../ir/builtin_types";
@@ -47,10 +47,10 @@ declare module "*-Debug" {
 		get s(): bigint;
 		get u(): bigint;
 
-		getSigned(ip: ?bigint): bigint;
-		getUnsigned(ip: ?bigint): bigint;
+		getSigned(ip: ?(bigint | number)): bigint;
+		getUnsigned(ip: ?(bigint | number)): bigint;
 
-		toString(a: ?Arch = null, ip: ?bigint = null): string;
+		toString(a: ?Arch = null, ip: ?(bigint | number) = null): string;
 	}
 	declare class MReg {
 		protected constructor();
@@ -61,7 +61,7 @@ declare module "*-Debug" {
 		equals(o: MReg): boolean;
 
 		getName(a: Arch): string;
-		toString(a: ?Arch = null, ip: ?bigint = null): string;
+		toString(a: ?Arch = null, ip: ?(bigint | number) = null): string;
 	}
 	declare class MMem {
 		protected constructor();
@@ -76,7 +76,7 @@ declare module "*-Debug" {
 
 		equals(o: MMem): boolean;
 
-		toString(a: ?Arch = null, ip: ?bigint = null): string;
+		toString(a: ?Arch = null, ip: ?(bigint | number) = null): string;
 	}
 	type MOp = MReg | MMem | MImm;
 
@@ -96,7 +96,7 @@ declare module "*-Debug" {
 
 		getOperand(idx: number): ?MOp;
 
-		toString(ip: ?bigint = null): string;
+		toString(ip: ?(bigint | number) = null): string;
 	}
 
 	// IR types.
@@ -142,7 +142,7 @@ declare module "*-Debug" {
 		asIntrinsic(): Intrinsic;
 		static Intrinsic(value: Intrinsic): Const;
 		asPtr(): bigint;
-		static Ptr(value: bigint): Const;
+		static Ptr(value: bigint | number): Const;
 		asF32x16(): number[];
 		static F32x16(value: number[]): Const;
 		asF32x2(): number[];
@@ -288,6 +288,8 @@ declare module "*-Debug" {
 		addBlock(): BasicBlock;
 		delBlock(bb: BasicBlock);
 
+		getXrefs(img: Image): bigint[];
+
 		get entryPoint(): ?BasicBlock;
 		[Symbol.iterator](): Iterator<BasicBlock>;
 
@@ -300,7 +302,7 @@ declare module "*-Debug" {
 		protected constructor();
 
 		disasm(data: Buffer): ?MInsn;
-		lift(bb: BasicBlock, i: MInsn, ip: bigint);
+		lift(bb: BasicBlock, i: MInsn, ip: bigint | number);
 		nameRegister(r: MReg): string;
 		nameMnemonic(id: number): string;
 		formatInsnModifiers(i: MInsn): string;
@@ -342,9 +344,9 @@ declare module "*-Debug" {
 		get isEnvSupervisor(): boolean;
 		get entryPoints(): bigint[];
 
-		async lift(rva: bigint): Promise<?Routine>;
+		async lift(rva: bigint | number): Promise<?Routine>;
 
-		slice(rva: bigint, length: bigint): Buffer;
+		slice(rva: bigint | number, length: bigint | number): Buffer;
 	}
 
 	// Workspace type.

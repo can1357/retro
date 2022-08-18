@@ -4,7 +4,7 @@
 #include <retro/func.hpp>
 #include <retro/rc.hpp>
 #include <retro/dyn.hpp>
-#include <retro/heap.hpp>
+#include <retro/neo.hpp>
 #include <retro/platform.hpp>
 #include <retro/interface.hpp>
 #include <retro/bind/common.hpp>
@@ -742,7 +742,7 @@ namespace retro::bind::js {
 		//
 		constexpr sync_token() = default;
 		sync_token(napi_env e) : env(e), lctx(local_context::get(e)) {
-			napi_acquire_threadsafe_function(lctx->sync_fn);
+			// napi_acquire_threadsafe_function(lctx->sync_fn);
 		}
 
 		// Move construction and assignment.
@@ -804,7 +804,7 @@ namespace retro::bind::js {
 		//
 		void reset() {
 			if (lctx) {
-				napi_release_threadsafe_function(lctx->sync_fn, napi_tsfn_release);
+				//napi_release_threadsafe_function(lctx->sync_fn, napi_tsfn_release);
 			}
 			lctx = nullptr;
 			env  = nullptr;
@@ -1244,13 +1244,25 @@ namespace retro::bind {
 				double result;
 				return std::pair{napi_get_value_double(val, val, &result), (T) result};
 			} else if constexpr (sizeof(T) == 8 && std::is_signed_v<T>) {
-				i64			result	= 0;
-				bool			lossless = true;
-				napi_status status	= napi_get_value_bigint_int64(val, val, &result, &lossless);
-				if (!lossless)
-					status = napi_generic_failure;
-				return std::pair{status, (T) result};
+				if (val.type() == napi_number) {
+					i64 result = 0;
+					napi_status status = napi_get_value_int64(val, val, &result);
+					return std::pair{status, (T) result};
+				} else {
+					i64			result	= 0;
+					bool			lossless = true;
+					napi_status status	= napi_get_value_bigint_int64(val, val, &result, &lossless);
+					if (!lossless)
+						status = napi_generic_failure;
+					return std::pair{status, (T) result};
+				}
 			} else if constexpr (sizeof(T) == 8 && std::is_unsigned_v<T>) {
+				if (val.type() == napi_number) {
+					i64			result = 0;
+					napi_status status = napi_get_value_int64(val, val, &result);
+					if (result >= 0)
+						return std::pair{status, (T) result};
+				} 
 				u64			result	= 0;
 				bool			lossless = true;
 				napi_status status	= napi_get_value_bigint_uint64(val, val, &result, &lossless);
@@ -1384,6 +1396,31 @@ namespace retro::bind {
 			});
 			tmp.set(js::local_context::get(context)->symbol_iterator.lock(), js::local_context::get(context)->return_self.lock());
 			return tmp;
+		}
+	};
+	// neo::promise<T>
+	template<typename T>
+	struct converter<js::engine, neo::promise<T>> {
+		js::value from(const js::engine& context, const neo::promise<T>& pr) const {
+			napi_deferred def;
+			napi_value	  result;
+			context.assert(napi_create_promise(context, &def, &result));
+
+			pr.and_finally([=, tk = js::sync_token(context)](const neo::promise<T>& pr) {
+				try {
+
+					if constexpr (std::is_void_v<T>) {
+						pr.get();
+						tk.queue([=, env = tk.context()] { env.assert(napi_resolve_deferred(env, def, js::value::make(env, std::nullopt))); });
+					} else {
+						auto* resptr = &pr.get();
+						tk.queue([=, _=pr, env = tk.context()] { env.assert(napi_resolve_deferred(env, def, js::value::make(env, *resptr))); });
+					}
+				} catch (const std::exception& ex) {
+					tk.queue([env = tk.context(), def, result = std::string(ex.what())] { env.assert(napi_reject_deferred(env, def, js::value::make(env, result))); });
+				}
+			});
+			return js::value(context, result);
 		}
 	};
 
