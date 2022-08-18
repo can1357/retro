@@ -1,4 +1,5 @@
 #include <retro/ir/types.hpp>
+#include <retro/heap.hpp>
 
 /*
 TODO: Fix for f80 where it needs to be emulated
@@ -403,7 +404,7 @@ namespace retro::ir {
 			result.type_id = (u64) into;
 			result.data_length = data_length;
 			if (data_length > sizeof(data)) {
-				result.ptr = operator new(data_length);
+				result.ptr = heap::allocate(data_length);
 				memcpy(result.ptr, ptr, data_length);
 			} else {
 				memcpy(result.data, data, sizeof(data));
@@ -473,7 +474,7 @@ namespace retro::ir {
 	case type::VT: {                                  \
 		VT* ptr = (VT*) &c->data[0];                   \
 		if constexpr (sizeof(VT) > sizeof(c->data)) {  \
-			c->ptr = operator new(sizeof(VT));          \
+			c->ptr = heap::allocate(sizeof(VT));        \
 			ptr	 = (VT*) c->ptr;                      \
 		}                                              \
 		c->data_length = sizeof(VT);                   \

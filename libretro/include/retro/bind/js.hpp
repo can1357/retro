@@ -4,6 +4,7 @@
 #include <retro/func.hpp>
 #include <retro/rc.hpp>
 #include <retro/dyn.hpp>
+#include <retro/heap.hpp>
 #include <retro/platform.hpp>
 #include <retro/interface.hpp>
 #include <retro/bind/common.hpp>

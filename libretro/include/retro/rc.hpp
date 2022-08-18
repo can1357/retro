@@ -3,6 +3,7 @@
 #include <retro/common.hpp>
 #include <retro/format.hpp>
 #include <retro/dyn.hpp>
+#include <retro/heap.hpp>
 
 // Type-specialized ref-counting primitives.
 //
@@ -48,7 +49,7 @@ namespace retro {
 			// If no more weak-references left, deallocate the block.
 			//
 			if (!leftover) [[unlikely]] {
-				operator delete((void*) this);
+				heap::deallocate(this);
 			}
 		}
 		RC_INLINE void dec_ref() {
@@ -307,7 +308,7 @@ namespace retro {
 	//
 	template<typename T, typename... Tx>
 	inline static ref<T> make_overalloc_rc(size_t overalloc, Tx&&... args) {
-		rc_header* rc = new (operator new(sizeof(T) + sizeof(rc_header) + overalloc)) rc_header();
+		rc_header* rc = new (heap::allocate(sizeof(T) + sizeof(rc_header) + overalloc)) rc_header();
 		rc->dtor		  = +[](rc_header* p) { std::destroy_at((T*) p->data()); };
 		T* data		  = new (rc->data()) T(std::forward<Tx>(args)...);
 		return ref<T>{rc};

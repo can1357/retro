@@ -3,6 +3,7 @@
 #include <retro/ir/ops.hxx>
 #include <retro/arch/mreg.hpp>
 #include <retro/format.hpp>
+#include <retro/heap.hpp>
 
 // Scoped enums to create alternative types for some builtins.
 //
@@ -132,7 +133,7 @@ namespace retro::ir {
 			//
 			void* dst = data;
 			if (length > sizeof(data)) {
-				dst = operator new(length);
+				dst = heap::allocate(length);
 				ptr = dst;
 			}
 			memcpy(dst, src, length);
@@ -163,7 +164,7 @@ namespace retro::ir {
 					data_length = length;
 					void* dst	= data;
 					if (length > sizeof(data)) {
-						dst = operator new(length);
+						dst = heap::allocate(length);
 						ptr = dst;
 					}
 					memcpy(dst, src.data(), length);
@@ -188,7 +189,7 @@ namespace retro::ir {
 			type_id		= o.type_id;
 			data_length = o.data_length;
 			if (is_large()) {
-				void* dst = operator new(data_length);
+				void* dst = heap::allocate(data_length);
 				memcpy(dst, o.ptr, data_length);
 				ptr = dst;
 			} else {
@@ -333,7 +334,7 @@ namespace retro::ir {
 		//
 		constexpr void reset() {
 			if (is_large()) {
-				operator delete(ptr);
+				heap::deallocate(ptr);
 			}
 			data_length = 0;
 			type_id		= (u64) type::none;
