@@ -9,6 +9,7 @@
 
 #include <retro/core/callbacks.hpp>
 #include <Zydis/Zydis.h>
+#undef assert
 
 namespace retro::bind {
 
@@ -208,7 +209,6 @@ namespace retro::bind {
 		template<typename Proto>
 		static void write(Proto& proto) {
 			using engine = typename Proto::engine_type;
-			using value	 = typename engine::value_type;
 			using array	 = typename engine::array_type;
 
 			proto.template set_super<ir::value>();
@@ -269,6 +269,18 @@ namespace retro::bind {
 				return i;
 			});
 
+			proto.add_property("prev", [](ir::insn* i) {
+				auto n = i->prev;
+				if (n == i || (i->bb && n == i->bb->entry()))
+					n = nullptr;
+				return n;
+			});
+			proto.add_property("next", [](ir::insn* i) {
+				auto n = i->next;
+				if (n == i || (i->bb && n == i->bb->entry()))
+					n = nullptr;
+				return n;
+			});
 
 			proto.add_static_method("create", [](ir::opcode op, std::array<ir::type, 2> tmp, const array& operands) {
 				size_t op_count = operands.length();
@@ -496,6 +508,9 @@ namespace retro::bind {
 			proto.add_async_method("loadImageInMemory", [](core::workspace* ws, std::vector<u8> data, std::optional<ldr::handle> ldr) {
 				return ws->load_image_in_memory(data, ldr.value_or(std::nullopt)).value();
 			});
+			proto.add_async_method("wait", [](core::workspace* ws) {
+				ws->auto_analysis_scheduler.wait_until_empty();
+			});
 		}
 	};
 };
@@ -615,7 +630,7 @@ BOOL WINAPI DllMain(HINSTANCE hinstDLL, DWORD fdwReason, LPVOID lpReserved) {
 		BOOL state =
 			 MiniDumpWriteDump((HANDLE) -1, GetCurrentProcessId(), file, MINIDUMP_TYPE(MiniDumpWithIndirectlyReferencedMemory | MiniDumpScanMemory), &ex_info, nullptr, nullptr);
 		if (state) {
-			printf("Exception 0x%08x @ %p, %s", ep->ExceptionRecord->ExceptionCode, ep->ExceptionRecord->ExceptionAddress, state ? "Written minidump." : "Failed to write minidump.");
+			printf("Exception 0x%08x @ %p, %s", (u32)ep->ExceptionRecord->ExceptionCode, ep->ExceptionRecord->ExceptionAddress, state ? "Written minidump." : "Failed to write minidump.");
 		}
 		return EXCEPTION_EXECUTE_HANDLER;
 	});

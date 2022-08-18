@@ -1,12 +1,64 @@
 // Define extensions.
 //
-import { Insn } from "./native";
+import { Insn, Operand } from "./native";
 import * as Support from "./support";
 import View from "./view";
+
+function* sliceGenerator(from: Insn, to: Insn | null) {
+	if (to) {
+		if (!from.block!.equals(to.block)) {
+			throw Error("Invalid slice.");
+		}
+	}
+	let it: Insn | null = from;
+	while (true) {
+		if (to) {
+			if (!it) {
+				throw Error("Invalid slice.");
+			}
+			if (it!.equals(to)) {
+				break;
+			}
+		} else if (!it) {
+			break;
+		}
+		yield it!;
+		it = it!.next;
+	}
+}
+function* rsliceGenerator(from: Insn, to: Insn | null) {
+	if (to) {
+		if (!from.block!.equals(to.block)) {
+			throw Error("Invalid slice.");
+		}
+	}
+	let it: Insn | null = from;
+	while (true) {
+		if (to) {
+			if (!it) {
+				throw Error("Invalid slice.");
+			}
+			if (it!.equals(to)) {
+				break;
+			}
+		} else if (!it) {
+			break;
+		}
+		yield it!;
+		it = it!.prev;
+	}
+}
+
 Support.extendClass(
 	Insn,
 	class extends Insn {
-		get operands() {
+		slice(to: Insn | null = null): View<Insn> {
+			return View.from(sliceGenerator(this, to));
+		}
+		rslice(to: Insn | null = null): View<Insn> {
+			return View.from(rsliceGenerator(this, to));
+		}
+		get operands(): View<Operand> {
 			const self = this;
 			const n = this.operandCount;
 			return View.from(

@@ -216,11 +216,19 @@ declare module "*-Debug" {
 		get workspace(): ?Workspace;
 		get block(): ?BasicBlock;
 
+		get next(): ?Insn;
+		get prev(): ?Insn;
+
 		arch: ?Arch;
 		name: number;
 		ip: bigint;
 		opcode: Opcode;
 		templates: Type[]; /*[2]*/
+
+		// Generates a slice/reverse slice [from, to), end of block if to is not given.
+		//
+		slice(to: Insn | null = null): View<Insn>;
+		rslice(to: Insn | null = null): View<Insn>;
 
 		get operands(): View<Operand>;
 		opr(i: number): Operand;
@@ -344,6 +352,8 @@ declare module "*-Debug" {
 	declare class Workspace extends RefCounted {
 		static create(): Workspace;
 		get numImages(): number;
+
+		async wait();
 
 		async loadImage(path: string, ldr: ?Loader = null): Promise<Image>;
 		async loadImageInMemory(data: Buffer, ldr: ?Loader = null): Promise<Image>;

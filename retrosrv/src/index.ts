@@ -4,46 +4,39 @@ import * as Arch from "./lib/arch";
 import { Clang } from "./lib/llvm";
 import View from "./lib/view";
 import Builder = IR.Builder;
+import { Opcode, Type } from "./lib/ir";
 
-async function main() {
-	// Create the test block.
-	//
-	const testRoutine = IR.Routine.create();
-	const testBlock = testRoutine.addBlock();
+const TEXT_MIN = 0x00000000200000n;
+const TEXT_MAX = 0x00000000c00000n;
+const IMG_BASE = 0x140000000n;
 
-	// Add the instructions.
-	//
-	const testAnd = Builder.Binop(IR.Op.BitAnd, IR.Const.I32(1), IR.Const.I32(5)).push(testBlock);
-	Builder.Binop(IR.Op.BitOr, testAnd, IR.Const.I32(9)).push(testBlock);
-	Builder.Xret(IR.Const.Ptr(0n)).push(testBlock);
-	console.log("%s", testRoutine.toString(true));
+const routineMap = new Map<bigint, Promise<IR.Routine | null>>();
 
-	// Run demo constant folding.
+async function liftRecursive(img: Core.Image, rva: bigint) {
+	//console.log("Lifting sub_%s", (IMG_BASE + rva).toString(16));
+	// Lift the routine.
 	//
-	let optCount = 0;
-	const ilist = View.from(testBlock).filter((i) => i.opcode == IR.Opcode.Binop);
-	for (const i of ilist) {
-		const [op, lhs, rhs] = i.operands.map((k) => k.isConst && k.constant);
-		if (op && lhs && rhs) {
-			optCount += i.replaceAllUsesWith(lhs.apply(op.asOp(), rhs));
+	const rtn = await img.lift(rva);
+	if (!rtn) return null;
+
+	// Recurse.
+	//
+	for (const va of rtn.getXrefs(img)) {
+		const rva2 = va - IMG_BASE;
+		if (TEXT_MIN <= rva2 && rva2 <= TEXT_MAX) {
+			if (!routineMap.has(rva2)) {
+				routineMap.set(rva2, liftRecursive(img, rva2));
+			}
 		}
 	}
-	console.log("Optimized %d instructions.", optCount);
-	console.log("%s", testRoutine.toString(true));
+	return rtn;
+}
 
-	// Disasm demo.
-	//
-	const amd64 = Arch.Interface.lookup("x86_64")!;
-	console.log("%s: %s\n", amd64.name, amd64.disasm(Buffer.from([0xe8, 0x00, 0x00, 0x00, 0x00]))?.toString());
-
-	// Clang demo.
-	//
-	const src = await Clang.format("int main() { int x = 0; return 6; }");
-	console.log(src);
-	const bin = await Clang.compile(src);
+async function main() {
+	const path = "S:\\Dumps\\ntoskrnl_2004.exe";
 
 	const ws = Core.Workspace.create();
-	const img = await ws.loadImageInMemory(bin);
+	const img = await ws.loadImage(path);
 	console.log("Kind:       ", Core.ImageKind[img.kind]);
 	console.log("Arch:       ", img.arch.name);
 	console.log("ABI:        ", img.abiName);
@@ -51,29 +44,29 @@ async function main() {
 	console.log("Environment:", img.envName);
 	console.log("BaseAddress:", img.baseAddress.toString(16));
 
-	const rtn = await img.lift(img.entryPoints[0]);
-	for (const bb of rtn!) {
-		console.log("BasicBlock:", bb.name);
-		for (const i of bb) {
-			console.log(i.toString(true), "->", IR.Opcode[i.opcode]);
+	const t0 = process.uptime();
 
-			for (const u of i.uses) {
-				if (u.user instanceof IR.Insn) {
-					i.replaceAllUsesWith(i);
-					i.replaceAllUsesWith(IR.Const.Ptr(0n));
+	for (const ep of img.entryPoints) {
+		routineMap.set(ep, liftRecursive(img, ep));
+	}
 
-					const idx = u.user.indexOf(u);
-					console.log("User(Operand #%d): %s", idx, u.user.toString(true));
-					console.log("--> %s", u.user.opr(idx).toString());
-					break;
-				}
-			}
+	let n = 0;
+	while (true) {
+		await ws.wait();
+		const x = await Promise.all(routineMap.values());
+		if (x.length == n) {
 			break;
 		}
-		break;
+		console.log("Iteration lifted %d routines.", x.length);
+		n = x.length;
 	}
-	process.exit();
+
+	const t1 = process.uptime();
+
+	console.log("Finished in %fs.", t1 - t0);
 }
-main().catch(() => console.error);
+main()
+	.catch(() => console.error)
+	.finally(process.exit);
 
 //const path = "S:\\Projects\\Retro\\tests\\loop.exe";
