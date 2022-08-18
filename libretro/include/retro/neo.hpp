@@ -125,7 +125,8 @@ namespace retro::neo {
 			task_signal(id::error);
 		}
 		void task_cancel() {
-			task_signal(id::cancelled);
+			if (state != id::cancelled)
+				task_signal(id::cancelled);
 		}
 
 		// Promise implementations.
