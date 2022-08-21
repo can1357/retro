@@ -417,6 +417,8 @@ namespace retro::neo {
 
 			if (o->cancellation_signal) [[unlikely]] {
 				o->task_cancel();
+				o->coro_current = hnd;
+				return noop_coroutine();
 			}
 			if (o->slice_end < now()) {
 				o->coro_current = hnd;
