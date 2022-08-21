@@ -99,6 +99,77 @@ declare module "../../../build/libretro*" {
 		toString(ip: ?(bigint | number) = null): string;
 	}
 
+	// Z3 types.
+	//
+	type Variant = ?(Const | Insn);
+	declare class Z3VariableSet {
+		protected constructor();
+
+		static create(): Z3VariableSet;
+		unwrap(expr: Z3Expr): ?Value;
+	}
+	declare class Z3Expr {
+		protected constructor();
+
+		static I1(value: boolean): Z3Expr;
+		static I8(value: number): Z3Expr;
+		static I16(value: number): Z3Expr;
+		static I32(value: number): Z3Expr;
+		static I64(value: bigint): Z3Expr;
+		static F32(value: number): Z3Expr;
+		static F64(value: number): Z3Expr;
+
+		get type(): Type;
+		get depth(): number;
+		get isConst(): boolean;
+		get isVariable(): boolean;
+
+		simplify(): Z3Expr;
+		materialize(vs: Z3VariableSet, bb: BasicBlock): Variant;
+		materializeAt(vs: Z3VariableSet, at: Insn): Variant;
+
+		abs(): Z3Expr;
+		neg(): Z3Expr;
+		bitNot(): Z3Expr;
+		sqrt(): Z3Expr;
+		rem(rhs: Z3Expr): Z3Expr;
+		urem(rhs: Z3Expr): Z3Expr;
+		div(rhs: Z3Expr): Z3Expr;
+		udiv(rhs: Z3Expr): Z3Expr;
+		xor(rhs: Z3Expr): Z3Expr;
+		or(rhs: Z3Expr): Z3Expr;
+		and(rhs: Z3Expr): Z3Expr;
+		shl(rhs: Z3Expr): Z3Expr;
+		shr(rhs: Z3Expr): Z3Expr;
+		sar(rhs: Z3Expr): Z3Expr;
+		rol(rhs: Z3Expr): Z3Expr;
+		ror(rhs: Z3Expr): Z3Expr;
+		add(rhs: Z3Expr): Z3Expr;
+		sub(rhs: Z3Expr): Z3Expr;
+		mul(rhs: Z3Expr): Z3Expr;
+		ge(rhs: Z3Expr): Z3Expr;
+		uge(rhs: Z3Expr): Z3Expr;
+		gt(rhs: Z3Expr): Z3Expr;
+		ugt(rhs: Z3Expr): Z3Expr;
+		lt(rhs: Z3Expr): Z3Expr;
+		ult(rhs: Z3Expr): Z3Expr;
+		le(rhs: Z3Expr): Z3Expr;
+		ule(rhs: Z3Expr): Z3Expr;
+		umax(rhs: Z3Expr): Z3Expr;
+		max(rhs: Z3Expr): Z3Expr;
+		umin(rhs: Z3Expr): Z3Expr;
+		min(rhs: Z3Expr): Z3Expr;
+		eq(rhs: Z3Expr): Z3Expr;
+		ne(rhs: Z3Expr): Z3Expr;
+		apply(op: Op, rhs: ?Z3Expr = null): Z3Expr;
+
+		toString(): string;
+
+		castZx(t: Type, ctx: ?Insn = null): Z3Expr;
+		castSx(t: Type, ctx: ?Insn = null): Z3Expr;
+		toConst(coerce: boolean = false): Const;
+	}
+
 	// IR types.
 	//
 	declare class Const {
@@ -107,6 +178,7 @@ declare module "../../../build/libretro*" {
 		get type(): Type;
 		get byteLength(): bigint;
 		get buffer(): Buffer;
+		get valid(): boolean;
 
 		equals(o: Const): boolean;
 		toString(): string;
@@ -115,6 +187,8 @@ declare module "../../../build/libretro*" {
 		castZx(t: Type): Const;
 		castSx(t: Type): Const;
 		apply(op: Op, rhs: ?Const = null): Const;
+
+		toExpr(lane: number = 0): ?Z3Expr;
 
 		get i64(): bigint;
 		get u64(): bigint;
@@ -193,6 +267,8 @@ declare module "../../../build/libretro*" {
 		toString(full: boolean = false);
 		equals(o: Operand): boolean;
 
+		toExpr(vs: Z3VariableSet, maxDepth: ?number): ?Z3Expr;
+
 		get constant(): Const;
 		get value(): Value;
 
@@ -208,6 +284,8 @@ declare module "../../../build/libretro*" {
 
 		get uses(): Iterable<Operand>;
 		replaceAllUsesWith(o: Const | Value): number;
+
+		toExpr(vs: Z3VariableSet, maxDepth: ?number): ?Z3Expr;
 	}
 	declare class Insn extends Value {
 		//		get method(): ?Method;
@@ -223,7 +301,7 @@ declare module "../../../build/libretro*" {
 		name: number;
 		ip: bigint;
 		opcode: Opcode;
-		templates: Type[]; /*[2]*/
+		templates: [Type, Type];
 
 		// Generates a slice/reverse slice [from, to), end of block if to is not given.
 		//

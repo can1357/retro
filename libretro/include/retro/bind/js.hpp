@@ -9,6 +9,7 @@
 #include <retro/interface.hpp>
 #include <retro/bind/common.hpp>
 #include <memory>
+#undef assert
 
 extern "C" {
 	#include <node/node_api.h>

@@ -4,6 +4,7 @@
 #include <retro/ir/basic_block.hpp>
 #include <retro/ir/routine.hpp>
 #include <retro/ir/insn.hpp>
+#include <retro/ir/z3x.hpp>
 #include <retro/llvm/clang.hpp>
 #include <retro/bind/js.hpp>
 
@@ -222,8 +223,16 @@ namespace retro::bind {
 			proto.add_property("type", [](ir::constant* r) { return r->get_type(); });
 			proto.add_property("byteLength", [](ir::constant* r) { return r->size(); });
 			proto.add_property("buffer", [](ir::constant* r) { return std::span{(const u8*) r->address(), r->size()}; });
+			proto.add_property("valid", [](ir::constant* r) { return r->get_type() != ir::type::none; });
 			proto.add_method("equals", [](ir::constant* c, ir::constant* o) { return *c == *o; });
 			proto.add_method("toString", [](ir::constant* c) { return c->to_string(); });
+			proto.add_method("toExpr", [](ir::constant* c, std::optional<u8> lane) {
+				if (lane && *lane) {
+					return z3x::make_value(z3x::get_context(), *c, *lane);
+				} else {
+					return z3x::make_value(z3x::get_context(), *c);
+				}
+			});
 
 			proto.add_method("bitcast", [](ir::constant* c, ir::type t) { return c->bitcast(t); });
 			proto.add_method("castZx", [](ir::constant* c, ir::type t) { return c->cast_sx(t); });
@@ -257,6 +266,10 @@ namespace retro::bind {
 			proto.add_property("value", [](ir::operand* r) { return r->get_value(); });
 			proto.add_property("constant", [](ir::operand* r) { return r->get_const(); });
 
+			proto.add_method("toExpr", [](ir::operand* r, z3x::variable_set* vs, std::optional<u32> max_depth) {
+				return z3x::to_expr(*vs, z3x::get_context(), *r, max_depth.value_or(0xFFFFFFFF));
+			});
+
 			proto.add_method("set", [](ir::operand* r, const value& v) {
 				if (v.template isinstance<ir::value>()) {
 					r->reset(v.template as<ir::value*>());
@@ -280,6 +293,10 @@ namespace retro::bind {
 			proto.add_property("type", [](ir::value* r) { return r->get_type(); });
 			proto.add_property("uses", [](ir::value* r) { return r->uses(); });
 			proto.add_method("toString", [](ir::value* r, std::optional<bool> full) { return r->to_string(full.value_or(false) ? ir::fmt_style::full : ir::fmt_style::concise); });
+
+			proto.add_method("toExpr", [](ir::value* r, z3x::variable_set* vs, std::optional<u32> max_depth) {
+				return z3x::to_expr(*vs, z3x::get_context(), r, max_depth.value_or(0xFFFFFFFF));
+			});
 
 			proto.add_method("replaceAllUsesWith", [](ir::value* r, const value& v) {
 				if (v.template isinstance<ir::value>()) {
@@ -493,6 +510,131 @@ namespace retro::bind {
 			proto.add_static_method("create", []() { return make_rc<ir::routine>(); });
 		}
 	};
+	template<typename Engine>
+	struct converter<Engine, ir::variant> {
+		using value	  = typename Engine::value_type;
+		value from(const Engine& context, ir::variant&& v) const {
+			if (v.is_const()) {
+				return value::make(context, std::move(v).get_const());
+			} else if (v.is_value()) {
+				return value::make(context, std::move(v).get_value());
+			} else {
+				return value::make(context, std::nullopt);
+			}
+		}
+	};
+
+	// Z3 types.
+	//
+	template<>
+	struct type_descriptor<z3x::expr> : user_class<z3x::expr> {
+		inline static constexpr const char* name = "Z3Expr";
+
+		static z3x::expr assert_apply(ir::op o, const z3x::expr& lhs, const z3x::expr& rhs) {
+			auto res = z3x::apply(o, lhs, rhs);
+			if (!z3x::ok(res)) {
+				throw std::runtime_error("Invalid expression.");
+			}
+			return res;
+		}
+		static z3x::expr assert_apply(ir::op o, const z3x::expr& rhs) {
+			auto res = z3x::apply(o, rhs);
+			if (!z3x::ok(res)) {
+				throw std::runtime_error("Invalid expression.");
+			}
+			return res;
+		}
+		static z3x::sort assert_sortof(ir::type ty, std::optional<ir::insn*> i) {
+			auto s = z3x::make_sort(z3x::get_context(), ty, i.value_or(nullptr));
+			if (!z3x::ok(s)) {
+				throw std::runtime_error("Invalid expression type.");
+			}
+			return s;
+		}
+
+		template<typename Proto>
+		static void write(Proto& proto) {
+			proto.add_static_method("I1", [](bool v) { return z3x::get_context().bool_val(v); });
+			proto.add_static_method("I8", [](i8 v) { return z3x::get_context().bv_val(v, 8); });
+			proto.add_static_method("I16", [](i16 v) { return z3x::get_context().bv_val(v, 16); });
+			proto.add_static_method("I32", [](i32 v) { return z3x::get_context().bv_val(v, 32); });
+			proto.add_static_method("I64", [](i64 v) { return z3x::get_context().bv_val(v, 64); });
+			proto.add_static_method("F32", [](float v) { return z3x::get_context().fpa_val(v); });
+			proto.add_static_method("F64", [](double v) { return z3x::get_context().fpa_val(v); });
+
+			
+			proto.add_property("type", [](z3x::expr* expr) { return z3x::type_of(*expr); });
+			proto.add_property("depth", [](z3x::expr* expr) { return z3x::expr_depth(*expr); });
+			proto.add_property("isConst", [](z3x::expr* expr) { return z3x::is_value(*expr); });
+			proto.add_property("isVariable", [](z3x::expr* expr) { return z3x::is_variable(*expr); });
+			proto.add_method("simplify", [](z3x::expr* expr) { return expr->simplify(); });
+			proto.add_method("materialize", [](z3x::expr* expr, z3x::variable_set* vs, ir::basic_block* bb) { return z3x::from_expr(*vs, *expr, bb); });
+			proto.add_method("materializeAt", [](z3x::expr* expr, z3x::variable_set* vs, ir::insn* i) {
+				list::iterator<ir::insn> it = {i};
+				return z3x::from_expr(*vs, *expr, i->bb, it);
+			});
+
+			proto.add_method("abs", [](z3x::expr* expr) { return assert_apply(ir::op::abs, *expr); });
+			proto.add_method("neg", [](z3x::expr* expr) { return assert_apply(ir::op::neg, *expr); });
+			proto.add_method("sqrt", [](z3x::expr* expr) { return assert_apply(ir::op::sqrt, *expr); });
+			proto.add_method("bitNot", [](z3x::expr* expr) { return assert_apply(ir::op::bit_not, *expr); });
+			proto.add_method("rem", [](z3x::expr* lhs, z3x::expr* rhs) { return assert_apply(ir::op::rem, *lhs, *rhs); });
+			proto.add_method("urem", [](z3x::expr* lhs, z3x::expr* rhs) { return assert_apply(ir::op::urem, *lhs, *rhs); });
+			proto.add_method("div", [](z3x::expr* lhs, z3x::expr* rhs) { return assert_apply(ir::op::div, *lhs, *rhs); });
+			proto.add_method("udiv", [](z3x::expr* lhs, z3x::expr* rhs) { return assert_apply(ir::op::udiv, *lhs, *rhs); });
+			proto.add_method("xor", [](z3x::expr* lhs, z3x::expr* rhs) { return assert_apply(ir::op::bit_xor, *lhs, *rhs); });
+			proto.add_method("or", [](z3x::expr* lhs, z3x::expr* rhs) { return assert_apply(ir::op::bit_or, *lhs, *rhs); });
+			proto.add_method("and", [](z3x::expr* lhs, z3x::expr* rhs) { return assert_apply(ir::op::bit_and, *lhs, *rhs); });
+			proto.add_method("shl", [](z3x::expr* lhs, z3x::expr* rhs) { return assert_apply(ir::op::bit_shl, *lhs, *rhs); });
+			proto.add_method("shr", [](z3x::expr* lhs, z3x::expr* rhs) { return assert_apply(ir::op::bit_shr, *lhs, *rhs); });
+			proto.add_method("sar", [](z3x::expr* lhs, z3x::expr* rhs) { return assert_apply(ir::op::bit_sar, *lhs, *rhs); });
+			proto.add_method("rol", [](z3x::expr* lhs, z3x::expr* rhs) { return assert_apply(ir::op::bit_rol, *lhs, *rhs); });
+			proto.add_method("ror", [](z3x::expr* lhs, z3x::expr* rhs) { return assert_apply(ir::op::bit_ror, *lhs, *rhs); });
+			proto.add_method("add", [](z3x::expr* lhs, z3x::expr* rhs) { return assert_apply(ir::op::add, *lhs, *rhs); });
+			proto.add_method("sub", [](z3x::expr* lhs, z3x::expr* rhs) { return assert_apply(ir::op::sub, *lhs, *rhs); });
+			proto.add_method("mul", [](z3x::expr* lhs, z3x::expr* rhs) { return assert_apply(ir::op::mul, *lhs, *rhs); });
+			proto.add_method("ge", [](z3x::expr* lhs, z3x::expr* rhs) { return assert_apply(ir::op::ge, *lhs, *rhs); });
+			proto.add_method("uge", [](z3x::expr* lhs, z3x::expr* rhs) { return assert_apply(ir::op::uge, *lhs, *rhs); });
+			proto.add_method("gt", [](z3x::expr* lhs, z3x::expr* rhs) { return assert_apply(ir::op::gt, *lhs, *rhs); });
+			proto.add_method("ugt", [](z3x::expr* lhs, z3x::expr* rhs) { return assert_apply(ir::op::ugt, *lhs, *rhs); });
+			proto.add_method("lt", [](z3x::expr* lhs, z3x::expr* rhs) { return assert_apply(ir::op::lt, *lhs, *rhs); });
+			proto.add_method("ult", [](z3x::expr* lhs, z3x::expr* rhs) { return assert_apply(ir::op::ult, *lhs, *rhs); });
+			proto.add_method("le", [](z3x::expr* lhs, z3x::expr* rhs) { return assert_apply(ir::op::le, *lhs, *rhs); });
+			proto.add_method("ule", [](z3x::expr* lhs, z3x::expr* rhs) { return assert_apply(ir::op::ule, *lhs, *rhs); });
+			proto.add_method("umax", [](z3x::expr* lhs, z3x::expr* rhs) { return assert_apply(ir::op::umax, *lhs, *rhs); });
+			proto.add_method("max", [](z3x::expr* lhs, z3x::expr* rhs) { return assert_apply(ir::op::max, *lhs, *rhs); });
+			proto.add_method("umin", [](z3x::expr* lhs, z3x::expr* rhs) { return assert_apply(ir::op::umin, *lhs, *rhs); });
+			proto.add_method("min", [](z3x::expr* lhs, z3x::expr* rhs) { return assert_apply(ir::op::min, *lhs, *rhs); });
+			proto.add_method("eq", [](z3x::expr* lhs, z3x::expr* rhs) { return assert_apply(ir::op::eq, *lhs, *rhs); });
+			proto.add_method("ne", [](z3x::expr* lhs, z3x::expr* rhs) { return assert_apply(ir::op::ne, *lhs, *rhs); });
+			proto.add_method("apply", [](z3x::expr* lhs, ir::op o, std::optional<z3x::expr*> rhs) {
+				if (rhs) {
+					return assert_apply(o, *lhs, **rhs);
+				} else {
+					return assert_apply(o, *lhs);
+				}
+			});
+			proto.add_method("toString", [](z3x::expr* expr) { return expr->to_string(); });
+			proto.add_method("toConst", [](z3x::expr* expr, std::optional<bool> coerce) { return z3x::value_of(*expr, coerce.value_or(false)); });
+			proto.add_method("castZx", [](z3x::expr* expr, ir::type ty, std::optional<ir::insn*> i) { return z3x::cast_sx(*expr, assert_sortof(ty, i)); });
+			proto.add_method("castSx", [](z3x::expr* expr, ir::type ty, std::optional<ir::insn*> i) { return z3x::cast(*expr, assert_sortof(ty, i)); });
+		}
+	};
+	template<>
+	struct type_descriptor<z3x::variable_set> : user_class<z3x::variable_set> {
+		inline static constexpr const char* name = "Z3VariableSet";
+
+		template<typename Proto>
+		static void write(Proto& proto) {
+			proto.add_static_method("create", []() {
+				return std::make_unique<z3x::variable_set>();
+			});
+			proto.add_method("unwrap", [](z3x::variable_set* vs, z3x::expr* expr) {
+				return vs->get(*expr).lock();
+			});
+
+		}
+	};
 
 	// Arch interface.
 	//
@@ -658,6 +800,8 @@ static void export_api(const Engine& eng, const Engine::object_type& mod) {
 	eng.export_type<ldr::instance>(mod);
 	eng.export_type<core::image>(mod);
 	eng.export_type<core::workspace>(mod);
+	eng.export_type<z3x::expr>(mod);
+	eng.export_type<z3x::variable_set>(mod);
 
 	auto clang = object::make(eng, 3);
 	clang.set("locate", function::make(eng, "clang.locate", [](std::optional<std::string> at) {

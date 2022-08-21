@@ -5,6 +5,23 @@ import { Clang } from "./lib/llvm";
 import View from "./lib/view";
 import Builder = IR.Builder;
 import { Opcode, Type } from "./lib/ir";
+import { Expr, VariableSet } from "./lib/z3";
+
+{
+	const t1 = Expr.I32(6);
+	const t2 = Expr.I32(7);
+	const t3 = t1.and(t2);
+	console.log(t3.toString());
+	console.log(t3.simplify().toConst().toString());
+
+	const vs = VariableSet.create();
+
+	const testRoutine = IR.Routine.create();
+	const testBlock = testRoutine.addBlock();
+
+	t3.materialize(vs, testBlock);
+	console.log(testBlock.toString(true));
+}
 
 const TEXT_MIN = 0x00000000200000n;
 const TEXT_MAX = 0x00000000c00000n;
