@@ -1,5 +1,5 @@
 import * as IR from "./lib/ir";
-import * as Core from "./lib/core";
+import { Image, ImageKind, Scheduler, Workspace } from "./lib/core";
 import * as Arch from "./lib/arch";
 import { Clang } from "./lib/llvm";
 import View from "./lib/view";
@@ -12,11 +12,13 @@ const IMG_BASE = 0x140000000n;
 
 const routineMap = new Map<number, Promise<IR.Routine | null>>();
 
-async function liftRecursive(img: Core.Image, rva: number) {
+const scheduler = Scheduler.create();
+
+async function liftRecursive(img: Image, rva: number) {
 	//console.log("Lifting sub_%s", (IMG_BASE + rva).toString(16));
 	// Lift the routine.
 	//
-	const rtn = await img.lift(rva);
+	const rtn = await img.lift(rva).queue(scheduler);
 	if (!rtn) return null;
 
 	// Recurse.
@@ -35,9 +37,9 @@ async function liftRecursive(img: Core.Image, rva: number) {
 async function main() {
 	const path = "S:\\Dumps\\ntoskrnl_2004.exe";
 
-	const ws = Core.Workspace.create();
+	const ws = Workspace.create();
 	const img = await ws.loadImage(path);
-	console.log("Kind:       ", Core.ImageKind[img.kind]);
+	console.log("Kind:       ", ImageKind[img.kind]);
 	console.log("Arch:       ", img.arch.name);
 	console.log("ABI:        ", img.abiName);
 	console.log("Loader:     ", img.ldr.name);
@@ -49,10 +51,21 @@ async function main() {
 	for (const ep of img.entryPoints) {
 		routineMap.set(Number(ep), liftRecursive(img, Number(ep)));
 	}
+	/* TODO:
+	for (auto& sym : img->symbols) {
+		if (!sym.read_only_ignore)
+			analyse_rva_if_code(img, sym.rva);
+	}
+	for (auto& reloc : img->relocs) {
+		if (std::holds_alternative<u64>(reloc.target)) {
+			analyse_rva_if_code(img, std::get<u64>(reloc.target));
+		}
+	}
+	*/
 
 	let n = 0;
 	while (true) {
-		await ws.wait();
+		await scheduler.wait();
 		const x = await Promise.all(routineMap.values());
 		if (x.length == n) {
 			break;

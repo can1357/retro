@@ -16,6 +16,10 @@ namespace retro::llvm {
 	//
 	std::vector<u8> compile(std::string_view source, std::string_view arguments, std::string* err_out = nullptr);
 
+	// Same as above but including testing macros and argument derivation.
+	//
+	std::vector<u8> compile_test_case(std::string source, std::string arguments, std::string* err_out = nullptr);
+
 	// Formats a given C++ snippet using clang-format, returns an empty string on failure and sets err_out if given.
 	//
 	std::string format(std::string_view source, std::string_view style = {}, std::string* err_out = nullptr);

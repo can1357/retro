@@ -331,6 +331,26 @@ declare module "../../../build/libretro*" {
 		equals(other: any): boolean;
 	}
 
+	// Scheduler and tasks.
+	//
+	declare class Scheduler extends RefCounted {
+		static create(): Scheduler;
+		static getDefault(): Scheduler;
+
+		clear();
+		suspend();
+		resume();
+		async wait();
+
+		get suspended(): boolean;
+		get remainingTasks(): number;
+	}
+	declare class Task<T> extends RefCounted {
+		get queued(): boolean;
+
+		queue(sc: ?Scheduler = null): Promise<T>;
+	}
+
 	// Image instance.
 	//
 	declare class Image extends RefCounted {
@@ -344,7 +364,7 @@ declare module "../../../build/libretro*" {
 		get isEnvSupervisor(): boolean;
 		get entryPoints(): bigint[];
 
-		async lift(rva: bigint | number): Promise<?Routine>;
+		lift(rva: bigint | number): Task<?Routine>;
 
 		slice(rva: bigint | number, length: bigint | number): Buffer;
 	}
@@ -355,8 +375,6 @@ declare module "../../../build/libretro*" {
 		static create(): Workspace;
 		get numImages(): number;
 
-		async wait();
-
 		async loadImage(path: string, ldr: ?Loader = null): Promise<Image>;
 		async loadImageInMemory(data: Buffer, ldr: ?Loader = null): Promise<Image>;
 	}
@@ -365,7 +383,8 @@ declare module "../../../build/libretro*" {
 	//
 	declare namespace Clang {
 		function locate(): ?string;
-		async function compile(source: string, arguments?: string = null): Promise<Buffer>;
 		async function format(source: string, style: ?string = null): Promise<string>;
+		async function compile(source: string, arguments?: string = null): Promise<Buffer>;
+		async function compileTestCase(source: string, arguments?: string = null): Promise<Buffer>;
 	}
 }

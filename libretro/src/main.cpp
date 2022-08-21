@@ -12,6 +12,73 @@
 #undef assert
 
 namespace retro::bind {
+	// Scheduler.
+	//
+	template<>
+	struct type_descriptor<neo::scheduler> : user_class<neo::scheduler> {
+		inline static constexpr const char* name = "Scheduler";
+
+		template<typename Proto>
+		static void write(Proto& proto) {
+			proto.add_static_method("create", []() { return std::make_unique<neo::scheduler>(); });
+			proto.add_static_method("getDefault", []() { return &neo::scheduler::default_instance; });
+
+			proto.add_method("clear", [](neo::scheduler* sc) { sc->clear(); });
+			proto.add_method("suspend", [](neo::scheduler* sc) { sc->suspend(); });
+			proto.add_method("resume", [](neo::scheduler* sc) { sc->resume(); });
+			proto.add_async_method("wait", [](neo::scheduler* sc) { sc->wait_until_empty(); });
+
+			proto.add_property("suspended", [](neo::scheduler* sc) { return sc->is_suspended(); });
+			proto.add_property("remainingTasks", [](neo::scheduler* sc) { return (u32) sc->num_remaining_tasks(); });
+		}
+	};
+
+	// Task<T>.
+	//
+	struct task_wrapper {
+		coroutine_handle<> handle;
+		void (*queue_fn)(coroutine_handle<> coro, void* out, const void* eng, neo::scheduler* s);
+		~task_wrapper() {
+			if (handle)
+				handle.destroy();
+		}
+	};
+	template<typename Engine, typename T>
+	struct converter<Engine, neo::task<T>> {
+		using promise = neo::task_promise<T>;
+		using value	  = typename Engine::value_type;
+
+		value from(const Engine& context, neo::task<T> task) const {
+			auto wrapper		= std::make_unique_for_overwrite<task_wrapper>();
+			wrapper->handle	= coroutine_handle<>::from_address(task.handle.release().address());
+			wrapper->queue_fn = +[](coroutine_handle<> coro, void* out, const void* _eng, neo::scheduler* s) {
+				neo::task<T> ts{&coroutine_handle<promise>::from_address(coro.address()).promise()};
+				*(value*) out = value::make(*(const Engine*) _eng, ts.queue(*s));
+			};
+			return value::make(context, std::move(wrapper));
+		}
+	};
+	template<>
+	struct type_descriptor<task_wrapper> : user_class<task_wrapper> {
+		inline static constexpr const char* name = "Task";
+
+		template<typename Proto>
+		static void write(Proto& proto) {
+			using engine = typename Proto::engine_type;
+			using value =  typename engine::value_type;
+
+			proto.add_property("queued", [](task_wrapper* ts) { return !ts->handle; });
+
+			proto.add_method("queue", [](const engine& eng, task_wrapper* ts, std::optional<neo::scheduler*> sc) {
+				if (!ts->handle) {
+					throw std::runtime_error{"Task is already queued!"};
+				}
+				value out;
+				ts->queue_fn(std::exchange(ts->handle, nullptr), &out, &eng, sc.value_or(&neo::scheduler::default_instance));
+				return out;
+			});
+		}
+	};
 
 	// Machine instructions.
 	//
@@ -120,8 +187,6 @@ namespace retro::bind {
 	_(I16x8, i16x8) _(I32x16, i32x16) _(I32x2, i32x2) _(I32x4, i32x4) _(I32x8, i32x8) _(I64x2, i64x2)\
 	_(I64x4, i64x4) _(I64x8, i64x8) _(I8x16, i8x16) _(I8x32, i8x32) _(I8x64, i8x64) _(I8x8, i8x8) 
 	// TODO: iu128, f80
-
-
 
 	template<>
 	struct type_descriptor<ir::constant> : user_class<ir::constant> {
@@ -484,7 +549,7 @@ namespace retro::bind {
 				return result;
 			});
 			proto.add_method("lift", [] (const js::engine& eng, core::image* img, u64 rva) {
-				return core::lift(img, rva).queue(img->ws->auto_analysis_scheduler);
+				return core::lift(img, rva);
 			});
 
 
@@ -530,9 +595,6 @@ namespace retro::bind {
 			proto.add_async_method("loadImageInMemory", [](core::workspace* ws, std::vector<u8> data, std::optional<ldr::handle> ldr) {
 				return ws->load_image_in_memory(data, ldr.value_or(std::nullopt)).value();
 			});
-			proto.add_async_method("wait", [](core::workspace* ws) {
-				ws->auto_analysis_scheduler.wait_until_empty();
-			});
 		}
 	};
 };
@@ -555,6 +617,8 @@ static void export_api(const Engine& eng, const Engine::object_type& mod) {
 	 Z3x
 	*/
 
+	eng.export_type<bind::task_wrapper>(mod);
+	eng.export_type<neo::scheduler>(mod);
 	eng.export_type<ir::value>(mod);
 	eng.export_type<ir::operand>(mod);
 	eng.export_type<ir::constant>(mod);
@@ -582,6 +646,15 @@ static void export_api(const Engine& eng, const Engine::object_type& mod) {
 		if (!arguments)
 			arguments.emplace();
 		auto res = llvm::compile(source, *arguments, &err);
+		if (!err.empty())
+			throw std::runtime_error(std::move(err));
+		return res;
+	}));
+	clang.set("compileTestCase", function::make_async(eng, "clang.compileTestCase", [](std::string source, std::optional<std::string> arguments) {
+		std::string err;
+		if (!arguments)
+			arguments.emplace();
+		auto res = llvm::compile_test_case(std::move(source), std::move(arguments).value(), &err);
 		if (!err.empty())
 			throw std::runtime_error(std::move(err));
 		return res;
