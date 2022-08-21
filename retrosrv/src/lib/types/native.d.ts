@@ -341,6 +341,11 @@ declare module "../../../build/libretro*" {
 		get terminator(): ?Insn;
 		get phis(): Iterable<Insn>;
 
+		get isExit(): boolean;
+		dom(other: BasicBlock): boolean;
+		postdom(other: BasicBlock): boolean;
+		hasPathTo(other: BasicBlock): boolean;
+
 		push(v: Insn): Insn;
 		pushFront(v: Insn): Insn;
 
@@ -367,6 +372,8 @@ declare module "../../../build/libretro*" {
 		delBlock(bb: BasicBlock);
 
 		getXrefs(img: Image): bigint[];
+
+		get exits(): View<BasicBlock>;
 
 		get entryPoint(): ?BasicBlock;
 		[Symbol.iterator](): Iterator<BasicBlock>;

@@ -9,6 +9,7 @@
 #include <retro/bind/js.hpp>
 
 #include <retro/core/callbacks.hpp>
+#include <retro/graph/naive.hpp>
 #include <Zydis/Zydis.h>
 #undef assert
 
@@ -425,6 +426,14 @@ namespace retro::bind {
 			proto.add_method("validate", [](ir::basic_block* r) { r->validate().raise(); });
 			proto.add_property("successors", [](ir::basic_block* r) { return r->successors; });
 			proto.add_property("predecessors", [](ir::basic_block* r) { return r->predecessors; });
+
+			proto.add_property("isExit", [](ir::basic_block* r) {
+				return r->successors.empty() && (r == r->rtn->entry_point || !r->predecessors.empty());
+			});
+			proto.add_method("dom", [](ir::basic_block* a, ir::basic_block* b) { return graph::naive::dom(a, b); });
+			proto.add_method("postdom", [](ir::basic_block* a, ir::basic_block* b) { return graph::naive::postdom(a, b); });
+			proto.add_method("hasPathTo", [](ir::basic_block* a, ir::basic_block* b) { return graph::naive::has_path_to(a, b); });
+
 
 			proto.template add_field_rw<&ir::basic_block::arch>("arch");
 			proto.template add_field_rw<&ir::basic_block::ip>("ip");

@@ -1,6 +1,6 @@
 // Define extensions.
 //
-import { Insn, Operand } from "./native";
+import { BasicBlock, Insn, Operand, Routine } from "./native";
 import * as Support from "./support";
 import View from "./view";
 
@@ -48,6 +48,15 @@ function* rsliceGenerator(from: Insn, to: Insn | null) {
 		it = it!.prev;
 	}
 }
+
+Support.extendClass(
+	Routine,
+	class extends Routine {
+		get exits(): View<BasicBlock> {
+			return View.from(this).filter((b) => b.isExit);
+		}
+	}
+);
 
 Support.extendClass(
 	Insn,

@@ -8,9 +8,9 @@ namespace retro::graph::naive {
 	// Domination check.
 	//
 	template<typename T>
-	inline bool dom(const T* a, const T* b) {
+	inline bool dom(T* a, T* b) {
 		auto mark  = monotonic_counter();
-		auto nodom = [a, mark](auto& self, const T* b) -> bool {
+		auto nodom = [a, mark](auto& self, auto&& b) -> bool {
 			if (b->predecessors.empty())
 				return true;
 			b->tmp_monotonic = mark;
@@ -28,9 +28,9 @@ namespace retro::graph::naive {
 	// Post domination check.
 	//
 	template<typename T>
-	inline bool postdom(const T* a, const T* b) {
+	inline bool postdom(T* a, T* b) {
 		auto mark  = monotonic_counter();
-		auto nodom = [a, mark](auto& self, const T* b) -> bool {
+		auto nodom = [a, mark](auto& self, auto&& b) -> bool {
 			if (b->successors.empty())
 				return true;
 			b->tmp_monotonic = mark;
@@ -48,8 +48,8 @@ namespace retro::graph::naive {
 	// Path check.
 	//
 	template<typename T>
-	inline bool has_path_to(const T* src, const T* dst) {
+	inline bool has_path_to(T* src, T* dst) {
 		return graph::bfs(
-			 src, [=](const T* b) { return b == dst; }, true);
+			 src, [=](T* b) { return b == dst; }, true);
 	}
 };
