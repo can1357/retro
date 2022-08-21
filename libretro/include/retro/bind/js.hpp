@@ -1095,6 +1095,11 @@ namespace retro::bind::js {
 		void add_field_rw(const char* name) {
 			return add_property(name, getter<V>, setter<V>);
 		}
+		bool has_member(const char* name) {
+			return range::contains_if(properties, [&](napi_property_descriptor& d) {
+				return d.utf8name && !strcmp(d.utf8name, name);
+			});
+		}
 
 		template<typename T>
 		typedecl* write() {
@@ -1128,20 +1133,27 @@ namespace retro::bind::js {
 				add_static_method("lookup", [](std::string name) {
 					return T::lookup(name);
 				});
-
 				add_method("equals", [](T::handle_t h, const js::value& other) {
 					if (other.template is<typename T::handle_t>()) {
 						return other.template as<typename T::handle_t>() == h;
 					}
 					return false;
 				});
-			} else {
-				add_method("equals", [](T* p, const js::value& other) {
-					if (other.template is<T*>()) {
-						return other.template as<T*>() == p;
-					}
-					return false;
+				add_property("comperator", [](T::handle_t h) {
+					return h.value;
 				});
+			} else {
+				if (!has_member("equals")) {
+					add_method("equals", [](T* p, const js::value& other) {
+						if (other.template is<T*>()) {
+							return other.template as<T*>() == p;
+						}
+						return false;
+					});
+				}
+				if (!has_member("comperator")) {
+					add_property("comperator", [](T* p) { return make_comperator(p); });
+				}
 			}
 
 			// Inherit properties of parents if relevant.

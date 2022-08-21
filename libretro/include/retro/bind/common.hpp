@@ -12,6 +12,12 @@
 #include <vector>
 
 namespace retro::bind {
+	// Pointer identification.
+	//
+	static f64 make_comperator(const void* p) {
+		return f64((uptr(p) >> 3) & bit_mask(50));
+	}
+
 	// Value conversion.
 	//   bool is(const value&)
 	//  value from(engine, const T&)
@@ -324,6 +330,7 @@ namespace retro::bind {
 	//             void  add_property<Tg, Ts>(const char* name, Tg getter, Ts setter)
 	//             void  add_field_ro<V>(const char* name)
 	//             void  add_field_rw<V>(const char* name)
+	//             bool  has_member(const char* name)
 	//
 	// Array:Value:
 	//   typename engine_type

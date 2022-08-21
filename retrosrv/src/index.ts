@@ -6,6 +6,31 @@ import View from "./lib/view";
 import Builder = IR.Builder;
 import { Opcode, Type } from "./lib/ir";
 import { Expr, VariableSet } from "./lib/z3";
+import { NMap } from "./lib/util";
+
+{
+	const x = new Map<Arch.MReg, number>();
+
+	const a = Arch.MReg.from(13);
+	const b = Arch.MReg.from(13);
+
+	x.set(a, 5);
+
+	console.log("a=%s", x.get(a));
+	console.log("b=%s", x.get(b));
+}
+
+{
+	const x = new NMap<Arch.MReg, number>();
+
+	const a = Arch.MReg.from(13);
+	const b = Arch.MReg.from(13);
+
+	x.set(a, 5);
+
+	console.log("a=%s [%d]", x.get(a), a.comperator);
+	console.log("b=%s [%d]", x.get(b), b.comperator);
+}
 
 {
 	const t1 = Expr.I32(6);

@@ -1,7 +1,7 @@
 // Define extensions.
 //
 import { BasicBlock, Insn, Operand, Routine } from "./native";
-import * as Support from "./support";
+import * as Util from "./util";
 import View from "./view";
 
 function* sliceGenerator(from: Insn, to: Insn | null) {
@@ -49,7 +49,7 @@ function* rsliceGenerator(from: Insn, to: Insn | null) {
 	}
 }
 
-Support.extendClass(
+Util.extendClass(
 	Routine,
 	class extends Routine {
 		get exits(): View<BasicBlock> {
@@ -58,7 +58,7 @@ Support.extendClass(
 	}
 );
 
-Support.extendClass(
+Util.extendClass(
 	Insn,
 	class extends Insn {
 		slice(to: Insn | null = null): View<Insn> {

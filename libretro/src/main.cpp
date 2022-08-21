@@ -133,10 +133,12 @@ namespace retro::bind {
 
 		template<typename Proto>
 		static void write(Proto& proto) {
+			proto.add_static_method("from", [](u32 id) { return bitcast<arch::mreg>(id); });
 			proto.add_property("id", [](arch::mreg* m) { return m->id; });
 			proto.add_property("kind", [](arch::mreg* m) { return m->get_kind(); });
 			proto.add_property("uid", [](arch::mreg* m) { return m->uid(); });
 			proto.add_method("equals", [](arch::mreg* m, arch::mreg* o) { return *m == *o; });
+			proto.add_property("comperator", [](arch::mreg* m) { return m->uid(); });
 
 			proto.add_method("getName", [](arch::mreg* m, std::optional<arch::handle> h) { return m->name(h.value_or(std::nullopt).get()); });
 			proto.add_method("toString", [](arch::mreg* m, std::optional<arch::handle> h, std::optional<u64>) { return m->to_string(h.value_or(std::nullopt).get()); });
@@ -627,6 +629,11 @@ namespace retro::bind {
 			proto.add_method("toConst", [](z3x::expr* expr, std::optional<bool> coerce) { return z3x::value_of(*expr, coerce.value_or(false)); });
 			proto.add_method("castZx", [](z3x::expr* expr, ir::type ty, std::optional<ir::insn*> i) { return z3x::cast_sx(*expr, assert_sortof(ty, i)); });
 			proto.add_method("castSx", [](z3x::expr* expr, ir::type ty, std::optional<ir::insn*> i) { return z3x::cast(*expr, assert_sortof(ty, i)); });
+
+			proto.add_method("equals", [](z3x::expr* a, z3x::expr* b) { return z3::eq(*a, *b); });
+			proto.add_property("comperator", [](z3x::expr* e) {
+				return make_comperator((Z3_ast)*e);
+			});
 		}
 	};
 	template<>
@@ -641,7 +648,6 @@ namespace retro::bind {
 			proto.add_method("unwrap", [](z3x::variable_set* vs, z3x::expr* expr) {
 				return vs->get(*expr).lock();
 			});
-
 		}
 	};
 

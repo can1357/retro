@@ -33,6 +33,7 @@ declare module "../../../build/libretro*" {
 		get unique(): boolean;
 		get expired(): boolean;
 
+		get comperator(): number;
 		equals(other: any): boolean;
 	}
 
@@ -55,10 +56,13 @@ declare module "../../../build/libretro*" {
 	declare class MReg {
 		protected constructor();
 
+		static from(uid: number): MReg;
+
 		get id(): number;
 		get kind(): RegKind;
 		get uid(): number;
 		equals(o: MReg): boolean;
+		get comperator(): number;
 
 		getName(a: Arch): string;
 		toString(a: ?Arch = null, ip: ?(bigint | number) = null): string;
@@ -168,6 +172,9 @@ declare module "../../../build/libretro*" {
 		castZx(t: Type, ctx: ?Insn = null): Z3Expr;
 		castSx(t: Type, ctx: ?Insn = null): Z3Expr;
 		toConst(coerce: boolean = false): Const;
+
+		get comperator(): number;
+		equals(other: Z3Expr): boolean;
 	}
 
 	// IR types.
@@ -401,6 +408,7 @@ declare module "../../../build/libretro*" {
 		get name(): string;
 		static lookup(name: string): ?Arch;
 		equals(other: any): boolean;
+		get comperator(): number;
 	}
 
 	// Loader interface.
@@ -414,6 +422,7 @@ declare module "../../../build/libretro*" {
 		get name(): string;
 		static lookup(name: string): ?Loader;
 		equals(other: any): boolean;
+		get comperator(): number;
 	}
 
 	// Scheduler and tasks.
