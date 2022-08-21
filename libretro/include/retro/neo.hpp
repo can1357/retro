@@ -36,7 +36,7 @@ namespace retro::neo {
 		high	 = 10,
 		inf	 = 0xFFFF,
 	};
-	static constexpr auto time_slice_coeff = 50ms;
+	static constexpr auto time_slice_coeff = 150ms;
 
 	// Task cancellation exception.
 	//

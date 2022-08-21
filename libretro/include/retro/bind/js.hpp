@@ -502,20 +502,16 @@ namespace retro::bind::js {
 		napi_finalize finalizer;
 		void*			  data;
 	};
-	template<bool HasThis, bool Async, typename F>
-	static callback_details create_callback(const engine& env, std::string_view name, F&& fn) {
+	template<typename F, bool HasThis, bool Async>
+	struct callback_builder {
 		// Resolve function traits.
 		//
-		using Fd		 = std::decay_t<F>;
-		using traits = function_traits<Fd>;
+		using traits = function_traits<F>;
 		using Tuple	 = typename detail::tuple_decay<typename traits::arguments>::type;
 		using R		 = typename traits::return_type;
-
 		static constexpr size_t ArgCount = std::tuple_size_v<Tuple>;
 
-		// Create the callback.
-		//
-		constexpr auto callback = +[](napi_env env, napi_callback_info info) -> napi_value {
+		static napi_value invoke(napi_env env, napi_callback_info info) {
 			// Get callback information.
 			//
 			engine	  ctx						= {env};
@@ -530,14 +526,13 @@ namespace retro::bind::js {
 			// Convert all arguments and invoke the function, propagate any exception.
 			//
 			try {
-
 				auto get_functor = [&]() -> decltype(auto) {
-					if constexpr (StatelessCallable<Fd>) {
-						return Fd{};
-					} else if constexpr (std::is_trivially_destructible_v<Fd> && sizeof(Fd) == sizeof(void*)) {
-						return bitcast<Fd>(data);
+					if constexpr (StatelessCallable<F>) {
+						return F{};
+					} else if constexpr (std::is_trivially_destructible_v<F> && sizeof(F) == sizeof(void*)) {
+						return bitcast<F>(data);
 					} else {
-						return (*(Fd*) data);
+						return (*(F*) data);
 					}
 				};
 
@@ -559,26 +554,31 @@ namespace retro::bind::js {
 				ctx.throw_error(ex.what());
 			}
 			return nullptr;
-		};
-
-		// Create the function and return.
-		//
-		void*			  data;
-		napi_finalize finalizer;
-		if constexpr (StatelessCallable<Fd>) {
-			data		 = nullptr;
-			finalizer = nullptr;
-		} else if constexpr (std::is_trivially_destructible_v<Fd> && sizeof(Fd) == sizeof(void*)) {
-			data		 = bitcast<void*>(fn);
-			finalizer = nullptr;
-		} else {
-			data		 = new Fd(std::forward<F>(fn));
-			finalizer = [](napi_env e, void* data, void*) { delete (Fd*) data; };
 		}
-		return {callback, finalizer, data};
+
+		template<typename T>
+		static callback_details create(const engine& env, std::string_view name, T&& fn) {
+			// Create the function and return.
+			//
+			void*			  data;
+			napi_finalize finalizer;
+			if constexpr (StatelessCallable<F>) {
+				data		 = nullptr;
+				finalizer = nullptr;
+			} else if constexpr (std::is_trivially_destructible_v<F> && sizeof(F) == sizeof(void*)) {
+				data		 = bitcast<void*>(fn);
+				finalizer = nullptr;
+			} else {
+				data		 = new F(std::forward<T>(fn));
+				finalizer = [](napi_env e, void* data, void*) { delete (F*) data; };
+			}
+			return {&invoke, finalizer, data};
+		}
+	};
+	template<bool HasThis, bool Async, typename F>
+	static callback_details create_callback(const engine& env, std::string_view name, F&& fn) {
+		return callback_builder<std::decay_t<F>, HasThis, Async>::create<F>(env, name, std::forward<F>(fn));
 	}
-
-
 	template<bool HasThis, bool Async, typename F>
 	static value create_function(const engine& env, std::string_view name, F&& fn) {
 		auto [callback, finalizer, data] = create_callback<HasThis, Async, F>(env, name, std::forward<F>(fn));
@@ -867,7 +867,7 @@ namespace retro::bind::js {
 
 
 	template<typename T>
-	static value make_ptr(const engine& context, T* ptr) {
+	static value make_ptr(const engine& context, T* ptr, napi_finalize finalizer = nullptr) {
 		if (!ptr)
 			return value::make(context, std::nullopt);
 		napi_value result = nullptr;
@@ -875,23 +875,21 @@ namespace retro::bind::js {
 			context.assert(napi_new_instance(context, typedecl::fetch<T>(context)->ctor.lock(), 0, nullptr, &result));
 		else
 			context.assert(napi_new_instance(context, typedecl::fetch(context, ptr->get_api_id())->ctor.lock(), 0, nullptr, &result));
-		context.assert(napi_wrap(context, result, ptr, nullptr, nullptr, nullptr));
+		context.assert(napi_wrap(context, result, ptr, finalizer, nullptr, nullptr));
 		return {context, result};
 	}
 	template<typename T>
 	static value make_uptr(const engine& context, std::unique_ptr<T> ptr) {
 		if (!ptr)
 			return value::make(context, std::nullopt);
-		value result = make_ptr(context, ptr.get());
-		context.assert(napi_add_finalizer(context, result, ptr.release(), unique_finalizer<T>, nullptr, nullptr));
+		value result = make_ptr(context, ptr.release(), unique_finalizer<T>);
 		return result;
 	}
 	template<typename T>
 	static value make_ref(const engine& context, ref<T> ptr) {
 		if (!ptr)
 			return value::make(context, std::nullopt);
-		value result = make_ptr(context, ptr.get());
-		context.assert(napi_add_finalizer(context, result, ptr.release(), ref_finalizer, nullptr, nullptr));
+		value result = make_ptr(context, ptr.release(), ref_finalizer);
 		RC_ASSERT(napi_type_tag_object(context, result, &strongptr_tag) == napi_ok);
 		return result;
 	}
@@ -899,8 +897,7 @@ namespace retro::bind::js {
 	static value make_weak(const engine& context, weak<T> ptr) {
 		if (!ptr)
 			return value::make(context, std::nullopt);
-		value result = make_ptr(context, ptr.get());
-		context.assert(napi_add_finalizer(context, result, ptr.release(), weak_finalizer, nullptr, nullptr));
+		value result = make_ptr(context, ptr.release(), weak_finalizer);
 		RC_ASSERT(napi_type_tag_object(context, result, &weakptr_tag) == napi_ok);
 		return result;
 	}
@@ -991,7 +988,8 @@ namespace retro::bind::js {
 
 				// Make a temporary table to re-use, create the closure with a reference to to self.
 				auto tmp = js::object::make(b.env, 3);
-				tmp.set("next", [_ = js::reference{b}, tmp = js::reference{tmp}, rng = std::move(range), it = std::optional<Iterator>{}]() mutable {
+
+				auto fn = function::make(b.env, "iterator.next", [_ = js::reference{b}, tmp = js::reference{tmp}, rng = std::move(range), it = std::optional<Iterator>{}]() mutable {
 					if (!it) {
 						it = rng.begin();
 					}
@@ -1005,6 +1003,7 @@ namespace retro::bind::js {
 					}
 					return result;
 				});
+				tmp.set("next", fn);
 				return tmp;
 			};
 
@@ -1394,7 +1393,8 @@ namespace retro::bind {
 		js::value from(const js::engine& context, const range::subrange<Iterator>& rng) const {
 			// Make a temporary table to re-use, create the closure with a reference to to self.
 			auto tmp = js::object::make(context, 3);
-			tmp.set("next", [tmp = js::reference{tmp}, rng = std::move(rng), it = std::optional<Iterator>{}]() mutable {
+
+			auto fn = js::function::make(context.env, "iterator.next", [tmp = js::reference{tmp}, rng = std::move(rng), it = std::optional<Iterator>{}]() mutable {
 				if (!it) {
 					it = rng.begin();
 				}
@@ -1407,6 +1407,8 @@ namespace retro::bind {
 				}
 				return result;
 			});
+
+			tmp.set("next", fn);
 			tmp.set(js::local_context::get(context)->symbol_iterator.lock(), js::local_context::get(context)->return_self.lock());
 			return tmp;
 		}

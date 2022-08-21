@@ -1,52 +1,5 @@
 import * as IR from "./lib/ir";
 import { Image, ImageKind, Scheduler, Workspace } from "./lib/core";
-import * as Arch from "./lib/arch";
-import { Clang } from "./lib/llvm";
-import View from "./lib/view";
-import Builder = IR.Builder;
-import { Opcode, Type } from "./lib/ir";
-import { Expr, VariableSet } from "./lib/z3";
-import { NMap } from "./lib/util";
-
-{
-	const x = new Map<Arch.MReg, number>();
-
-	const a = Arch.MReg.from(13);
-	const b = Arch.MReg.from(13);
-
-	x.set(a, 5);
-
-	console.log("a=%s", x.get(a));
-	console.log("b=%s", x.get(b));
-}
-
-{
-	const x = new NMap<Arch.MReg, number>();
-
-	const a = Arch.MReg.from(13);
-	const b = Arch.MReg.from(13);
-
-	x.set(a, 5);
-
-	console.log("a=%s [%d]", x.get(a), a.comperator);
-	console.log("b=%s [%d]", x.get(b), b.comperator);
-}
-
-{
-	const t1 = Expr.I32(6);
-	const t2 = Expr.I32(7);
-	const t3 = t1.and(t2);
-	console.log(t3.toString());
-	console.log(t3.simplify().toConst().toString());
-
-	const vs = VariableSet.create();
-
-	const testRoutine = IR.Routine.create();
-	const testBlock = testRoutine.addBlock();
-
-	t3.materialize(vs, testBlock);
-	console.log(testBlock.toString(true));
-}
 
 const TEXT_MIN = 0x00000000200000n;
 const TEXT_MAX = 0x00000000c00000n;

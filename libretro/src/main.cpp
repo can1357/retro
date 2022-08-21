@@ -188,7 +188,6 @@ namespace retro::bind {
 			proto.add_property("length", [](arch::minsn* i) { return i->length; });
 			proto.add_property("operandCount", [](arch::minsn* i) { return i->operand_count; });
 			proto.add_property("isSupervisor", [](arch::minsn* i) { return (bool)i->is_supervisor; });
-
 			proto.add_method("getOperand", [](const engine& e, arch::minsn* ins, u32 i) {
 				using value = typename engine::value_type;
 				if (ins->operand_count > i) {
