@@ -347,7 +347,13 @@ declare module "../../../build/libretro*" {
 	}
 	declare class Task<T> extends RefCounted {
 		get queued(): boolean;
+		get pending(): boolean;
+		get cancelled(): boolean;
+		get done(): boolean;
+		get success(): boolean;
+		get error(): boolean;
 
+		cancel(): boolean;
 		queue(sc: ?Scheduler = null): Promise<T>;
 	}
 

@@ -36,8 +36,9 @@ namespace retro::bind {
 	// Task<T>.
 	//
 	struct task_wrapper {
+		ref<neo::task_state> ref;
 		coroutine_handle<> handle;
-		void (*queue_fn)(coroutine_handle<> coro, void* out, const void* eng, neo::scheduler* s);
+		void (*queue_fn)(task_wrapper* self, void* out, const void* eng, neo::scheduler* s);
 		~task_wrapper() {
 			if (handle)
 				handle.destroy();
@@ -51,8 +52,10 @@ namespace retro::bind {
 		value from(const Engine& context, neo::task<T> task) const {
 			auto wrapper		= std::make_unique_for_overwrite<task_wrapper>();
 			wrapper->handle	= coroutine_handle<>::from_address(task.handle.release().address());
-			wrapper->queue_fn = +[](coroutine_handle<> coro, void* out, const void* _eng, neo::scheduler* s) {
-				neo::task<T> ts{&coroutine_handle<promise>::from_address(coro.address()).promise()};
+			wrapper->queue_fn = +[](task_wrapper* self, void* out, const void* _eng, neo::scheduler* s) {
+				auto			 handle = std::exchange(self->handle, nullptr);
+				neo::task<T> ts{&coroutine_handle<promise>::from_address(handle.address()).promise()};
+				self->ref = ts.handle.promise().get_task_state();
 				*(value*) out = value::make(*(const Engine*) _eng, ts.queue(*s));
 			};
 			return value::make(context, std::move(wrapper));
@@ -67,14 +70,36 @@ namespace retro::bind {
 			using engine = typename Proto::engine_type;
 			using value =  typename engine::value_type;
 
-			proto.add_property("queued", [](task_wrapper* ts) { return !ts->handle; });
-
+			proto.add_property("queued", [](task_wrapper* ts) {
+				return ts->ref != nullptr;
+			});
+			proto.add_property("pending", [](task_wrapper* ts) {
+				return ts->ref && ts->ref->promise_pending();
+			});
+			proto.add_property("cancelled", [](task_wrapper* ts) {
+				return ts->ref && ts->ref->promise_cancelled();
+			});
+			proto.add_property("done", [](task_wrapper* ts) {
+				return ts->ref && ts->ref->promise_done();
+			});
+			proto.add_property("success", [](task_wrapper* ts) {
+				return ts->ref && ts->ref->promise_success();
+			});
+			proto.add_property("error", [](task_wrapper* ts) {
+				return ts->ref && ts->ref->promise_error();
+			});
+			proto.add_method("cancel", [](task_wrapper* ts) {
+				if (ts->ref == nullptr) {
+					throw std::runtime_error{"Task is not queued!"};
+				}
+				return ts->ref->promise_cancel();
+			});
 			proto.add_method("queue", [](const engine& eng, task_wrapper* ts, std::optional<neo::scheduler*> sc) {
-				if (!ts->handle) {
+				if (ts->ref != nullptr) {
 					throw std::runtime_error{"Task is already queued!"};
 				}
 				value out;
-				ts->queue_fn(std::exchange(ts->handle, nullptr), &out, &eng, sc.value_or(&neo::scheduler::default_instance));
+				ts->queue_fn(ts, &out, &eng, sc.value_or(&neo::scheduler::default_instance));
 				return out;
 			});
 		}
