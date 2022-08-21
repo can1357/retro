@@ -14,8 +14,8 @@
 namespace retro::bind {
 	// Pointer identification.
 	//
-	static f64 make_comperator(const void* p) {
-		return f64((uptr(p) >> 3) & bit_mask(50));
+	static i52 make_comperator(const void* p) {
+		return i52((uptr(p) >> 3) & bit_mask(52));
 	}
 
 	// Value conversion.
@@ -260,7 +260,7 @@ namespace retro::bind {
 	// Engine required conversions:
 	//  std::nullopt_t
 	//  bool
-	//  i8,i16,i32,i64,i128
+	//  i8,i16,i32,i64,i128,i52
 	//  u8,u16,u32,u64,u128
 	//  f32,f64,f80
 	//  TODO: Vector types

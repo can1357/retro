@@ -663,6 +663,8 @@ namespace retro::bind::js {
 	// Define the local context type.
 	//
 	struct local_context {
+		napi_env __parent;
+
 		// Cached values.
 		//
 		reference symbol_iterator;
@@ -679,22 +681,36 @@ namespace retro::bind::js {
 
 		// Ctor/Dtor for handling variable size data.
 		//
-		local_context() { std::uninitialized_default_construct_n(&types[1], next_api_type_id - 1); }
-		~local_context() { std::destroy_n(&types[1], next_api_type_id - 1); }
+		inline static thread_local local_context* cache = nullptr;
+		local_context(napi_env p) : __parent(p) {
+			RC_ASSERT(!cache);
+			cache = this;
+			std::uninitialized_default_construct_n(&types[1], next_api_type_id - 1);
+		}
+		~local_context() {
+			RC_ASSERT(cache == this);
+			cache = nullptr;
+			std::destroy_n(&types[1], next_api_type_id - 1);
+		}
 
 		// Initializer and getter.
 		//
-		static local_context* get(const engine& e) {
+		static local_context* get_ext(const engine& e) {
 			local_context* ctx = nullptr;
 			napi_get_instance_data(e, (void**) &ctx);
 			RC_ASSERT(ctx);
 			return ctx;
 		}
+		static local_context* get(const engine& e) {
+			local_context* ctx = cache;
+			RC_ASSERT(ctx && ctx->__parent == e.env);
+			return ctx;
+		}
 		static void init(const engine& e) {
 			// Allocate and set the context.
 			//
-			size_t len = sizeof(local_context) + sizeof(typedecl) * (next_api_type_id - 1);
-			local_context* ctx = new (operator new(len)) local_context();
+			size_t			len = sizeof(local_context) + sizeof(typedecl) * (next_api_type_id - 1);
+			local_context* ctx = new (operator new(len)) local_context(e);
 			napi_set_instance_data(
 				 e, ctx, +[](napi_env, void* data, void*) { delete (local_context*) data; }, nullptr);
 
@@ -1217,8 +1233,8 @@ namespace retro::bind {
 		}
 	};
 	//  bool
-	//  i8,i16,i32,i64,TODO: i128
-	//  u8,u16,u32,u64,TODO: u128
+	//  i8,i16,i32,i64,i52 TODO: i128
+	//  u8,u16,u32,u64     TODO: u128
 	//  f32,f64,f80
 	template<typename T>
 		requires(std::is_integral_v<T> || std::is_floating_point_v<T>)
@@ -1306,6 +1322,19 @@ namespace retro::bind {
 			}
 			return result;
 		}
+	};
+	template<>
+	struct converter<js::engine, i52> {
+		bool is(const js::value& val) const {
+			auto t = val.type();
+			return t == napi_boolean || t == napi_number;
+		}
+		js::value from(const js::engine& env, i52 v) const {
+			js::value	res{env, nullptr};
+			env.assert(napi_create_int64(env, v, &res.val));
+			return res;
+		}
+		i52 as(js::value val, bool coerce = false) const { return (i52) val.template as<i64>(coerce); }
 	};
 	// std::string_view
 	template<>
@@ -1409,7 +1438,8 @@ namespace retro::bind {
 			});
 
 			tmp.set("next", fn);
-			tmp.set(js::local_context::get(context)->symbol_iterator.lock(), js::local_context::get(context)->return_self.lock());
+			auto* ctx = js::local_context::get(context);
+			tmp.set(ctx->symbol_iterator.lock(), ctx->return_self.lock());
 			return tmp;
 		}
 	};

@@ -225,6 +225,10 @@ namespace retro {
 		u64 high;
 	};
 
+	// Special type to indicate integers larger than i32 but smaller than i64 (fitting a f64), used for scripting.
+	//
+	enum i52 : i64 {};
+
 	// SIMD types.
 	//
 	using f64x8  = std::array<f64, 8>;	 // Bit-width: 512
