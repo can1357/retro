@@ -856,12 +856,15 @@ static void export_api(const Engine& eng, const Engine::object_type& mod) {
 	mod.freeze();
 }
 
-NAPI_MODULE_INIT() {
-	platform::setup_ansi_escapes();
-	platform::g_affinity_mask = bit_mask(std::min<i32>(i32(std::thread::hardware_concurrency() * 0.75f), 64));
-	neo::scheduler::default_instance.update_affinity();
+static std::once_flag main_thread_init;
 
-	try {
+NAPI_MODULE_INIT() {
+	std::call_once(main_thread_init, []() {
+		fmt::println("Main thread initialized");
+		platform::setup_ansi_escapes();
+		platform::g_affinity_mask = bit_mask(std::min<i32>(i32(std::thread::hardware_concurrency() * 0.75f), 64));
+		neo::scheduler::default_instance.update_affinity();
+
 		core::on_minsn_lift.insert([](arch::handle arch, ir::basic_block* bb, arch::minsn& i, u64 va) {
 			if (i.mnemonic == ZYDIS_MNEMONIC_VMREAD) {
 				auto str		= (const char*) bb->get_image()->slice(i.op[0].m.disp + va + i.length - bb->get_image()->base_address).data();
@@ -877,7 +880,9 @@ NAPI_MODULE_INIT() {
 			}
 			return false;
 		});
+	});
 
+	try {
 		bind::js::engine ctx{env};
 		bind::js::object mod{env, exports};
 		bind::js::local_context::init(env);
