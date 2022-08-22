@@ -1,5 +1,6 @@
 import * as IR from "./lib/ir";
 import { Image, ImageKind, Scheduler, Workspace } from "./lib/core";
+import { TestPass } from "./testpass";
 
 const TEXT_MIN = 0x00000000200000n;
 const TEXT_MAX = 0x00000000c00000n;
@@ -26,7 +27,10 @@ async function liftRecursive(img: Image, rva: number) {
 			}
 		}
 	}
-	return rtn;
+
+	// Run test pass.
+	//
+	return await TestPass.schedule(rtn).then(() => rtn);
 }
 
 async function main() {

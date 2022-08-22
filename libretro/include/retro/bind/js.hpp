@@ -656,7 +656,7 @@ namespace retro::bind::js {
 		static typedecl* fetch(const engine& e, u32 id);
 		template<typename T>
 		static typedecl* fetch(const engine& e) {
-			return fetch(e, bind::user_class<T>::api_id);
+			return fetch(e, user_class<T>::api_id);
 		}
 	};
 
@@ -1120,23 +1120,36 @@ namespace retro::bind::js {
 		typedecl* write() {
 			// Add ref-counter details.
 			//
-			add_property("refcount", [](bind::js::value p) -> u32 {
+			add_property("refcount", [](js::value p) -> u32 {
 				if (is_smartptr(p))
-					return u32(rc_header::from(bind::js::get_ptr<T>(p, true))->ref_counter & bit_mask(32));
+					return u32(rc_header::from(js::get_ptr<T>(p, true))->ref_counter & bit_mask(32));
 				else
 					return 1;
 			});
-			add_property("unique", [](bind::js::value p) {
+			add_property("unique", [](js::value p) {
 				if (is_smartptr(p))
-					return (rc_header::from(bind::js::get_ptr<T>(p, true))->ref_counter & bit_mask(32)) == 1;
+					return (rc_header::from(js::get_ptr<T>(p, true))->ref_counter & bit_mask(32)) == 1;
 				else
 					return true;
 			});
-			add_property("expired", [](bind::js::value p) {
+			add_property("expired", [](js::value p) {
 				if (is_smartptr(p))
-					return (rc_header::from(bind::js::get_ptr<T>(p, true))->ref_counter & bit_mask(32)) == 0;
+					return (rc_header::from(js::get_ptr<T>(p, true))->ref_counter & bit_mask(32)) == 0;
 				else
 					return false;
+			});
+			
+			add_method("refUnsafe", [](js::value p) {
+				if (!js::is_smartptr(p)) {
+					throw std::runtime_error("Cannot use this method on non-smart pointer.");
+				}
+				return (i52) (uptr) ref{js::get_ptr<T>(p)}.release();
+			});
+			add_static_method("fromRefUnsafe", [](i52 r) {
+				if (!r) {
+					throw std::runtime_error("Creating null reference.");
+				}
+				return ref<T>::adopt((T*) (uptr)r);
 			});
 
 			// Add interface details.

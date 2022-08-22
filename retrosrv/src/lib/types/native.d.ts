@@ -333,6 +333,9 @@ declare module "../../../build/libretro*" {
 		static create(o: Opcode, tmp: Type[], ...operands: any[]): Insn;
 	}
 	declare class BasicBlock extends Value {
+		refUnsafe(): number;
+		static fromRefUnsafe(x: number): BasicBlock;
+
 		//		get method(): ?Method;
 		get routine(): ?Routine;
 		get image(): ?Image;
@@ -363,6 +366,9 @@ declare module "../../../build/libretro*" {
 		[Symbol.iterator](): Iterator<Insn>;
 	}
 	declare class Routine extends RefCounted {
+		refUnsafe(): number;
+		static fromRefUnsafe(x: number): Routine;
+
 		//		get method(): ?Method;
 		get image(): ?Image;
 		get workspace(): ?Workspace;
