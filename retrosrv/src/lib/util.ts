@@ -1,5 +1,16 @@
 import View from "./view";
 
+// Stack trace.
+//
+export function stacktrace(): NodeJS.CallSite[] {
+	const prepareStackTraceOrg = Error.prepareStackTrace;
+	const err = new Error();
+	Error.prepareStackTrace = (_, stack) => stack;
+	const stack: any = err.stack;
+	Error.prepareStackTrace = prepareStackTraceOrg;
+	return stack;
+}
+
 // Native class extension.
 //
 export function extendClass(nativeType: any, extensionType: any) {

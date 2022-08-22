@@ -1,5 +1,6 @@
 {
 	"compilerOptions": {
+		"lib": ["ES2022"],
 		"target": "ES2022",
 		"module": "commonjs",
 		"esModuleInterop": true,
@@ -7,9 +8,10 @@
 		"strict": true,
 		"outDir": "./out",
 		"rootDir": "./src",
-		"typeRoots": ["./src", "node_modules/@types"],
+		"typeRoots": ["node_modules/@types", "./src"],
 		"sourceMap": true,
-		"skipLibCheck": true
+		"skipLibCheck": true,
+		"moduleResolution": "node"
 	},
 	"exclude": ["./node_modules"],
 	"ts-node": {
