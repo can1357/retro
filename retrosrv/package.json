@@ -1,18 +1,19 @@
 {
-  "name": "retrosrv",
-  "version": "1.0.0",
-  "description": "",
-  "main": "index.js",
-  "scripts": {
-    "test": "echo \"Error: no test specified\" && exit 1"
-  },
-  "author": "",
-  "license": "ISC",
-  "devDependencies": {
-    "@swc/core": "^1.2.224",
-    "typescript": "^4.7.4"
-  },
-  "dependencies": {
-    "ts-node": "^10.9.1"
-  }
+	"name": "retrosrv",
+	"version": "1.0.0",
+	"description": "",
+	"type": "module",
+	"types": "src/native.d.ts",
+	"scripts": {
+		"test": "echo \"Error: no test specified\" && exit 1"
+	},
+	"author": "",
+	"license": "ISC",
+	"devDependencies": {
+		"@swc/core": "^1.2.224",
+		"typescript": "^4.7.4"
+	},
+	"dependencies": {
+		"ts-node": "^10.9.1"
+	}
 }

@@ -162,9 +162,10 @@ export class Pass {
 	}
 }
 
+import url from "node:url";
 if (Threads.isMainThread) {
 	for (let n = 0; n != THREAD_COUNT; n++) {
-		const worker = new Threads.Worker(__filename);
+		const worker = new Threads.Worker(url.fileURLToPath(new URL(".", import.meta.url)));
 		workers.push(worker);
 
 		worker.on("message", (msg: PassResult) => {

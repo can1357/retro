@@ -1,6 +1,7 @@
 type MapFn<T, Ty> = (v: T) => Ty;
 type PredFn<T> = (v: T) => boolean;
 type EnumFn<T> = (v: T) => void;
+
 declare class View<T> implements Iterable<T> {
 	[Symbol.iterator](): Iterator<T>;
 	toArray(): Array<T>;
@@ -18,11 +19,12 @@ declare class View<T> implements Iterable<T> {
 	slice(offset: number, count: number): View<T>;
 }
 
-declare module "../../../build/libretro*" {
-	import { ImageKind } from "../core/image_kind";
-	import { RegKind } from "../arch/reg_kind";
-	import { Type } from "../ir/builtin_types";
-	import { Opcode, Intrinsic, Op } from "../ir/opcodes";
+declare module LibRetro {
+	import type { ImageKind } from "../core/image_kind";
+	import type { RegKind } from "../arch/reg_kind";
+	import type { Type } from "../ir/builtin_types";
+	import type { Opcode } from "../ir/opcodes";
+	import type { Intrinsic, Op } from "../ir/ops";
 
 	// Generic types used for description of native equivalents.
 	//

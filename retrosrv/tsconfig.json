@@ -1,13 +1,15 @@
 {
 	"compilerOptions": {
-		"lib": ["ES2022"],
-		"target": "ES2022",
-		"module": "commonjs",
+		"lib": ["esnext"],
+		"target": "esnext",
+		"module": "esnext",
 		"esModuleInterop": true,
 		"forceConsistentCasingInFileNames": true,
+		"experimentalDecorators": true,
 		"strict": true,
 		"outDir": "./out",
 		"rootDir": "./src",
+		"resolveJsonModule": true,
 		"typeRoots": ["node_modules/@types", "./src"],
 		"sourceMap": true,
 		"skipLibCheck": true,
@@ -15,6 +17,8 @@
 	},
 	"exclude": ["./node_modules"],
 	"ts-node": {
-		"swc": true
+		"swc": true,
+		"experimentalResolver": true,
+		"experimentalSpecifierResolution": "node"
 	}
 }
